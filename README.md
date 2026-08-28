@@ -262,7 +262,7 @@ Distributed under the MIT License. See [`LICENSE`](./LICENSE) for details.
 
 <div align="center">
 
-**Built with ❤️ by [Your Name]**
+**Built with ❤️ by Subham Nayak **
 
 [LinkedIn](#) · [Portfolio](#) · [Twitter](#)
 

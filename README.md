@@ -1,364 +1,271 @@
-# CuraLink
+<div align="center">
 
-### Connected Care Platform Design for Telehealth Workflows
+# 🩺 CuraLink
+<img width="2079" height="756" alt="image" src="https://github.com/user-attachments/assets/aa0fb947-53aa-4853-a1e7-adf803160d29" />
 
-> CuraLink is currently a documentation-first healthcare platform concept repository with security and licensing policies in place, preparing for full-stack implementation.
 
-![Status](https://img.shields.io/badge/Status-Planning%20%26%20Documentation-informational?style=flat-square)
-![Repository](https://img.shields.io/badge/Repository-Early%20Stage-orange?style=flat-square)
+**AI-powered telehealth platform connecting patients and doctors in real time**
+
+*Intelligent symptom triage · Seamless appointment booking · Live consultations*
+
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
+[![Socket.io](https://img.shields.io/badge/Socket.io-Real--time-black?style=flat-square&logo=socket.io)](https://socket.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](./LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+
+[Live Demo](#) · [Report Bug](../../issues) · [Request Feature](../../issues)
+
+</div>
 
 ---
 
-## 1) Project Overview
+## 📌 Overview
 
-CuraLink defines a product direction for a healthcare coordination platform focused on symptom triage, appointment workflows, and clinician-patient communication. At this stage, the repository contains project documentation and policies, not runnable application code.
+Patients often don't know whether a symptom warrants urgent care, and booking a consultation is slow and fragmented across phone calls, walk-ins, and disconnected systems. **CuraLink** solves this with an AI-assisted symptom triage engine paired with a streamlined booking and real-time communication layer — connecting patients to the right doctor, faster.
 
-| Problem Area | CuraLink Direction | Current State |
-| --- | --- | --- |
-| Fragmented digital care journeys | Unified patient-doctor workflow concept | 🗺️ Planned |
-| Delayed access to consultation | Booking + triage oriented product vision | 🗺️ Planned |
-| Security reporting ambiguity | Dedicated vulnerability disclosure policy | ✅ Implemented (`SECURITY.md`) |
+
 
 ---
 
-## 2) Why CuraLink?
+## 🎥 Demo
 
-From an engineering perspective, this repository is structured as an early foundation emphasizing:
+<div align="center">
 
-- clear product direction before implementation
-- explicit open-source licensing
-- responsible vulnerability reporting workflow
-- transparent status signaling (implemented vs planned)
+*(Screenshot / GIF walkthrough of symptom checker → booking → chat flow)*
 
----
+| Symptom Checker | Appointment Booking | Live Chat |
+|:---:|:---:|:---:|
+| ![placeholder](https://via.placeholder.com/280x180?text=Symptom+Checker) | ![placeholder](https://via.placeholder.com/280x180?text=Booking+Flow) | ![placeholder](https://via.placeholder.com/280x180?text=Live+Chat) |
 
-## 3) Core Features
-
-| Module | Capabilities | Status |
-| --- | --- | --- |
-| Repository Governance | MIT licensing, ignore policy | ✅ Implemented |
-| Security Policy | Private vulnerability reporting instructions | ✅ Implemented |
-| Authentication | No code present yet | 🗺️ Planned |
-| Patient/Doctor Workflows | No code present yet | 🗺️ Planned |
-| Appointment Scheduling | No code present yet | 🗺️ Planned |
-| Real-time Communication | No code present yet | 🗺️ Planned |
-| AI Symptom Triage | No code present yet | 🗺️ Planned |
+</div>
 
 ---
 
-## 4) User Roles & Permissions
+## ✨ Key Features
 
-No role system is implemented in code yet.
-
-| Role | Capability State |
-| --- | --- |
-| Patient | 🗺️ Planned |
-| Doctor | 🗺️ Planned |
-| Admin | 🗺️ Planned |
-
----
-
-## 5) System Architecture
-
-### Current repository architecture
-
-```text
-Repository Root
-   ├── README.md      (product/engineering documentation)
-   ├── SECURITY.md    (vulnerability reporting policy)
-   ├── LICENSE        (MIT license)
-   └── .gitignore     (development artifact exclusions)
-```
-
-### Target application architecture (planned)
-
-```text
-Client UI
-   ↓
-Frontend Application
-   ↓
-API Layer
-   ↓
-Auth + Authorization Middleware
-   ↓
-Domain Services
-   ↓
-Database / External Integrations
-```
+| Feature | Description |
+|---|---|
+| 🔐 **Role-based Access** | Isolated dashboards & permissions for Patients, Doctors, and Admins |
+| 🤖 **AI Symptom Triage** | Claude-powered analysis returning possible causes, urgency level & clinical disclaimers |
+| 📅 **Smart Scheduling** | Doctors define availability windows; patients book conflict-free slots in real time |
+| 💬 **Real-time Messaging** | Socket.io-powered chat per appointment, with typing indicators & read receipts |
+| ✅ **Doctor Verification** | Admin-gated onboarding to ensure platform trust & credential checks |
+| 📊 **Symptom History** | Patients can track past AI assessments over time |
+| 🎥 **Video Consultation** *(roadmap)* | Twilio-based in-app video calls |
 
 ---
 
-## 6) Architecture Diagram
+## 🏗️ System Architecture
 
 ```mermaid
-flowchart TB
-    A[Current: Documentation Repository] --> B[Planned: Frontend Application]
-    A --> C[Planned: Backend API]
-    C --> D[Planned: Auth & Access Control]
-    C --> E[Planned: Domain Services]
-    E --> F[Planned: Database]
-    E --> G[Planned: External AI/Communication Services]
+graph TD
+    A[Patient / Doctor Client<br/>Next.js + Tailwind] -->|REST API| B[Backend API<br/>Node.js + Express]
+    A -->|WebSocket| C[Socket.io Server<br/>Real-time Chat]
+    B --> D[(PostgreSQL<br/>via Prisma ORM)]
+    B -->|Symptom Analysis| E[Claude API<br/>Anthropic]
+    C --> D
+    B --> F[Auth Layer<br/>JWT + Role Middleware]
+    A -.->|Deployed on| G[Vercel]
+    B -.->|Deployed on| H[Railway]
 ```
 
----
-
-## 7) Request / Data Flow
-
-No request-processing code exists yet.
-
-Planned request flow:
-
-```text
-User
- ↓
-Frontend
- ↓
-API Endpoint
- ↓
-Middleware (auth/validation)
- ↓
-Controller/Service
- ↓
-Database
- ↓
-Response
-```
-
----
-
-## 8) Technology Stack
-
-There is no implemented application stack in this repository yet.
-
-| Layer | Technology |
-| --- | --- |
-| Implemented Today | Markdown documentation, MIT license, security policy |
-| Application Runtime | 🗺️ Planned |
-| Frontend Framework | 🗺️ Planned |
-| Backend Framework | 🗺️ Planned |
-| Database | 🗺️ Planned |
-| Testing Framework | 🗺️ Planned |
-| Deployment Platform | 🗺️ Planned |
-
----
-
-## 9) Engineering Highlights
-
-Implemented highlights in the current repository:
-
-- **Security disclosure workflow** via `SECURITY.md`
-- **Clear licensing** via MIT `LICENSE`
-- **Repository hygiene baseline** via `.gitignore`
-- **Transparent maturity level** documented as planning/early-stage
-
----
-
-## 10) Security
-
-Current security-related implementation:
-
-- Vulnerability reporting policy in [`SECURITY.md`](./SECURITY.md)
-- Guidance to report issues privately through GitHub Security Advisories
-- Version support matrix documented for security updates
-
-> This repository does **not** currently include application-layer security controls (e.g., auth middleware, hashing, JWT validation) because no app code is present yet.
-
----
-
-## 11) Database Design
-
-No database models, schema files, or migrations are present in this repository yet.
+<details>
+<summary><b>Data Flow — Symptom Check Request</b></summary>
 
 ```mermaid
-erDiagram
-    USER ||--o{ APPOINTMENT : planned
-    DOCTOR ||--o{ APPOINTMENT : planned
-    PATIENT ||--o{ SYMPTOM_CHECK : planned
+sequenceDiagram
+    participant P as Patient (UI)
+    participant API as Backend API
+    participant AI as Claude API
+    participant DB as PostgreSQL
+
+    P->>API: POST /api/symptoms/analyze { symptoms }
+    API->>AI: Structured prompt + safety guardrails
+    AI-->>API: Possible causes, severity, disclaimer
+    API->>DB: Store symptom_check record
+    API-->>P: JSON response with severity flag
+    alt High severity
+        P->>P: Show "Consult doctor immediately" banner
+    end
 ```
 
-_The ER diagram above represents planned conceptual entities, not implemented schema._
+</details>
 
 ---
 
-## 12) API Documentation
+## 🛠️ Tech Stack
 
-No backend routes or OpenAPI/Swagger definitions are currently present.
+<table>
+<tr>
+<td valign="top" width="33%">
 
-| Method | Endpoint | Authentication | Description |
-| --- | --- | --- | --- |
-| — | — | — | API surface not implemented yet |
+**Frontend**
+- Next.js 15 (App Router)
+- TypeScript
+- Tailwind CSS
+- React Hook Form + Zod
+
+</td>
+<td valign="top" width="33%">
+
+**Backend**
+- Node.js + Express
+- Prisma ORM
+- PostgreSQL
+- Socket.io
+- JWT Authentication
+
+</td>
+<td valign="top" width="33%">
+
+**Infra & AI**
+- Claude API (Anthropic)
+- Vercel (frontend hosting)
+- Railway (backend + DB)
+- GitHub Actions (CI/CD)
+- Jest + React Testing Library
+
+</td>
+</tr>
+</table>
 
 ---
 
-## 13) Project Structure
-
-```text
-CuraLink/
-├── .gitignore
-├── LICENSE
-├── README.md
-└── SECURITY.md
-```
-
----
-
-## 14) Installation & Setup
+## 🚀 Getting Started
 
 ### Prerequisites
 
-```text
-git
-A markdown viewer (optional)
+```
+Node.js >= 20.x
+PostgreSQL >= 15
+npm or pnpm
 ```
 
-### Clone
+### 1. Clone & Install
 
 ```bash
-git clone https://github.com/Shubham-cyber-prog/CuraLink.git
-cd CuraLink
+git clone https://github.com/<your-username>/curalink.git
+cd curalink
+npm install
 ```
 
----
-
-## 15) Environment Variables
-
-No `.env.example` or runtime configuration variables are currently defined in the repository.
-
----
-
-## 16) Running Locally
-
-There are no runnable application services yet.
+### 2. Environment Setup
 
 ```bash
-# currently no start/build scripts are available in this repository
+cp .env.example .env.local
+```
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `CLAUDE_API_KEY` | Anthropic API key for symptom analysis |
+| `JWT_SECRET` | Secret for signing auth tokens |
+| `NEXT_PUBLIC_SOCKET_URL` | Socket.io server URL |
+
+### 3. Database Setup
+
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
+
+### 4. Run Development Server
+
+```bash
+npm run dev
+```
+
+App runs at `http://localhost:3000`
+
+---
+
+## 🧪 Testing & Quality
+
+```bash
+npm test              # Run unit tests
+npm run test:coverage # Coverage report
+npm run lint          # ESLint check
+```
+
+CI pipeline (GitHub Actions) runs lint + tests on every push and pull request. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+---
+
+## 📂 Project Structure
+
+```
+curalink/
+├── src/
+│   ├── app/                # Next.js App Router pages
+│   │   ├── (auth)/         # Login, register
+│   │   ├── (patient)/      # Patient dashboard, symptom checker, appointments
+│   │   ├── (doctor)/       # Doctor dashboard, availability
+│   │   └── (admin)/        # Doctor verification panel
+│   ├── components/         # Reusable UI components
+│   ├── lib/                # API clients, socket setup, utils
+│   └── server/
+│       ├── routes/         # Express route handlers
+│       ├── services/       # Claude API integration, business logic
+│       ├── middleware/     # Auth & role guards
+│       └── prisma/         # schema.prisma, migrations
+├── tests/
+├── .github/workflows/
+└── README.md
 ```
 
 ---
 
-## 17) Production Build
+## 🗺️ Roadmap
 
-Production build configuration is not implemented yet.
+- [x] Project scaffolding (Next.js + TypeScript + Tailwind)
+- [ ] Authentication & role-based dashboards
+- [ ] Doctor availability & booking engine
+- [ ] AI symptom checker (Claude integration)
+- [ ] Real-time chat (Socket.io)
+- [ ] CI/CD pipeline + deployment
+- [ ] Video consultations (Twilio)
+- [ ] Real-world pilot with local clinic feedback
 
----
-
-## 18) Docker
-
-No `Dockerfile` or `docker-compose` configuration is currently present.
-
----
-
-## 19) Testing
-
-No test framework or test suites are currently present.
-
-> Testing infrastructure is currently being expanded.
+Track progress in [Issues](../../issues) and [Projects](../../projects).
 
 ---
 
-## 20) Deployment
+## 🤝 Responsible AI
 
-No deployment configuration files (for Vercel, Railway, Docker, Kubernetes, etc.) are currently present.
+CuraLink's symptom checker is built as a **preliminary guidance tool — not a diagnostic system**:
 
----
-
-## 21) Screenshots / Demo
-
-No versioned screenshots, GIFs, or demo assets are currently stored in this repository.
-
-> Product visuals will be added as implementation progresses.
+- Every response includes a mandatory disclaimer to consult a licensed physician
+- Severity classification is intentionally conservative to avoid under-triaging
+- No response ever states a definitive diagnosis — only possible causes
+- Symptom history is stored securely and never shared without patient consent
 
 ---
 
-## 22) Accessibility
+## 🤝 Contributing
 
-No frontend implementation is available yet, so accessibility behavior cannot be evaluated at this stage.
+Contributions, issues, and feature requests are welcome. Check the [issues page](../../issues) or open a PR.
 
----
-
-## 23) Error Handling & Observability
-
-No runtime application code is present, so error handling, logging, and observability pipelines are not implemented yet.
-
----
-
-## 24) Development Philosophy
-
-CuraLink currently demonstrates a documentation-first and policy-first approach:
-
-- establish product direction early
-- define security disclosure process early
-- keep repository expectations explicit and truthful
-- evolve toward implementation in incremental milestones
-
----
-
-## 25) Roadmap
-
-- [x] Initialize repository baseline (`README.md`, `LICENSE`, `.gitignore`)
-- [x] Add security policy (`SECURITY.md`)
-- [ ] Add frontend application scaffold
-- [ ] Add backend API scaffold
-- [ ] Implement authentication and authorization
-- [ ] Implement patient-doctor workflow modules
-- [ ] Add data schema and migrations
-- [ ] Add tests and CI workflows
-- [ ] Add deployment configuration
-
----
-
-## 26) Known Limitations
-
-- No application source code exists yet.
-- No API endpoints are implemented.
-- No database schema is implemented.
-- No test suite or CI pipeline is present.
-- No deployment assets are present.
-
----
-
-## 27) Security Policy
-
-Please see [`SECURITY.md`](./SECURITY.md) for vulnerability reporting guidelines.
-
----
-
-## 28) Contributing
-
-Contributions are welcome as implementation begins.
-
-```text
-Fork
- ↓
-Create branch
- ↓
-Implement changes
- ↓
-Validate locally
- ↓
-Commit
- ↓
-Open Pull Request
+```bash
+git checkout -b feature/your-feature
+git commit -m "Add: your feature description"
+git push origin feature/your-feature
 ```
 
 ---
 
-## 29) License
+## 📄 License
 
-This repository is licensed under the MIT License. See [`LICENSE`](./LICENSE).
-
----
-
-## 30) Author / Maintainer
-
-- Repository owner: [@Shubham-cyber-prog](https://github.com/Shubham-cyber-prog)
-- Copyright holder listed in [`LICENSE`](./LICENSE): **Subham Nayak**
+Distributed under the MIT License. See [`LICENSE`](./LICENSE) for details.
 
 ---
 
-## 31) Project Status
+<div align="center">
 
-🚧 **Active Planning / Early Development**
+**Built with ❤️ by [Your Name]**
 
-The repository currently contains project documentation and policies; implementation work is planned but not yet committed.
+[LinkedIn](#) · [Portfolio](#) · [Twitter](#)
+
+</div>

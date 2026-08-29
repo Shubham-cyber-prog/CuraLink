@@ -40,9 +40,7 @@ export default function OnboardingScreen() {
 
   if (isChecking) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        {/* Loading placeholder */}
-      </View>
+      <View className="flex-1 items-center justify-center bg-mint-bg" />
     );
   }
 

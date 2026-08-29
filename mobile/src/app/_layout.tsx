@@ -1,5 +1,5 @@
 import '../global.css';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,9 +11,10 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { AuthProvider } from '../lib/auth-context';
+import { AnimatedSplash } from '../components/AnimatedSplash';
 
-// Keep splash screen visible until fonts are loaded
 SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 0, fade: false });
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -22,14 +23,21 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const [splashComplete, setSplashComplete] = useState(false);
+
+  const fontsReady = fontsLoaded || Boolean(fontError);
+
+  const onSplashComplete = useCallback(() => {
+    setSplashComplete(true);
+  }, []);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+    if (fontError) {
+      console.warn('Inter failed to load; continuing with system fonts.');
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontError]);
 
-  if (!fontsLoaded && !fontError) {
+  if (!fontsReady) {
     return null;
   }
 
@@ -43,6 +51,7 @@ export default function RootLayout() {
         <Stack.Screen name="symptom-checker" options={{ presentation: 'card' }} />
         <Stack.Screen name="doctor-booking" options={{ presentation: 'card' }} />
       </Stack>
+      {!splashComplete ? <AnimatedSplash onAnimationComplete={onSplashComplete} /> : null}
     </AuthProvider>
   );
 }

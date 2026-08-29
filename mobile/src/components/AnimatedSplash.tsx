@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Image, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { AccessibilityInfo, Image, StyleSheet, Text } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
@@ -11,7 +11,8 @@ import Animated, {
 import * as SplashScreen from 'expo-splash-screen';
 
 const SPLASH_BG = '#F0FDFA';
-const LOGO_SIZE = 88;
+/** Match expo-splash-screen `imageWidth` so native → JS handoff does not resize the mark. */
+const LOGO_SIZE = 128;
 
 /** In-JS sequence only (native splash is hidden as soon as this view is on screen). */
 export const SPLASH_ENTER_MS = 320;
@@ -27,10 +28,10 @@ interface AnimatedSplashProps {
 }
 
 export function AnimatedSplash({ onAnimationComplete }: AnimatedSplashProps) {
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.8);
+  const markOpacity = useSharedValue(0);
+  const markScale = useSharedValue(0.8);
+  const backdropOpacity = useSharedValue(1);
   const nativeHidden = useRef(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
 
   const hideNativeSplash = useCallback(() => {
     if (nativeHidden.current) return;
@@ -40,88 +41,103 @@ export function AnimatedSplash({ onAnimationComplete }: AnimatedSplashProps) {
 
   useEffect(() => {
     let cancelled = false;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (!cancelled) setReduceMotion(enabled);
-    });
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => {
-      cancelled = true;
-      sub.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    const enter = reduceMotion ? 150 : SPLASH_ENTER_MS;
-    const hold = reduceMotion ? 200 : SPLASH_HOLD_MS;
-    const exit = reduceMotion ? 150 : SPLASH_EXIT_MS;
-    const startScale = reduceMotion ? 1 : 0.8;
-
-    opacity.value = 0;
-    scale.value = startScale;
 
     const finish = (finished?: boolean) => {
       if (finished) runOnJS(onAnimationComplete)();
     };
 
-    opacity.value = withSequence(
-      withTiming(1, { duration: enter, easing: EASE }),
-      withTiming(1, { duration: hold }),
-      withTiming(0, { duration: exit, easing: EASE }, finish),
-    );
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (cancelled) return;
 
-    scale.value = withSequence(
-      withTiming(1, { duration: enter, easing: EASE }),
-      withTiming(1, { duration: hold }),
-      withTiming(reduceMotion ? 1 : 0.98, { duration: exit, easing: EASE }),
-    );
-  }, [onAnimationComplete, opacity, reduceMotion, scale]);
+      const enter = reduceMotion ? 150 : SPLASH_ENTER_MS;
+      const hold = reduceMotion ? 200 : SPLASH_HOLD_MS;
+      const exit = reduceMotion ? 150 : SPLASH_EXIT_MS;
+
+      markOpacity.value = 0;
+      markScale.value = reduceMotion ? 1 : 0.8;
+      backdropOpacity.value = 1;
+
+      markOpacity.value = withSequence(
+        withTiming(1, { duration: enter, easing: EASE }),
+        withTiming(1, { duration: hold }),
+        withTiming(0, { duration: exit, easing: EASE }),
+      );
+
+      markScale.value = withSequence(
+        withTiming(1, { duration: enter, easing: EASE }),
+        withTiming(1, { duration: hold }),
+        withTiming(reduceMotion ? 1 : 0.98, { duration: exit, easing: EASE }),
+      );
+
+      backdropOpacity.value = withSequence(
+        withTiming(1, { duration: enter + hold }),
+        withTiming(0, { duration: exit, easing: EASE }, finish),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backdropOpacity, markOpacity, markScale, onAnimationComplete]);
+
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
 
   const markStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+    opacity: markOpacity.value,
+    transform: [{ scale: markScale.value }],
   }));
 
   return (
-    <View
-      style={styles.root}
+    <Animated.View
+      style={[styles.root, backdropStyle]}
       pointerEvents="auto"
       onLayout={hideNativeSplash}
       accessibilityRole="image"
       accessibilityLabel="CuraLink"
     >
-      <Animated.View style={[styles.mark, markStyle]}>
+      <Animated.View style={[styles.logoWrap, markStyle]}>
         <Image
           source={require('../../assets/images/splash-icon.png')}
           style={styles.logo}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
+      </Animated.View>
+      <Animated.View style={[styles.wordmarkWrap, markStyle]} pointerEvents="none">
         <Text style={styles.wordmark}>
           Cura<Text style={styles.wordmarkAccent}>Link</Text>
         </Text>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 100,
     elevation: 100,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: SPLASH_BG,
   },
-  mark: {
+  logoWrap: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
     width: LOGO_SIZE,
     height: LOGO_SIZE,
   },
+  wordmarkWrap: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: LOGO_SIZE / 2 + 16,
+    alignItems: 'center',
+  },
   wordmark: {
-    marginTop: 16,
     fontFamily: 'Inter_700Bold',
     fontSize: 28,
     letterSpacing: -0.6,

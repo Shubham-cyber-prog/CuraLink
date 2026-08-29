@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useState } from 'react';
 import { Pressable, Text, ActivityIndicator, View, Animated } from 'react-native';
 import type { PressableProps } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
@@ -24,7 +24,8 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  // Keep the animated value stable without reading a ref during render.
+  const [scaleAnim] = useState(() => new Animated.Value(1));
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {

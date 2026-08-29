@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { User, Bell, Lock, HelpCircle, LogOut, ChevronRight, Shield } from 'lucide-react-native';
 import { Card, Badge } from '../../components/UI';
 import { useAuth } from '../../lib/auth-context';

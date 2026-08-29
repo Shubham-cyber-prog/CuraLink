@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Star, Clock, CheckCircle2 } from 'lucide-react-native';
+import { Star, CheckCircle2 } from 'lucide-react-native';
 import { Card } from '../components/UI';
 import { Button } from '../components/Button';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const DOCTORS = [
+interface BookingDoctor {
+  id: string;
+  name: string;
+  specialty: string;
+  rating: number;
+  reviews: number;
+  fee: number;
+}
+
+const DOCTORS: BookingDoctor[] = [
   { id: '1', name: 'Dr. Sarah Jenkins', specialty: 'Cardiology Specialist', rating: 4.9, reviews: 128, fee: 150 },
   { id: '2', name: 'Dr. Michael Chen', specialty: 'General Practice Physician', rating: 4.8, reviews: 342, fee: 90 },
   { id: '3', name: 'Dr. Emily Rodriguez', specialty: 'Pediatrics Specialist', rating: 4.9, reviews: 89, fee: 120 },
@@ -19,7 +28,7 @@ const TIME_SLOTS = ['09:00 AM', '09:30 AM', '10:00 AM', '11:00 AM', '02:00 PM', 
 export default function DoctorBookingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<BookingDoctor | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -49,7 +58,7 @@ export default function DoctorBookingScreen() {
           <Card className="mb-6 border border-slate-100 bg-white flex-row items-center gap-4">
             <View className="h-16 w-16 items-center justify-center rounded-full bg-teal-50 border border-teal-100">
               <Text className="font-inter-semibold text-xl text-teal-600">
-                {selectedDoctor.name.split(' ').map((n: string) => n[0]).join('').slice(0, 3)}
+                {selectedDoctor.name.split(' ').map((namePart) => namePart[0]).join('').slice(0, 3)}
               </Text>
             </View>
             <View className="flex-1">
@@ -145,7 +154,7 @@ export default function DoctorBookingScreen() {
                 <Card className={`flex-row items-center gap-4 border border-slate-100 ${pressed ? 'bg-slate-50' : 'bg-white'}`}>
                   <View className="h-14 w-14 items-center justify-center rounded-full bg-teal-50 border border-teal-100">
                     <Text className="font-inter-semibold text-base text-teal-600">
-                      {doctor.name.split(' ').map((n: string) => n[0]).join('').slice(0, 3)}
+                      {doctor.name.split(' ').map((namePart) => namePart[0]).join('').slice(0, 3)}
                     </Text>
                   </View>
                   <View className="flex-1">

@@ -76,7 +76,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {/* Header */}
       <div className="space-y-1.5">
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Welcome back</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Welcome back</h2>
         <p className="text-sm text-slate-500 font-normal">Sign in to your CuraLink account</p>
       </div>
 
@@ -94,7 +94,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           placeholder="name@example.com"
           value={email}
           onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: "" })); }}
-          className={`w-full px-3.5 py-2 rounded-lg border bg-white text-sm text-slate-900 transition-colors duration-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 ${
+          className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 transition-colors duration-200 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
             fieldErrors.email ? "border-red-300" : "border-slate-200"
           }`}
         />
@@ -139,7 +139,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full h-11 rounded-lg bg-teal-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:bg-teal-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 text-sm font-semibold text-white shadow-sm shadow-teal-700/20 transition-all duration-200 hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-teal-700"
       >
         {isLoading ? (
           <>

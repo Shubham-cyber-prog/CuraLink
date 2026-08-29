@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Home, CalendarCheck, MessageCircle, User } from 'lucide-react-native';
+import { CalendarCheck, Home, Search, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -43,19 +43,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="doctors"
+        options={{
+          title: 'Doctors',
+          tabBarIcon: ({ color, size }) => <Search size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="appointments"
         options={{
           title: 'Appointments',
           tabBarIcon: ({ color, size }) => <CalendarCheck size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Chat',
-          tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="chat" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{

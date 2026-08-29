@@ -10,6 +10,33 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* CuraLink brand palette */
+  --color-teal-50: #f0fdfa;
+  --color-teal-100: #ccfbf1;
+  --color-teal-200: #99f6e4;
+  --color-teal-300: #5eead4;
+  --color-teal-400: #2dd4bf;
+  --color-teal-500: #14b8a6;
+  --color-teal-600: #0d9488;
+  --color-teal-700: #0f766e;
+  --color-teal-800: #115e59;
+  --color-teal-850: #0e4f4b;
+  --color-teal-900: #134e4a;
+
+  --color-charcoal: #1E293B;
+  --color-muted: #64748B;
+  --color-accent: #0891B2;
+  --color-border: #E2E8F0;
+  --color-mint-bg: #F0FDFA;
+
+  /* Animation keyframes */
+  --animate-fadeIn: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +49,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
 }

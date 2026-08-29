@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Shield, Eye, EyeOff } from 'lucide-react-native';
+import { Shield } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { useAuth } from '../../lib/auth-context';
@@ -34,8 +34,8 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
-    } catch (err: any) {
-      setError(err.message || 'Invalid email or password');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +135,7 @@ export default function LoginScreen() {
           </View>
 
           <View className="mt-6 flex-row justify-center">
-            <Text className="font-inter text-sm text-muted">Don't have an account? </Text>
+            <Text className="font-inter text-sm text-muted">Don&apos;t have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
               <Text className="font-inter-semibold text-sm text-teal-600">Sign Up</Text>
             </TouchableOpacity>

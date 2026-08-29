@@ -80,7 +80,7 @@ function ResetPasswordForm() {
         </div>
         <Link
           href="/login"
-          className="inline-flex items-center justify-center w-full h-11 rounded-lg bg-teal-600 text-white text-sm font-semibold gap-2 transition-all duration-200 hover:bg-teal-700 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 text-sm font-semibold text-white shadow-sm shadow-teal-700/20 transition-all duration-200 hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.98]"
         >
           Go to login
         </Link>
@@ -123,7 +123,7 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full h-11 rounded-lg bg-teal-600 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:bg-teal-700 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 text-sm font-semibold text-white shadow-sm shadow-teal-700/20 transition-all duration-200 hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isLoading ? (
           <>

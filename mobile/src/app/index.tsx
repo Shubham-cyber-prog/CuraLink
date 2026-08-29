@@ -1,20 +1,17 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, Animated, ScrollView, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Animated, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Shield, Bot, CalendarCheck, MessageCircle, HeartPulse } from 'lucide-react-native';
+import { Bot, CalendarCheck, MessageCircle, HeartPulse } from 'lucide-react-native';
 import { Button } from '../components/Button';
 import { getToken } from '../lib/secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const { width } = Dimensions.get('window');
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [isChecking, setIsChecking] = useState(true);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [slideAnim] = useState(() => new Animated.Value(20));
 
   useEffect(() => {
     async function checkAuth() {
@@ -43,9 +40,7 @@ export default function OnboardingScreen() {
 
   if (isChecking) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        {/* Loading placeholder */}
-      </View>
+      <View className="flex-1 items-center justify-center bg-mint-bg" />
     );
   }
 
@@ -110,7 +105,7 @@ export default function OnboardingScreen() {
                   AI Symptom Checker
                 </Text>
                 <Text className="font-inter text-muted text-sm mt-1 leading-relaxed">
-                  Describe what you're feeling for immediate, clinical-grade guidance.
+                  Describe what you&apos;re feeling for immediate, clinical-grade guidance.
                 </Text>
               </View>
             </View>

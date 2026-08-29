@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter, useSegments } from 'expo-router';
-import { api, ApiError } from './api';
+import { api } from './api';
 import { saveToken, getToken, removeToken } from './secure-store';
 
 interface User {

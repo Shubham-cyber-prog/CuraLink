@@ -31,8 +31,8 @@ export default function RegisterScreen() {
 
     try {
       await register(name, email, password, role);
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

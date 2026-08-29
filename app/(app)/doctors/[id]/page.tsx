@@ -3,7 +3,7 @@
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, Star, Clock, Video, User, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Star, Video, User, CheckCircle2 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getMotionVariants, staggerContainer, fadeInUp } from "@/components/motion/variants";
@@ -45,7 +45,7 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
           <User className="h-8 w-8" />
         </div>
         <h2 className="text-xl font-semibold text-slate-900">Doctor not found</h2>
-        <p className="mt-2 text-slate-500">We couldn't find the doctor you're looking for.</p>
+        <p className="mt-2 text-slate-500">We couldn&apos;t find the doctor you&apos;re looking for.</p>
         <Button asChild variant="outline" className="mt-6">
           <Link href="/find-doctor">← Back to search</Link>
         </Button>

@@ -24,6 +24,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           router.replace("/login");
           return;
         }
+        const data = await res.json() as { user: { role: string } };
+        if (data.user.role === "DOCTOR") {
+          router.replace("/doctor-dashboard");
+          return;
+        }
         setIsAuthed(true);
       } catch {
         router.replace("/login");

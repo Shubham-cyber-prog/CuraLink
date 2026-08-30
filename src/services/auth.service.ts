@@ -28,14 +28,36 @@ export class AuthService {
 
     const passwordHash = await hashPassword(input.password);
 
-    const user = await prisma.user.create({
-      data: {
-        name: input.name,
-        email: normalizedEmail,
-        passwordHash,
-        role: input.role,
-      },
-    });
+    const user = input.role === Role.DOCTOR
+      ? await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            name: input.name,
+            email: normalizedEmail,
+            passwordHash,
+            role: input.role,
+          },
+        });
+        await tx.doctor.create({
+          data: {
+            userId: createdUser.id,
+            name: input.name.startsWith('Dr.') ? input.name : `Dr. ${input.name}`,
+            specialty: input.specialty!,
+            yearsExperience: input.yearsExperience!,
+            bio: 'New CuraLink doctor profile.',
+            qualifications: [],
+          },
+        });
+        return createdUser;
+      })
+      : await prisma.user.create({
+        data: {
+          name: input.name,
+          email: normalizedEmail,
+          passwordHash,
+          role: input.role,
+        },
+      });
 
     return {
       user: {
@@ -84,9 +106,21 @@ export class AuthService {
     };
   }
 
-  async getUserById(id: string): Promise<SafeUser> {
+  async getUserById(id: string): Promise<SafeUser & { doctorProfile?: { id: string; specialty: string; bio: string; qualifications: string[]; yearsExperience: number; avatarUrl: string | null } | null }> {
     const user = await prisma.user.findUnique({
       where: { id },
+      include: {
+        doctorProfile: {
+          select: {
+            id: true,
+            specialty: true,
+            bio: true,
+            qualifications: true,
+            yearsExperience: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -100,6 +134,7 @@ export class AuthService {
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      ...(user.role === Role.DOCTOR ? { doctorProfile: user.doctorProfile } : {}),
     };
   }
 
@@ -144,4 +179,3 @@ export class AuthService {
 }
 
 export const authService = new AuthService();
-

@@ -29,6 +29,16 @@ export async function GET(request: Request) {
         email: true,
         role: true,
         createdAt: true,
+        doctorProfile: {
+          select: {
+            id: true,
+            specialty: true,
+            bio: true,
+            qualifications: true,
+            yearsExperience: true,
+            avatarUrl: true,
+          },
+        },
       },
     });
 
@@ -36,7 +46,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'User not found' }, { status: 401 });
     }
 
-    return NextResponse.json({ user });
+    return NextResponse.json({
+      user: {
+        ...user,
+        doctorProfile: user.role === 'DOCTOR' ? user.doctorProfile : undefined,
+      },
+    });
   } catch {
     return NextResponse.json({ message: 'Invalid or expired token' }, { status: 401 });
   }

@@ -21,6 +21,14 @@ export async function GET(request: Request) {
 
     const payload = verifyToken(token);
 
+    const user = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { role: true },
+    });
+    if (!user || user.role !== 'PATIENT') {
+      return NextResponse.json({ message: 'Patient access required' }, { status: 403 });
+    }
+
     const appointments = await prisma.appointment.findMany({
       where: { patientId: payload.id },
       orderBy: { createdAt: 'desc' },

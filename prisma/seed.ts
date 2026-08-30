@@ -98,6 +98,7 @@ const SLOT_TEMPLATES = [
 
 async function main() {
   const passwordHash = await bcrypt.hash('Test1234!', 10);
+  const doctorPasswordHash = await bcrypt.hash('Doctor1234!', 10);
 
   // 1. User
   const testUser = await prisma.user.upsert({
@@ -186,6 +187,26 @@ async function main() {
   }
 
   console.log(`Seeded ${DOCTORS_DATA.length} Doctors with slots and reviews.`);
+
+  const doctorUser = await prisma.user.upsert({
+    where: { email: 'doctor@curalink.com' },
+    update: {
+      name: 'Priya Sharma',
+      passwordHash: doctorPasswordHash,
+      role: 'DOCTOR',
+    },
+    create: {
+      name: 'Priya Sharma',
+      email: 'doctor@curalink.com',
+      passwordHash: doctorPasswordHash,
+      role: 'DOCTOR',
+    },
+  });
+  await prisma.doctor.update({
+    where: { id: doctorMap['Dr. Priya Sharma'].doctorId },
+    data: { userId: doctorUser.id },
+  });
+  console.log(`Seeded Doctor account: ${doctorUser.email}`);
 
   // 3. Create real appointments tied to test user and real doctors
   const priya = doctorMap["Dr. Priya Sharma"];

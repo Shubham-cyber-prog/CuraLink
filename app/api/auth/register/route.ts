@@ -4,12 +4,21 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import prisma from '@/src/lib/prisma';
 import { generateToken } from '@/src/utils/jwt';
+import { DOCTOR_SPECIALTIES } from '@/lib/specialties';
 
-const registerSchema = z.object({
+const registerSchema = z.discriminatedUnion('role', [z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-});
+  role: z.literal('PATIENT').default('PATIENT'),
+}), z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  role: z.literal('DOCTOR'),
+  specialty: z.enum(DOCTOR_SPECIALTIES),
+  yearsExperience: z.coerce.number().int().min(0).max(80),
+})]);
 
 export async function POST(request: Request) {
   try {
@@ -33,13 +42,30 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email: email.toLowerCase(),
-        passwordHash,
-        role: 'PATIENT',
-      },
+    const user = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name,
+          email: email.toLowerCase(),
+          passwordHash,
+          role: parsed.data.role,
+        },
+      });
+
+      if (parsed.data.role === 'DOCTOR') {
+        await tx.doctor.create({
+          data: {
+            userId: createdUser.id,
+            name: createdUser.name.startsWith('Dr.') ? createdUser.name : `Dr. ${createdUser.name}`,
+            specialty: parsed.data.specialty,
+            yearsExperience: parsed.data.yearsExperience,
+            bio: 'New CuraLink doctor profile.',
+            qualifications: [],
+          },
+        });
+      }
+
+      return createdUser;
     });
 
     const token = generateToken({

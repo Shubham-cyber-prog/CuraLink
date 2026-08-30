@@ -60,7 +60,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       if (onSuccess) {
         onSuccess(user, token);
       } else {
-        router.push("/dashboard");
+        router.push(user?.role === "DOCTOR" ? "/doctor-dashboard" : "/dashboard");
       }
     } catch {
       setError("Unable to connect to the server. Please try again.");

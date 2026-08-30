@@ -1,6 +1,7 @@
 "use client";
 
 import { FilterChip } from "@/components/doctors/FilterChip";
+import { DOCTOR_SPECIALTIES } from "@/lib/specialties";
 
 interface DoctorFiltersProps {
   specialty: string;
@@ -25,7 +26,7 @@ export function DoctorFilters({
       <div className="space-y-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Specialty</span>
         <div className="flex flex-wrap gap-1.5">
-          {["All", "General Practice", "Cardiology", "Dermatology", "Pediatrics", "Neurology", "Psychiatry"].map((spec) => (
+          {["All", ...DOCTOR_SPECIALTIES].map((spec) => (
             <FilterChip
               key={spec}
               id={`filter-specialty-${spec.toLowerCase().replace(" ", "-")}`}

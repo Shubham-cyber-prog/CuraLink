@@ -26,20 +26,23 @@ enum ConsultationType {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  name         String
-  email        String        @unique
-  passwordHash String
-  role         Role          @default(PATIENT)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  appointments Appointment[]
+  id            String        @id @default(uuid())
+  name          String
+  email         String        @unique
+  passwordHash  String
+  role          Role          @default(PATIENT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  appointments  Appointment[]
+  doctorProfile Doctor?
 
   @@map("users")
 }
 
 model Doctor {
   id              String             @id @default(uuid())
+  userId          String?            @unique
+  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   name            String
   specialty       String
   bio             String

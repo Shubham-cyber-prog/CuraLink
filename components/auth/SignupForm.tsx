@@ -7,6 +7,7 @@ import { User, Stethoscope, Check } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
 import { PasswordStrength } from "./PasswordStrength";
 import { AuthError } from "./AuthError";
+import { DOCTOR_SPECIALTIES } from "@/lib/specialties";
 
 type RoleOption = "PATIENT" | "DOCTOR";
 
@@ -17,6 +18,8 @@ export function SignupForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<RoleOption>("PATIENT");
+  const [specialty, setSpecialty] = useState("");
+  const [yearsExperience, setYearsExperience] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +45,15 @@ export function SignupForm() {
     else if (!/[0-9]/.test(password)) errors.password = "Password must contain at least one number";
     if (!confirmPassword) errors.confirmPassword = "Confirm your password";
     else if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match";
+    if (role === "DOCTOR") {
+      if (!specialty) errors.specialty = "Select your specialty";
+      if (!yearsExperience) errors.yearsExperience = "Years of experience is required";
+      else if (!Number.isInteger(Number(yearsExperience)) || Number(yearsExperience) < 0) errors.yearsExperience = "Enter a valid number of years";
+    }
     if (!agreedToTerms) errors.terms = "You must agree to the terms";
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [name, email, password, confirmPassword, agreedToTerms]);
+  }, [name, email, password, confirmPassword, role, specialty, yearsExperience, agreedToTerms]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +69,8 @@ export function SignupForm() {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
+          role,
+          ...(role === "DOCTOR" ? { specialty, yearsExperience: Number(yearsExperience) } : {}),
         }),
       });
       const data = await res.json();
@@ -70,7 +80,7 @@ export function SignupForm() {
         return;
       }
 
-      router.push("/dashboard");
+      router.push(data.user.role === "DOCTOR" ? "/doctor-dashboard" : "/dashboard");
     } catch {
       setError("Unable to connect to the server. Please try again.");
     } finally {
@@ -90,6 +100,29 @@ export function SignupForm() {
         <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Create your account</h2>
         <p className="text-sm text-slate-500 font-normal">Join CuraLink to get started</p>
       </div>
+
+      {role === "DOCTOR" && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="signup-specialty" className="text-sm font-medium text-slate-700">Specialty</label>
+            <select
+              id="signup-specialty"
+              value={specialty}
+              onChange={(e) => { setSpecialty(e.target.value); clearFieldError("specialty"); }}
+              className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${fieldErrors.specialty ? "border-red-300" : "border-slate-200"}`}
+            >
+              <option value="">Select specialty</option>
+              {DOCTOR_SPECIALTIES.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            {fieldErrors.specialty && <span className="text-xs font-medium text-red-600">{fieldErrors.specialty}</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="signup-experience" className="text-sm font-medium text-slate-700">Years of experience</label>
+            <input id="signup-experience" type="number" min="0" max="80" value={yearsExperience} onChange={(e) => { setYearsExperience(e.target.value); clearFieldError("yearsExperience"); }} className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${fieldErrors.yearsExperience ? "border-red-300" : "border-slate-200"}`} />
+            {fieldErrors.yearsExperience && <span className="text-xs font-medium text-red-600">{fieldErrors.yearsExperience}</span>}
+          </div>
+        </div>
+      )}
 
       <AuthError message={error} />
 

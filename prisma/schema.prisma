@@ -13,14 +13,89 @@ enum Role {
   ADMIN
 }
 
+enum AppointmentStatus {
+  CONFIRMED
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum ConsultationType {
+  VIDEO
+  IN_PERSON
+}
+
 model User {
-  id           String   @id @default(uuid())
+  id           String        @id @default(uuid())
   name         String
-  email        String   @unique
+  email        String        @unique
   passwordHash String
-  role         Role     @default(PATIENT)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         Role          @default(PATIENT)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
 
   @@map("users")
+}
+
+model Doctor {
+  id              String             @id @default(uuid())
+  name            String
+  specialty       String
+  bio             String
+  qualifications  String[]
+  rating          Float              @default(5.0)
+  reviewCount     Int                @default(0)
+  avatarUrl       String?
+  yearsExperience Int                @default(5)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  appointments    Appointment[]
+  availableSlots  AvailabilitySlot[]
+  reviews         Review[]
+
+  @@map("doctors")
+}
+
+model AvailabilitySlot {
+  id          String       @id @default(uuid())
+  doctorId    String
+  doctor      Doctor       @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  date        String
+  time        String
+  isBooked    Boolean      @default(false)
+  appointment Appointment?
+
+  @@map("availability_slots")
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  doctorId    String
+  doctor      Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  patientName String
+  rating      Int
+  comment     String
+  createdAt   DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model Appointment {
+  id               String            @id @default(uuid())
+  patientId        String
+  patient          User              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId         String?
+  doctor           Doctor?           @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  slotId           String?           @unique
+  slot             AvailabilitySlot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  doctorName       String
+  doctorSpecialty  String
+  appointmentDate  String
+  appointmentTime  String
+  status           AppointmentStatus @default(CONFIRMED)
+  consultationType ConsultationType  @default(VIDEO)
+  createdAt        DateTime          @default(now())
+
+  @@map("appointments")
 }

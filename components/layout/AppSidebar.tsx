@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Stethoscope,
   CalendarDays,
-  User,
+  User as UserIcon,
   LogOut,
   ShieldCheck,
   X,
@@ -27,6 +28,11 @@ interface NavItem {
 interface AppSidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
+}
+
+interface UserProfile {
+  name: string;
+  email: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,13 +58,9 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: "My Profile",
     href: "/profile",
-    icon: <User className="h-[18px] w-[18px]" aria-hidden="true" />,
+    icon: <UserIcon className="h-[18px] w-[18px]" aria-hidden="true" />,
   },
 ];
-
-// TODO: Replace with real user data from auth context / API
-const MOCK_USER_NAME = "Alex Johnson";
-const MOCK_USER_EMAIL = "alex@example.com";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -67,15 +69,40 @@ const MOCK_USER_EMAIL = "alex@example.com";
 export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [user, setUser] = useState<UserProfile | null>(null);
 
-  const handleLogout = () => {
-    localStorage.removeItem("curalink_token");
-    sessionStorage.removeItem("curalink_token");
-    router.push("/login");
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        }
+      } catch (err) {
+        console.error("Failed to fetch user in sidebar", err);
+      }
+    }
+    fetchUser();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout error", err);
+    } finally {
+      localStorage.removeItem("curalink_token");
+      sessionStorage.removeItem("curalink_token");
+      router.push("/login");
+    }
   };
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
+
+  const userName = user?.name || "Patient";
+  const userEmail = user?.email || "";
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
@@ -134,13 +161,15 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
       <div className="border-t border-slate-200/70 px-4 py-4">
         <div className="mb-3 flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700">
-            <User className="h-4 w-4" aria-hidden="true" />
+            <UserIcon className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-800">
-              {MOCK_USER_NAME}
+              {userName}
             </p>
-            <p className="truncate text-xs text-slate-500">{MOCK_USER_EMAIL}</p>
+            {userEmail && (
+              <p className="truncate text-xs text-slate-500">{userEmail}</p>
+            )}
           </div>
         </div>
         <button

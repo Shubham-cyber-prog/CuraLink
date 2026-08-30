@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -39,10 +39,10 @@ interface Appointment {
   id: string;
   doctorName: string;
   specialty: string;
-  date: string; // ISO-8601 date string
-  time: string; // e.g. "10:30 AM"
+  date: string;
+  time: string;
   type: "Video" | "In-Person";
-  status: "CONFIRMED" | "PENDING" | "CANCELLED";
+  status: "CONFIRMED" | "PENDING" | "COMPLETED" | "CANCELLED";
 }
 
 interface DashboardStats {
@@ -50,36 +50,6 @@ interface DashboardStats {
   completedCount: number;
   prescriptionsCount: number;
 }
-
-// ---------------------------------------------------------------------------
-// Mock data — TODO: replace with real API calls once endpoints are ready
-// ---------------------------------------------------------------------------
-
-const MOCK_USER: UserProfile = {
-  id: "usr_placeholder",
-  name: "Alex Johnson",
-  email: "alex@example.com",
-  role: "PATIENT",
-};
-
-const MOCK_STATS: DashboardStats = {
-  upcomingCount: 1,
-  completedCount: 4,
-  prescriptionsCount: 2,
-};
-
-// Set to null to test the empty state
-const MOCK_APPOINTMENT: Appointment | null = {
-  id: "appt_placeholder",
-  doctorName: "Dr. Priya Sharma",
-  specialty: "General Practice",
-  date: "Friday, Sep 5, 2026",
-  time: "10:30 AM",
-  type: "Video",
-  status: "CONFIRMED",
-};
-
-
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -119,6 +89,7 @@ function AppointmentCard({ appt }: { appt: Appointment }) {
   const statusColors: Record<Appointment["status"], string> = {
     CONFIRMED: "bg-teal-50 text-teal-700 ring-1 ring-teal-200",
     PENDING: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+    COMPLETED: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
     CANCELLED: "bg-red-50 text-red-600 ring-1 ring-red-200",
   };
 
@@ -253,6 +224,27 @@ function QuickActionCard({
   );
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="animate-pulse space-y-10">
+      <div className="space-y-3">
+        <div className="h-6 w-32 rounded-full bg-slate-200" />
+        <div className="h-9 w-64 rounded-lg bg-slate-200" />
+        <div className="h-5 w-48 rounded bg-slate-200" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-24 rounded-2xl bg-slate-200" />
+        ))}
+      </div>
+      <div className="space-y-4">
+        <div className="h-6 w-40 rounded bg-slate-200" />
+        <div className="h-44 rounded-2xl bg-slate-200" />
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -261,9 +253,49 @@ export default function DashboardPage() {
   const reduceMotion = Boolean(useReducedMotion());
   const variants = getMotionVariants(reduceMotion);
 
-  const [user] = useState<UserProfile | null>(MOCK_USER);
-  const [stats] = useState<DashboardStats>(MOCK_STATS);
-  const [nextAppointment] = useState<Appointment | null>(MOCK_APPOINTMENT);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    upcomingCount: 0,
+    completedCount: 0,
+    prescriptionsCount: 2,
+  });
+  const [nextAppointment, setNextAppointment] = useState<Appointment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [meRes, apptsRes] = await Promise.all([
+          fetch("/api/auth/me"),
+          fetch("/api/appointments"),
+        ]);
+
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          setUser(meData.user);
+        }
+
+        if (apptsRes.ok) {
+          const apptsData = await apptsRes.json();
+          setStats(apptsData.stats);
+          const upcoming = apptsData.appointments.find(
+            (a: Appointment) => a.status === "CONFIRMED" || a.status === "PENDING"
+          );
+          setNextAppointment(upcoming || null);
+        }
+      } catch (err) {
+        console.error("Failed to load dashboard data", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   const firstName = user?.name.split(" ")[0] ?? "there";
   const hour = new Date().getHours();
@@ -273,123 +305,117 @@ export default function DashboardPage() {
   return (
     <>
       {/* Greeting */}
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={variants.container}
-          className="mb-10"
-        >
-          <motion.div variants={fadeInUp} className="flex flex-col gap-1">
-            <div className="inline-flex items-center gap-1.5 self-start rounded-full border border-teal-200/80 bg-white/70 px-3 py-1 text-xs font-medium text-teal-800 shadow-sm backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Patient Portal
-            </div>
-            <h1 className="mt-3 text-3xl font-normal tracking-tight text-slate-900 sm:text-4xl">
-              {greeting},{" "}
-              <span className="font-display italic text-teal-800">
-                {firstName}
-              </span>
-              .
-            </h1>
-            <p className="text-base text-slate-500">
-              Here&apos;s a summary of your health activity.
-            </p>
-          </motion.div>
-        </motion.div>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Stats cards */}
-        {/* ---------------------------------------------------------------- */}
-        <motion.section
-          aria-label="Health summary"
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          <StatCard
-            icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
-            label="Upcoming appointments"
-            value={stats.upcomingCount}
-            accent="bg-teal-100 text-teal-700"
-          />
-          <StatCard
-            icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />}
-            label="Completed visits"
-            value={stats.completedCount}
-            accent="bg-cyan-100 text-cyan-700"
-          />
-          <StatCard
-            icon={<HeartPulse className="h-5 w-5" aria-hidden="true" />}
-            label="Active prescriptions"
-            value={stats.prescriptionsCount}
-            accent="bg-violet-100 text-violet-700"
-          />
-        </motion.section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Upcoming appointment */}
-        {/* ---------------------------------------------------------------- */}
-        <motion.section
-          aria-label="Next appointment"
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="mb-10"
-        >
-          <motion.h2
-            variants={fadeInUp}
-            className="mb-4 text-lg font-semibold text-slate-800"
-          >
-            Next appointment
-          </motion.h2>
-          {nextAppointment ? (
-            <AppointmentCard appt={nextAppointment} />
-          ) : (
-            <EmptyAppointmentState />
-          )}
-        </motion.section>
-
-        {/* ---------------------------------------------------------------- */}
-        {/* Quick actions */}
-        {/* ---------------------------------------------------------------- */}
-        <motion.section
-          aria-label="Quick actions"
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-        >
-          <motion.h2
-            variants={fadeInUp}
-            className="mb-4 text-lg font-semibold text-slate-800"
-          >
-            Quick actions
-          </motion.h2>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <QuickActionCard
-              id="quick-action-find-doctor"
-              href="/find-doctor"
-              icon={<Stethoscope className="h-5 w-5" aria-hidden="true" />}
-              label="Find a Doctor"
-              description="Browse specialists and book a visit"
-            />
-            <QuickActionCard
-              id="quick-action-appointments"
-              href="/appointments"
-              icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
-              label="My Appointments"
-              description="View history and upcoming sessions"
-            />
-            <QuickActionCard
-              id="quick-action-profile"
-              href="/profile"
-              icon={<User className="h-5 w-5" aria-hidden="true" />}
-              label="My Profile"
-              description="Manage account and health records"
-            />
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={variants.container}
+        className="mb-10"
+      >
+        <motion.div variants={fadeInUp} className="flex flex-col gap-1">
+          <div className="inline-flex items-center gap-1.5 self-start rounded-full border border-teal-200/80 bg-white/70 px-3 py-1 text-xs font-medium text-teal-800 shadow-sm backdrop-blur">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Patient Portal
           </div>
-        </motion.section>
+          <h1 className="mt-3 text-3xl font-normal tracking-tight text-slate-900 sm:text-4xl">
+            {greeting},{" "}
+            <span className="font-display italic text-teal-800">
+              {firstName}
+            </span>
+            .
+          </h1>
+          <p className="text-base text-slate-500">
+            Here&apos;s a summary of your health activity.
+          </p>
+        </motion.div>
+      </motion.div>
+
+      {/* Stats cards */}
+      <motion.section
+        aria-label="Health summary"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+        className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        <StatCard
+          icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
+          label="Upcoming appointments"
+          value={stats.upcomingCount}
+          accent="bg-teal-100 text-teal-700"
+        />
+        <StatCard
+          icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />}
+          label="Completed visits"
+          value={stats.completedCount}
+          accent="bg-cyan-100 text-cyan-700"
+        />
+        <StatCard
+          icon={<HeartPulse className="h-5 w-5" aria-hidden="true" />}
+          label="Active prescriptions"
+          value={stats.prescriptionsCount}
+          accent="bg-violet-100 text-violet-700"
+        />
+      </motion.section>
+
+      {/* Upcoming appointment */}
+      <motion.section
+        aria-label="Next appointment"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+        className="mb-10"
+      >
+        <motion.h2
+          variants={fadeInUp}
+          className="mb-4 text-lg font-semibold text-slate-800"
+        >
+          Next appointment
+        </motion.h2>
+        {nextAppointment ? (
+          <AppointmentCard appt={nextAppointment} />
+        ) : (
+          <EmptyAppointmentState />
+        )}
+      </motion.section>
+
+      {/* Quick actions */}
+      <motion.section
+        aria-label="Quick actions"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
+        <motion.h2
+          variants={fadeInUp}
+          className="mb-4 text-lg font-semibold text-slate-800"
+        >
+          Quick actions
+        </motion.h2>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <QuickActionCard
+            id="quick-action-find-doctor"
+            href="/find-doctor"
+            icon={<Stethoscope className="h-5 w-5" aria-hidden="true" />}
+            label="Find a Doctor"
+            description="Browse specialists and book a visit"
+          />
+          <QuickActionCard
+            id="quick-action-appointments"
+            href="/appointments"
+            icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
+            label="My Appointments"
+            description="View history and upcoming sessions"
+          />
+          <QuickActionCard
+            id="quick-action-profile"
+            href="/profile"
+            icon={<User className="h-5 w-5" aria-hidden="true" />}
+            label="My Profile"
+            description="Manage account and health records"
+          />
+        </div>
+      </motion.section>
     </>
   );
 }

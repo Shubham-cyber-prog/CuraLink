@@ -54,3 +54,15 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Network Configuration for API Backend
+
+When running the mobile app in Expo Go or an emulator, it cannot connect to the backend using `localhost`. You must configure `EXPO_PUBLIC_API_URL` correctly.
+
+1. **Find your local IP address**:
+   - On Mac: Run `ipconfig getifaddr en0` in the terminal.
+   - On Linux/Windows: Run `hostname -I` or `ipconfig`.
+2. **Update your `.env`**: Set `EXPO_PUBLIC_API_URL=http://<YOUR_IP>:3000/api` in `mobile/.env`.
+3. **Connect to the same network**: Ensure your phone and development machine are on the same WiFi network.
+4. **Start the backend properly**: Start your Next.js backend with `next dev -H 0.0.0.0` (which is configured in the root `package.json`'s dev script). This allows it to accept connections from other devices on the network.
+5. **Restart Expo**: If you change `.env`, restart Expo and clear the cache by running `npx expo start -c`.

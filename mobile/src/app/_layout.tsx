@@ -14,7 +14,11 @@ import { AuthProvider } from '../lib/auth-context';
 import { AnimatedSplash } from '../components/AnimatedSplash';
 
 SplashScreen.preventAutoHideAsync();
-SplashScreen.setOptions({ duration: 0, fade: false });
+try {
+  SplashScreen.setOptions({ duration: 0, fade: false });
+} catch {
+  // Ignore in Expo Go
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({

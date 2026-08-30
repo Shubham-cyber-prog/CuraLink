@@ -8,7 +8,7 @@ export interface JwtPayload {
   role: Role;
 }
 
-export function generateToken(payload: JwtPayload): string {
+export const generateToken = (payload: JwtPayload | Record<string, unknown>): string => {
   const options: SignOptions = {
     expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
   };
@@ -49,7 +49,7 @@ export function verifyResetToken(token: string, passwordHash: string): { id: str
   }
 }
 
-export function decodeToken(token: string): any {
+export function decodeToken(token: string): unknown {
   return jwt.decode(token);
 }
 

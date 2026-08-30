@@ -8,8 +8,6 @@ import { PasswordInput } from "./PasswordInput";
 import { PasswordStrength } from "./PasswordStrength";
 import { AuthError } from "./AuthError";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
 type RoleOption = "PATIENT" | "DOCTOR";
 
 export function SignupForm() {
@@ -56,25 +54,24 @@ export function SignupForm() {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           password,
-          role,
         }),
       });
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
+      if (!res.ok) {
         setError(data.message || "Registration failed. Please try again.");
         return;
       }
 
-      router.push("/login?registered=true");
-    } catch (err) {
+      router.push("/dashboard");
+    } catch {
       setError("Unable to connect to the server. Please try again.");
     } finally {
       setIsLoading(false);
@@ -97,7 +94,7 @@ export function SignupForm() {
       <AuthError message={error} />
 
       {/* Role Selector */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {roles.map((r) => (
           <button
             key={r.value}

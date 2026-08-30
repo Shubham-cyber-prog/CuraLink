@@ -1,17 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useRouter, useSegments } from 'expo-router';
-import { api } from './api';
+import { login as apiLogin, register as apiRegister, logout as apiLogout, getCurrentUser } from './api';
+import type { AuthUser } from './api';
 import { saveToken, getToken, removeToken } from './secure-store';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -24,6 +20,8 @@ interface AuthContextValue extends AuthState {
   refreshUser: () => Promise<void>;
 }
 
+// ── Context ───────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function useAuth(): AuthContextValue {
@@ -32,9 +30,14 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+// ── Provider ──────────────────────────────────────────────────────────────────
+
 /**
  * AuthProvider — wraps the app and manages JWT auth state globally.
- * Handles auto-redirect based on auth status using Expo Router segments.
+ *
+ * Route guard logic:
+ *  • Unauthenticated + in (tabs)  → redirect to /(auth)/login
+ *  • Authenticated   + in (auth)  → redirect to /(tabs)
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -47,13 +50,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
 
-  // ── Bootstrap: check for existing token on mount ──
+  // ── Bootstrap: restore session from SecureStore on mount ──────────────────
   useEffect(() => {
     async function bootstrap() {
       try {
         const storedToken = await getToken();
         if (storedToken) {
-          const res = await api.get<{ user: User }>('/auth/me');
+          const res = await getCurrentUser();
           if (res.success && res.data) {
             setState({
               user: res.data.user,
@@ -65,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch {
-        // Token invalid or expired — clear it
+        // Token invalid or network error — clear it and treat as logged out.
         await removeToken();
       }
       setState(prev => ({ ...prev, isLoading: false }));
@@ -73,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bootstrap();
   }, []);
 
-  // ── Route guard: redirect based on auth state ──
+  // ── Route guard: redirect based on auth state after loading ───────────────
   useEffect(() => {
     if (state.isLoading) return;
 
@@ -81,16 +84,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const inTabsGroup = segments[0] === '(tabs)';
 
     if (state.isAuthenticated && inAuthGroup) {
-      // Logged in but on auth screen → go to dashboard
+      // Logged-in user lands on an auth screen → send to dashboard
       router.replace('/(tabs)');
     } else if (!state.isAuthenticated && inTabsGroup) {
-      // Not logged in but on protected screen → go to onboarding
-      router.replace('/');
+      // Unauthenticated user tries to reach a protected tab → send to login
+      router.replace('/(auth)/login');
     }
   }, [state.isAuthenticated, state.isLoading, segments, router]);
 
+  // ── Auth actions ──────────────────────────────────────────────────────────
+
   const login = useCallback(async (email: string, password: string) => {
-    const res = await api.post<{ token: string; user: User }>('/auth/login', { email, password });
+    const res = await apiLogin(email.trim().toLowerCase(), password);
     if (res.data?.token) {
       await saveToken(res.data.token);
       setState({
@@ -102,8 +107,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string, role: 'PATIENT' | 'DOCTOR') => {
-    const res = await api.post<{ token: string; user: User }>('/auth/register', { name, email, password, role });
+  const register = useCallback(async (
+    name: string,
+    email: string,
+    password: string,
+    role: 'PATIENT' | 'DOCTOR',
+  ) => {
+    const res = await apiRegister(name, email.trim().toLowerCase(), password, role);
     if (res.data?.token) {
       await saveToken(res.data.token);
       setState({
@@ -116,24 +126,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await removeToken();
+    await apiLogout(); // calls POST /auth/logout + clears SecureStore
     setState({
       user: null,
       token: null,
       isLoading: false,
       isAuthenticated: false,
     });
-    router.replace('/');
+    router.replace('/(auth)/login');
   }, [router]);
 
   const refreshUser = useCallback(async () => {
     try {
-      const res = await api.get<{ user: User }>('/auth/me');
+      const res = await getCurrentUser();
       if (res.success && res.data) {
         setState(prev => ({ ...prev, user: res.data!.user }));
       }
     } catch {
-      // Silently fail — user data will be stale
+      // Silently fail — caller can decide to re-try
     }
   }, []);
 

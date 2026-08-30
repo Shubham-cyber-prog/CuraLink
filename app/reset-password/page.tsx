@@ -59,8 +59,8 @@ function ResetPasswordForm() {
       }
 
       setIsSuccess(true);
-    } catch (err) {
-      setError("Unable to connect to the server. Please try again.");
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

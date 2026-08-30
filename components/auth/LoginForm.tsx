@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { PasswordInput } from "./PasswordInput";
 import { AuthError } from "./AuthError";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
 interface LoginFormProps {
   onSuccess?: (user: Record<string, unknown>, token: string) => void;
 }
@@ -37,35 +35,34 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
+      if (!res.ok) {
         setError(data.message || "Invalid email or password");
         return;
       }
 
-      const { token, user } = data.data;
+      const { token, user } = data;
 
-      if (rememberMe) {
-        localStorage.setItem("curalink_token", token);
-      } else {
-        sessionStorage.setItem("curalink_token", token);
+      if (token) {
+        if (rememberMe) {
+          localStorage.setItem("curalink_token", token);
+        } else {
+          sessionStorage.setItem("curalink_token", token);
+        }
       }
 
       if (onSuccess) {
         onSuccess(user, token);
       } else {
-        const role = user.role as string;
-        if (role === "DOCTOR") router.push("/doctor-dashboard");
-        else if (role === "ADMIN") router.push("/admin-dashboard");
-        else router.push("/dashboard");
+        router.push("/dashboard");
       }
-    } catch (err) {
+    } catch {
       setError("Unable to connect to the server. Please try again.");
     } finally {
       setIsLoading(false);

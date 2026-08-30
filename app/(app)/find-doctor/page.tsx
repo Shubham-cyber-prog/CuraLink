@@ -4,10 +4,10 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Filter, RefreshCw, ChevronLeft, Sparkles } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { MotionButton } from "@/components/motion/MotionButton";
-import { getMotionVariants, staggerContainer } from "@/components/motion/variants";
+import { staggerContainer } from "@/components/motion/variants";
 import { MOCK_DOCTORS } from "@/lib/mock-data";
 import { DoctorCard } from "@/components/doctors/DoctorCard";
 import { DoctorFilters } from "@/components/doctors/DoctorFilters";
@@ -16,8 +16,6 @@ import { DashboardHeader } from "@/components/layout/DashboardHeader";
 
 export default function FindDoctorPage() {
   const router = useRouter();
-  const reduceMotion = Boolean(useReducedMotion());
-  const variants = getMotionVariants(reduceMotion);
 
   const [search, setSearch] = useState("");
   const [specialty, setSpecialty] = useState("All");

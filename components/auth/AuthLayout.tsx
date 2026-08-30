@@ -62,13 +62,13 @@ export function AuthLayout({ children, subtitle }: AuthLayoutProps) {
         </div>
       </div>
 
-      <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-12 md:px-12 lg:px-20">
-        <div className="mb-8 flex select-none items-center md:hidden">
+      <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 md:px-12 lg:px-20">
+        <div className="mb-6 flex select-none items-center md:hidden">
           <Logo />
         </div>
 
         <div className="flex w-full max-w-[440px] flex-col gap-6">
-          <div className="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-900/5 sm:p-8">
+          <div className="rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-8 shadow-sm shadow-slate-900/5">
             {children}
           </div>
           <div className="flex justify-center gap-4 text-center text-xs text-slate-400">

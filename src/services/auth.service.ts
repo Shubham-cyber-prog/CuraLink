@@ -131,8 +131,8 @@ export class AuthService {
 
     try {
       verifyResetToken(token, user.passwordHash);
-    } catch (err: any) {
-      throw new BadRequestError(err.message || 'Invalid or expired reset token');
+    } catch (error: unknown) {
+      throw new BadRequestError((error as Error).message || 'Invalid or expired reset token');
     }
 
     const passwordHash = await hashPassword(password);

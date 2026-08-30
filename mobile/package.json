@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~57.0.14",
+    "@hookform/resolvers": "^5.9.1",
     "expo": "^57.0.18",
     "expo-constants": "~57.0.16",
     "expo-device": "~57.0.1",
@@ -24,6 +25,7 @@
     "nativewind": "^4.2.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-hook-form": "^7.87.0",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "^4.5.1",

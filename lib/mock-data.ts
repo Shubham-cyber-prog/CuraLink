@@ -168,3 +168,35 @@ export const MOCK_DOCTORS: Doctor[] = [
     reviews: defaultReviews,
   },
 ];
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: "PATIENT" | "DOCTOR" | "ADMIN";
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  bloodGroup?: string;
+  allergies?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emailNotifications?: boolean;
+  appointmentReminders?: boolean;
+}
+
+export const MOCK_USER: UserProfile = {
+  id: "usr_placeholder",
+  name: "Alex Johnson",
+  email: "alex@example.com",
+  role: "PATIENT",
+  phone: "+1 (555) 123-4567",
+  dob: "1990-05-15",
+  gender: "Non-binary",
+  bloodGroup: "O+",
+  allergies: "Penicillin, Peanuts",
+  emergencyContactName: "Sam Johnson",
+  emergencyContactPhone: "+1 (555) 987-6543",
+  emailNotifications: true,
+  appointmentReminders: true,
+};

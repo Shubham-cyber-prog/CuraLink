@@ -7,18 +7,6 @@ import { motion } from "framer-motion";
 import { AppSidebar, MobileMenuButton } from "@/components/layout/AppSidebar";
 
 // ---------------------------------------------------------------------------
-// Helper: read auth token from either storage location
-// ---------------------------------------------------------------------------
-
-function getStoredToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return (
-    localStorage.getItem("curalink_token") ??
-    sessionStorage.getItem("curalink_token")
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Layout
 // ---------------------------------------------------------------------------
 
@@ -29,13 +17,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Auth guard — shared for ALL pages inside (app)
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) {
-      router.replace("/login");
-      return;
+    async function verifyAuth() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) {
+          router.replace("/login");
+          return;
+        }
+        setIsAuthed(true);
+      } catch {
+        router.replace("/login");
+      }
     }
-    // TODO: validate token with GET /api/auth/me
-    setIsAuthed(true);
+    verifyAuth();
   }, [router]);
 
   // Loading state while auth is being verified

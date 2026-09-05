@@ -394,12 +394,18 @@ npm install
 cp .env.example .env.local
 ```
 
+> 🔐 Keep real credentials in `.env.local` (or deployment secrets manager) only. Never commit production keys or OAuth client secrets.
+
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `CLAUDE_API_KEY` | Anthropic API key for symptom analysis |
 | `JWT_SECRET` | Secret for signing auth tokens |
+| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth web client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth web client secret (store securely, never commit) |
+| `NEXT_PUBLIC_API_URL` | Base URL for web client API requests |
 | `NEXT_PUBLIC_SOCKET_URL` | Socket.io server URL |
+| `EXPO_PUBLIC_API_URL` | Base URL for mobile client API requests |
 
 ### 3. Database Setup
 

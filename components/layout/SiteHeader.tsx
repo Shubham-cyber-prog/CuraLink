@@ -67,7 +67,7 @@ export function SiteHeader() {
             ))}
           </nav>
 
-          <div className="hidden items-center gap-1 md:flex">
+          <div className="hidden items-center gap-2 md:flex">
             <Button variant="ghost" size="sm" asChild>
               <Link href="/login">Log in</Link>
             </Button>
@@ -76,7 +76,8 @@ export function SiteHeader() {
             </Button>
           </div>
 
-          <button
+          <div className="flex items-center gap-1 md:hidden">
+            <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 md:hidden"
             onClick={() => setOpen((v) => !v)}
@@ -86,6 +87,7 @@ export function SiteHeader() {
           >
             {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
           </button>
+        </div>
         </div>
       </div>
 

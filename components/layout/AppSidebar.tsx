@@ -1,23 +1,24 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
   Stethoscope,
-  CalendarDays,
-  User,
+  Calendar,
+  Bot,
+  FileText,
+  MessageSquare,
+  Bell,
+  Settings,
+  HelpCircle,
   LogOut,
-  ShieldCheck,
   X,
-  Menu,
+  User,
+  ShieldCheck,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface NavItem {
   label: string;
@@ -30,62 +31,90 @@ interface AppSidebarProps {
   onMobileClose: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const NAV_ITEMS: NavItem[] = [
+const PRIMARY_NAV: NavItem[] = [
   {
     label: "Dashboard",
     href: "/dashboard",
-    icon: <LayoutDashboard className="h-[18px] w-[18px]" aria-hidden="true" />,
+    icon: <Home className="h-4 w-4" aria-hidden="true" />,
   },
   {
-    label: "Find a Doctor",
+    label: "Find Doctors",
     href: "/find-doctor",
-    icon: <Stethoscope className="h-[18px] w-[18px]" aria-hidden="true" />,
+    icon: <Stethoscope className="h-4 w-4" aria-hidden="true" />,
   },
   {
-    label: "My Appointments",
+    label: "Appointments",
     href: "/appointments",
-    icon: <CalendarDays className="h-[18px] w-[18px]" aria-hidden="true" />,
+    icon: <Calendar className="h-4 w-4" aria-hidden="true" />,
   },
   {
-    label: "My Profile",
-    href: "/profile",
-    icon: <User className="h-[18px] w-[18px]" aria-hidden="true" />,
+    label: "AI Symptom Checker",
+    href: "/symptom-checker",
+    icon: <Bot className="h-4 w-4" aria-hidden="true" />,
+  },
+  {
+    label: "Medical Records",
+    href: "/records",
+    icon: <FileText className="h-4 w-4" aria-hidden="true" />,
   },
 ];
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+const COMMUNICATION_NAV: NavItem[] = [
+  {
+    label: "Messages",
+    href: "/messages",
+    icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
+  },
+  {
+    label: "Notifications",
+    href: "/notifications",
+    icon: <Bell className="h-4 w-4" aria-hidden="true" />,
+  },
+];
+
+const ACCOUNT_NAV: NavItem[] = [
+  {
+    label: "Settings",
+    href: "/profile",
+    icon: <Settings className="h-4 w-4" aria-hidden="true" />,
+  },
+  {
+    label: "Help & Support",
+    href: "/help",
+    icon: <HelpCircle className="h-4 w-4" aria-hidden="true" />,
+  },
+];
 
 export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [userName, setUserName] = React.useState("Loading...");
-  const [userEmail, setUserEmail] = React.useState("");
+  const [userName, setUserName] = useState("Subham Nayak");
+  const [userEmail, setUserEmail] = useState("sn343555@gmail.com");
 
-  React.useEffect(() => {
-    const fetchProfile = async () => {
+  useEffect(() => {
+    const fetchUser = async () => {
       try {
-        const token = localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token");
+        const token =
+          localStorage.getItem("curalink_token") ||
+          sessionStorage.getItem("curalink_token");
         if (!token) return;
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         const data = await res.json();
         if (data.success && data.data) {
-          setUserName(data.data.name);
-          setUserEmail(data.data.email);
+          setUserName(data.data.name || "Subham Nayak");
+          setUserEmail(data.data.email || "sn343555@gmail.com");
         }
       } catch (err) {
-        setUserName("Guest User");
+        console.error("Failed to fetch sidebar user profile:", err);
       }
     };
-    fetchProfile();
+    fetchUser();
   }, []);
 
   const handleLogout = () => {
@@ -94,82 +123,89 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
     router.push("/login");
   };
 
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/");
+  const isActive = (href: string) => {
+    if (href === "/dashboard" && pathname === "/dashboard") return true;
+    if (href !== "/dashboard" && pathname.startsWith(href)) return true;
+    return false;
+  };
 
-  const sidebarContent = (
-    <div className="flex h-full flex-col">
-      {/* ---- Top: Logo + badge ---- */}
-      <div className="flex items-center justify-between px-5 py-5">
-        <Logo href="/dashboard" />
-        {/* Close button — mobile only */}
-        <button
-          onClick={onMobileClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 lg:hidden"
-          aria-label="Close sidebar"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="mx-5 mb-4">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-teal-50 px-2.5 py-0.5 text-[11px] font-medium text-teal-700">
-          <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-          HIPAA-aligned
-        </span>
-      </div>
-
-      {/* ---- Nav links ---- */}
-      <nav className="flex-1 space-y-1 px-3" aria-label="Dashboard navigation">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onMobileClose}
-              id={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-              className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+  const renderNavGroup = (items: NavItem[]) => (
+    <div className="space-y-0.5">
+      {items.map((item) => {
+        const active = isActive(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onMobileClose}
+            id={`sidebar-nav-${item.label.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
+            className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+              active
+                ? "bg-teal-50 text-[#0F9D8C] font-semibold"
+                : "text-[#64748B] hover:bg-slate-50 hover:text-[#0F172A]"
+            }`}
+          >
+            <span
+              className={`flex h-6 w-6 items-center justify-center transition-colors ${
                 active
-                  ? "bg-teal-50 text-teal-800 shadow-sm shadow-teal-100/60"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "text-[#0F9D8C]"
+                  : "text-slate-400 group-hover:text-slate-600"
               }`}
             >
-              <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                  active
-                    ? "bg-teal-600 text-white shadow-sm shadow-teal-600/25"
-                    : "bg-slate-100 text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-700"
-                }`}
-              >
-                {item.icon}
-              </span>
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+              {item.icon}
+            </span>
+            <span className="truncate">{item.label}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
 
-      {/* ---- Bottom: User info + logout ---- */}
-      <div className="border-t border-slate-200/70 px-4 py-4">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700">
-            <User className="h-4 w-4" aria-hidden="true" />
+  const sidebarContent = (
+    <div className="flex h-full flex-col justify-between py-4 px-3 bg-white">
+      <div>
+        {/* Top Header: Logo & Mobile Close */}
+        <div className="flex items-center justify-between px-3 pb-5 pt-1">
+          <Logo href="/dashboard" />
+          <button
+            onClick={onMobileClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 md:hidden"
+            aria-label="Close sidebar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Nav Sections */}
+        <nav className="space-y-4" aria-label="Sidebar navigation">
+          {renderNavGroup(PRIMARY_NAV)}
+          <hr className="border-[#E2E8F0] my-2" />
+          {renderNavGroup(COMMUNICATION_NAV)}
+          <hr className="border-[#E2E8F0] my-2" />
+          {renderNavGroup(ACCOUNT_NAV)}
+        </nav>
+      </div>
+
+      {/* Footer: Compact profile card & logout */}
+      <div className="border-t border-[#E2E8F0] pt-3 px-1">
+        <div className="flex items-center gap-2.5 px-2 py-1.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-xs font-semibold text-[#0F9D8C]">
+            {userName ? userName.charAt(0).toUpperCase() : "U"}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-800">
+            <p className="truncate text-xs font-semibold text-[#0F172A]">
               {userName}
             </p>
-            <p className="truncate text-xs text-slate-500">{userEmail}</p>
+            <p className="truncate text-[11px] text-[#64748B]">{userEmail}</p>
           </div>
         </div>
         <button
           id="sidebar-logout-btn"
           onClick={handleLogout}
-          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-700"
+          className="mt-2 flex w-full items-center gap-2.5 rounded-xl px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
         >
-          <LogOut className="h-4 w-4" />
-          Log out
+          <LogOut className="h-3.5 w-3.5" />
+          Log Out
         </button>
       </div>
     </div>
@@ -177,22 +213,20 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
 
   return (
     <>
-      {/* ---- Desktop sidebar ---- */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] flex-col border-r border-slate-200/70 bg-white/90 backdrop-blur-sm lg:flex">
+      {/* Desktop Sidebar (Minimal, width ~230px) */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[230px] flex-col border-r border-[#E2E8F0] bg-white md:flex">
         {sidebarContent}
       </aside>
 
-      {/* ---- Mobile overlay sidebar ---- */}
+      {/* Mobile Drawer Sidebar */}
       {mobileOpen && (
         <>
-          {/* Backdrop */}
           <div
-            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs md:hidden"
             onClick={onMobileClose}
             aria-hidden="true"
           />
-          {/* Drawer */}
-          <aside className="fixed inset-y-0 left-0 z-50 w-[280px] bg-white shadow-xl shadow-slate-900/10 lg:hidden">
+          <aside className="fixed inset-y-0 left-0 z-50 w-[260px] bg-white shadow-xl md:hidden">
             {sidebarContent}
           </aside>
         </>
@@ -201,18 +235,51 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Mobile toggle button (exported for use in the layout)
-// ---------------------------------------------------------------------------
+{/* Mobile Bottom Navigation Bar (below 768px) */}
+export function MobileBottomNav() {
+  const pathname = usePathname();
 
-export function MobileMenuButton({ onClick }: { onClick: () => void }) {
+  const navItems = [
+    { label: "Home", href: "/dashboard", icon: <Home className="h-5 w-5" /> },
+    {
+      label: "Doctors",
+      href: "/find-doctor",
+      icon: <Stethoscope className="h-5 w-5" />,
+    },
+    {
+      label: "Bookings",
+      href: "/appointments",
+      icon: <Calendar className="h-5 w-5" />,
+    },
+    {
+      label: "AI Checker",
+      href: "/symptom-checker",
+      icon: <Bot className="h-5 w-5" />,
+    },
+    { label: "Profile", href: "/profile", icon: <User className="h-5 w-5" /> },
+  ];
+
   return (
-    <button
-      onClick={onClick}
-      className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50 lg:hidden"
-      aria-label="Open navigation menu"
-    >
-      <Menu className="h-5 w-5" />
-    </button>
+    <div className="fixed bottom-0 inset-x-0 z-30 flex h-16 items-center justify-around border-t border-[#E2E8F0] bg-white px-2 shadow-lg md:hidden">
+      {navItems.map((item) => {
+        const active =
+          pathname === item.href ||
+          (item.href !== "/dashboard" && pathname.startsWith(item.href));
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex min-w-[44px] min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1 text-[11px] font-medium transition-colors ${
+              active
+                ? "text-[#0F9D8C] font-semibold"
+                : "text-[#64748B] hover:text-[#0F172A]"
+            }`}
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </div>
   );
 }

@@ -1,6 +1,5 @@
 import { getToken, removeToken } from './secure-store';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { getApiBaseUrl, getHealthCheckUrl } from './api-config';
 
 export type JsonValue =
   | boolean
@@ -29,6 +28,52 @@ export class ApiError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  targetUrl: string;
+
+  constructor(message: string, targetUrl: string) {
+    super(message);
+    this.name = 'NetworkError';
+    this.targetUrl = targetUrl;
+  }
+}
+
+// Global network status subscriber system
+type NetworkStatusListener = (reachable: boolean, targetUrl: string) => void;
+const listeners = new Set<NetworkStatusListener>();
+let lastReachableState = true;
+
+export function subscribeNetworkStatus(listener: NetworkStatusListener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function notifyNetworkStatus(reachable: boolean, targetUrl: string) {
+  lastReachableState = reachable;
+  listeners.forEach((fn) => fn(reachable, targetUrl));
+}
+
+export async function checkServerHealth(): Promise<boolean> {
+  const healthUrl = getHealthCheckUrl();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(healthUrl, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const isOk = res.ok;
+    notifyNetworkStatus(isOk, healthUrl);
+    return isOk;
+  } catch {
+    notifyNetworkStatus(false, healthUrl);
+    return false;
+  }
+}
+
 function getResponseMessage(data: unknown): string | undefined {
   if (!data || typeof data !== 'object' || !('message' in data)) return undefined;
   const message = data.message;
@@ -36,8 +81,9 @@ function getResponseMessage(data: unknown): string | undefined {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-  const url = `${API_URL}${endpoint}`;
-  
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}${endpoint}`;
+
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
 
@@ -46,22 +92,30 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+    notifyNetworkStatus(true, url);
+  } catch (err: unknown) {
+    notifyNetworkStatus(false, url);
+    throw new NetworkError(
+      `Can't reach server at ${baseUrl}. Ensure backend is running and device is on the same network.`,
+      baseUrl
+    );
+  }
 
   let responseData: unknown = {};
   try {
     responseData = await response.json();
   } catch {
-    // Handle empty or non-JSON responses safely
     responseData = { message: 'Failed to parse response' };
   }
 
   if (!response.ok) {
     if (response.status === 401) {
-      // Auto-logout or clear token on 401 Unauthorized
       await removeToken();
     }
     const message = getResponseMessage(responseData) ?? 'API request failed';

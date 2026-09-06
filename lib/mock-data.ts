@@ -14,6 +14,7 @@ export interface Doctor {
   qualifications: string[];
   availabilitySlots: { date: string; slots: string[] }[];
   reviews: { id: string; nameInitial: string; rating: number; comment: string; date: string }[];
+  consultationFee?: number;
 }
 
 const defaultSlots = [

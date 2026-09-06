@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { Bell, CalendarCheck, Search, Stethoscope } from 'lucide-react-native';
+import { Bell, CalendarCheck, Search, Stethoscope, Bot, FileText, ChevronRight, Shield } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UpcomingAppointmentCard } from '../../components/appointments/UpcomingAppointmentCard';
@@ -10,30 +10,39 @@ import { useAuth } from '../../lib/auth-context';
 import type { AppointmentPreview, DoctorPreview } from '../../types/healthcare';
 
 const upcomingAppointment: AppointmentPreview = {
-  id: 'appointment-1',
+  id: 'appt_101',
   doctorName: 'Dr. Sarah Jenkins',
-  specialty: 'Cardiology',
-  dateLabel: 'Thursday, October 24',
+  specialty: 'Cardiology Specialist',
+  dateLabel: 'Today, October 24',
   timeLabel: '10:00 AM · Video visit',
   status: 'confirmed',
 };
 
 const recommendedDoctors: DoctorPreview[] = [
   {
-    id: 'sarah-jenkins',
-    name: 'Dr. Sarah Jenkins',
-    specialty: 'Cardiologist',
+    id: 'doc_1',
+    name: 'Dr. Priya Sharma',
+    specialty: 'General Practice',
     rating: 4.9,
-    reviewCount: 128,
+    reviewCount: 124,
     nextAvailableLabel: 'Today',
     photoUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=560&q=80',
   },
   {
-    id: 'michael-chen',
-    name: 'Dr. Michael Chen',
-    specialty: 'General Practitioner',
+    id: 'doc_3',
+    name: 'Dr. Sarah Jenkins',
+    specialty: 'Dermatology',
+    rating: 4.95,
+    reviewCount: 210,
+    nextAvailableLabel: 'Today',
+    photoUrl: 'https://images.unsplash.com/photo-1594824813566-88855ce7890b?auto=format&fit=crop&w=560&q=80',
+  },
+  {
+    id: 'doc_2',
+    name: 'Dr. Marcus Vance',
+    specialty: 'Cardiologist',
     rating: 4.8,
-    reviewCount: 342,
+    reviewCount: 98,
     nextAvailableLabel: 'Tomorrow',
     photoUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=560&q=80',
   },
@@ -42,12 +51,12 @@ const recommendedDoctors: DoctorPreview[] = [
 function HomeSkeleton() {
   return (
     <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
-      <View className="px-5 pt-5">
+      <View className="px-5 pt-5 space-y-4">
         <View className="h-4 w-24 rounded-full bg-slate-200" />
-        <View className="mt-3 h-8 w-44 rounded-full bg-slate-200" />
-        <View className="mt-7 h-48 rounded-2xl bg-slate-200" />
-        <View className="mt-7 h-5 w-28 rounded-full bg-slate-200" />
-        <View className="mt-4 flex-row gap-4">
+        <View className="h-8 w-44 rounded-full bg-slate-200" />
+        <View className="h-48 rounded-2xl bg-slate-200" />
+        <View className="h-5 w-28 rounded-full bg-slate-200" />
+        <View className="flex-row gap-4">
           <View className="h-36 flex-1 rounded-2xl bg-slate-200" />
           <View className="h-36 flex-1 rounded-2xl bg-slate-200" />
         </View>
@@ -58,9 +67,9 @@ function HomeSkeleton() {
 
 function greetingForNow(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'Good morning 👋';
+  if (hour < 17) return 'Good afternoon 👋';
+  return 'Good evening 👋';
 }
 
 export default function HomeScreen() {
@@ -71,40 +80,67 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50" edges={['top']}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <View className="flex-row items-center justify-between px-5 pb-7 pt-5">
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-5 pb-5 pt-4">
           <View>
-            <Text className="font-inter text-sm text-muted">{greetingForNow()}</Text>
-            <Text className="mt-1 font-inter-bold text-[28px] text-charcoal">{user?.name ?? 'Patient'}</Text>
+            <Text className="font-inter text-xs text-muted">{greetingForNow()}</Text>
+            <Text className="mt-1 font-inter-bold text-2xl text-charcoal">{user?.name ?? 'Patient'}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open profile"
-            className="h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm shadow-slate-200"
+            className="h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm shadow-slate-200 border border-slate-100"
             onPress={() => router.push('/(tabs)/profile')}
           >
-            <Bell color="#0D9488" size={21} />
-            <View className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full border-2 border-white bg-teal-500" />
+            <Bell color="#0D9488" size={20} />
+            <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border border-white bg-teal-500" />
           </Pressable>
         </View>
 
-        <View className="px-5">
+        {/* AI Symptom Banner CTA */}
+        <View className="px-5 mb-6">
+          <Pressable
+            onPress={() => router.push('/(tabs)/symptom-checker')}
+            className="flex-row items-center justify-between rounded-2xl bg-gradient-to-r bg-[#0F9D8C] p-4 shadow-lg shadow-[#0F9D8C]/20"
+          >
+            <View className="flex-row items-center gap-3 flex-1">
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-white/20">
+                <Bot color="#FFFFFF" size={22} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-inter-bold text-sm text-white">Feeling unwell? Check with AI</Text>
+                <Text className="font-inter text-xs text-teal-100">Get instant symptom triage & recommendations</Text>
+              </View>
+            </View>
+            <ChevronRight color="#FFFFFF" size={20} />
+          </Pressable>
+        </View>
+
+        {/* Next Visit Section */}
+        <View className="px-5 mb-6">
           <View className="mb-3 flex-row items-center justify-between">
-            <Text className="font-inter-semibold text-lg text-charcoal">Your next visit</Text>
+            <Text className="font-inter-bold text-base text-charcoal">Your next visit</Text>
             <Pressable accessibilityRole="button" onPress={() => router.push('/(tabs)/appointments')}>
-              <Text className="font-inter-semibold text-sm text-teal-700">See all</Text>
+              <Text className="font-inter-semibold text-xs text-teal-700">See all</Text>
             </Pressable>
           </View>
-          <UpcomingAppointmentCard appointment={upcomingAppointment} onPress={() => router.push('/(tabs)/appointments')} />
+          <UpcomingAppointmentCard
+            appointment={upcomingAppointment}
+            onPress={() => router.push(`/consultation/${upcomingAppointment.id}` as any)}
+          />
+        </View>
 
-          <Text className="mb-4 mt-8 font-inter-semibold text-lg text-charcoal">Quick actions</Text>
-          <View className="flex-row gap-4">
+        {/* Quick Actions Grid */}
+        <View className="px-5 mb-6">
+          <Text className="mb-3 font-inter-bold text-base text-charcoal">Quick services</Text>
+          <View className="flex-row gap-3 mb-3">
             <QuickActionCard
               icon={Search}
               iconColor="#2563EB"
               iconBackgroundClassName="bg-blue-50"
-              title="Find a doctor"
-              subtitle="Browse trusted specialists"
+              title="Find Specialist"
+              subtitle="Browse top doctors"
               onPress={() => router.push('/(tabs)/doctors')}
             />
             <QuickActionCard
@@ -112,23 +148,24 @@ export default function HomeScreen() {
               iconColor="#0D9488"
               iconBackgroundClassName="bg-teal-50"
               title="Appointments"
-              subtitle="Manage your care visits"
+              subtitle="Schedule & history"
               onPress={() => router.push('/(tabs)/appointments')}
             />
           </View>
+        </View>
 
-          <View className="mb-4 mt-8 flex-row items-center justify-between">
-            <View>
-              <Text className="font-inter-semibold text-lg text-charcoal">Recommended for you</Text>
-              <Text className="mt-1 font-inter text-sm text-muted">Book with top-rated specialists</Text>
-            </View>
-            <Stethoscope color="#0D9488" size={20} />
+        {/* Recommended Doctors Carousel */}
+        <View className="px-5 mb-3 flex-row items-center justify-between">
+          <View>
+            <Text className="font-inter-bold text-base text-charcoal">Recommended doctors</Text>
+            <Text className="font-inter text-xs text-muted">Book with top-rated specialists</Text>
           </View>
+          <Stethoscope color="#0D9488" size={20} />
         </View>
 
         <ScrollView horizontal contentContainerStyle={{ paddingLeft: 20, paddingRight: 4 }} showsHorizontalScrollIndicator={false}>
           {recommendedDoctors.map((doctor) => (
-            <DoctorRecommendationCard key={doctor.id} doctor={doctor} onPress={() => router.push('/(tabs)/doctors')} />
+            <DoctorRecommendationCard key={doctor.id} doctor={doctor} onPress={() => router.push('/doctor-booking')} />
           ))}
         </ScrollView>
       </ScrollView>

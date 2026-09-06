@@ -10,9 +10,17 @@ export interface JwtPayload {
 
 export function generateToken(payload: JwtPayload): string {
   const options: SignOptions = {
-    expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+    expiresIn: env.ACCESS_TOKEN_EXPIRY as jwt.SignOptions['expiresIn'],
   };
   return jwt.sign(payload, env.JWT_SECRET, options);
+}
+
+export function generateRefreshToken(userId: string, jti: string): string {
+  const options: SignOptions = {
+    expiresIn: env.REFRESH_TOKEN_EXPIRY as jwt.SignOptions['expiresIn'],
+    jwtid: jti,
+  };
+  return jwt.sign({ id: userId }, env.JWT_SECRET, options);
 }
 
 export function verifyToken(token: string): JwtPayload {
@@ -27,6 +35,21 @@ export function verifyToken(token: string): JwtPayload {
       throw new Error('Token expired');
     }
     throw new Error('Invalid token');
+  }
+}
+
+export function verifyRefreshToken(token: string): { id: string, jti: string } {
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as { id: string, jti: string };
+    if (!decoded || !decoded.id || !decoded.jti) {
+      throw new Error('Invalid refresh token payload');
+    }
+    return decoded;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('Refresh token expired');
+    }
+    throw new Error('Invalid refresh token');
   }
 }
 

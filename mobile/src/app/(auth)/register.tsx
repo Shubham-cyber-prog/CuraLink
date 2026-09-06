@@ -4,6 +4,8 @@ import { useRouter } from 'expo-router';
 import { Shield, UserCircle, Stethoscope } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { PasswordStrength } from '../../components/PasswordStrength';
+import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { useAuth } from '../../lib/auth-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,20 +21,48 @@ export default function RegisterScreen() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const handleRegister = async () => {
-    if (!name || !email || !password) {
-      setError('Please fill in all fields.');
-      return;
+  const validate = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!name.trim()) {
+      errors.name = 'Full name is required';
+    } else if (name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters long';
     }
 
-    setIsLoading(true);
+    if (!email.trim()) {
+      errors.email = 'Email address is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 8) {
+      errors.password = 'Password must be at least 8 characters long';
+    } else if (!/[a-zA-Z]/.test(password)) {
+      errors.password = 'Password must contain at least one letter';
+    } else if (!/[0-9]/.test(password)) {
+      errors.password = 'Password must contain at least one number';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleRegister = async () => {
     setError('');
+    if (!validate()) return;
+
+    setIsLoading(true);
 
     try {
-      await register(name, email, password, role);
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'Registration failed. Please try again.');
+      await register(name.trim(), email.trim().toLowerCase(), password, role);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -56,6 +86,7 @@ export default function RegisterScreen() {
             paddingBottom: Math.max(insets.bottom, 24)
           }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {/* CuraLink Logo */}
           <View className="mb-6 items-center">
@@ -87,7 +118,7 @@ export default function RegisterScreen() {
 
             {error ? (
               <View className="mb-4 rounded-xl bg-red-50 border border-red-100 p-3">
-                <Text className="font-inter text-xs text-red-600">{error}</Text>
+                <Text className="font-inter text-xs text-red-600 leading-relaxed">{error}</Text>
               </View>
             ) : null}
 
@@ -128,7 +159,8 @@ export default function RegisterScreen() {
                 placeholder="John Doe"
                 autoCapitalize="words"
                 value={name}
-                onChangeText={setName}
+                onChangeText={(t) => { setName(t); setFieldErrors((p) => ({ ...p, name: '' })); }}
+                error={fieldErrors.name}
               />
 
               <Input
@@ -137,26 +169,44 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setFieldErrors((p) => ({ ...p, email: '' })); }}
+                error={fieldErrors.email}
               />
 
-              <Input
-                label="Password"
-                placeholder="Create a strong password"
-                isPassword
-                value={password}
-                onChangeText={setPassword}
-              />
+              <View>
+                <Input
+                  label="Password"
+                  placeholder="At least 8 chars (1 letter & 1 number)"
+                  isPassword
+                  value={password}
+                  onChangeText={(t) => { setPassword(t); setFieldErrors((p) => ({ ...p, password: '' })); }}
+                  error={fieldErrors.password}
+                />
+                <PasswordStrength password={password} />
+              </View>
             </View>
 
             <View className="mt-6">
               <Button
-                title="Create Account"
+                title={isLoading ? "Creating account..." : "Create Account"}
                 onPress={handleRegister}
                 isLoading={isLoading}
+                disabled={isLoading}
                 className="w-full"
               />
             </View>
+
+            {/* OR Divider */}
+            <View className="my-5 flex-row items-center gap-3">
+              <View className="flex-1 h-px bg-slate-100" />
+              <Text className="font-inter-medium text-xs text-slate-400">OR</Text>
+              <View className="flex-1 h-px bg-slate-100" />
+            </View>
+
+            <GoogleAuthButton
+              label="Sign up with Google"
+              onError={(msg) => setError(msg)}
+            />
           </View>
 
           <View className="mt-6 flex-row justify-center">

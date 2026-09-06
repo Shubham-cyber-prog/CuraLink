@@ -4,13 +4,13 @@ import { UnauthorizedError } from '../utils/errors';
 
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('Authentication token is required');
+    // Try to get token from cookie first, fallback to Authorization header for mobile app support
+    let token = req.cookies?.curalink_access;
+    
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
     }
 
-    const token = authHeader.split(' ')[1];
     if (!token) {
       throw new UnauthorizedError('Authentication token is required');
     }

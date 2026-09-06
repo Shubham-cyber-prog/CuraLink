@@ -30,33 +30,33 @@ interface UserProfile {
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [latestAppointmentId, setLatestAppointmentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const token =
-          localStorage.getItem("curalink_token") ||
-          sessionStorage.getItem("curalink_token");
-        if (!token) return;
-
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+        const res = await fetch(`${apiBase}/auth/me`, { credentials: "include" });
         const data = await res.json();
         if (data.success && data.data) {
           setUser(data.data);
         }
+
+        const aptRes = await fetch(`${apiBase}/appointments/my-appointments`, { credentials: "include" });
+        if (aptRes.ok) {
+          const aptData = await aptRes.json();
+          if (aptData.success && Array.isArray(aptData.data) && aptData.data.length > 0) {
+            setLatestAppointmentId(aptData.data[0].id);
+          }
+        }
       } catch (err) {
-        console.error("Dashboard profile fetch error:", err);
+        console.error("Dashboard profile/appointments fetch error:", err);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchProfile();
+    fetchData();
   }, []);
 
   const rawName = user?.name || "Subham";
@@ -66,7 +66,7 @@ export default function DashboardPage() {
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  // Upcoming appointment mock data (real doctor info)
+  // Upcoming appointment data
   const upcomingAppointment = {
     doctorName: "Dr. Ananya Sharma",
     specialty: "General Physician",
@@ -166,8 +166,8 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-center gap-3 pt-2 sm:pt-0">
               <Link
                 id="join-consultation-btn"
-                href="/appointments"
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F9D8C] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors"
+                href={latestAppointmentId ? `/consultation/${latestAppointmentId}` : "/appointments"}
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[#0F9D8C] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors shadow-sm"
               >
                 <Video className="h-4 w-4" />
                 Join Consultation

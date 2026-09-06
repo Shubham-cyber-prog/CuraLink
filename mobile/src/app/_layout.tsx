@@ -10,8 +10,16 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
+import { LogBox } from 'react-native';
 import { AuthProvider } from '../lib/auth-context';
 import { AnimatedSplash } from '../components/AnimatedSplash';
+import { NetworkAlertBanner } from '../components/NetworkAlertBanner';
+
+// Suppress harmless Expo HMR dev server connection warnings in LogBox
+LogBox.ignoreLogs([
+  'Cannot connect to Expo CLI',
+  'Inter failed to load',
+]);
 
 SplashScreen.preventAutoHideAsync();
 SplashScreen.setOptions({ duration: 0, fade: false });
@@ -44,6 +52,7 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <StatusBar style="dark" />
+      <NetworkAlertBanner />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />

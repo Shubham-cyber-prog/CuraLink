@@ -1,21 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import { appointmentService } from '../services/appointment.service';
+import { auditService, AuditAction } from '../services/audit.service';
+import { bookAppointmentSchema } from '../validators/appointment.validator';
+import { UnauthorizedError } from '../utils/errors';
 
 export class AppointmentController {
   async book(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: 'Authentication required' });
-        return;
+        throw new UnauthorizedError('Authentication required');
       }
 
-      const { doctorId, date, time } = req.body;
-      if (!doctorId || !date || !time) {
-        res.status(400).json({ success: false, message: 'Missing required fields' });
-        return;
-      }
+      const validatedInput = bookAppointmentSchema.parse(req.body);
 
-      const result = await appointmentService.bookAppointment(req.user.id, { doctorId, date, time });
+      const result = await appointmentService.bookAppointment(req.user.id, validatedInput);
+
+      await auditService.logAction(AuditAction.APPOINTMENT_BOOK, req.user.id, 'Appointment', result.id, req.ip, req.headers['user-agent']);
 
       res.status(201).json({
         success: true,
@@ -30,8 +30,7 @@ export class AppointmentController {
   async getMyAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
-        res.status(401).json({ success: false, message: 'Authentication required' });
-        return;
+        throw new UnauthorizedError('Authentication required');
       }
 
       const result = await appointmentService.getMyAppointments(req.user.id);

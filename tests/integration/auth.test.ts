@@ -12,7 +12,19 @@ jest.mock('../../src/lib/prisma', () => ({
     user: {
       findUnique: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
     },
+    refreshToken: {
+      create: jest.fn().mockResolvedValue({ id: 'rt-1' }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({}),
+    },
+    auditLog: {
+      create: jest.fn().mockResolvedValue({}),
+    },
+    $transaction: jest.fn((callback) => typeof callback === 'function' ? callback(require('../../src/lib/prisma').default) : Promise.all(callback)),
   },
 }));
 

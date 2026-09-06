@@ -29,17 +29,14 @@ export default function AppointmentsPage() {
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const token = localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token");
-        if (!token) {
+        const res = await fetch(`${API_BASE}/appointments/my-appointments`, {
+          credentials: "include",
+        });
+        
+        if (res.status === 401) {
           router.replace("/login?redirect=/appointments");
           return;
         }
-
-        const res = await fetch(`${API_BASE}/appointments/my-appointments`, {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
         const data = await res.json();
 
         if (!res.ok || !data.success) {
@@ -159,12 +156,17 @@ export default function AppointmentsPage() {
                   </div>
                 </div>
 
-                <div className="mt-6 flex gap-3">
-                  <Button variant="outline" className="flex-1 rounded-xl h-11 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900">
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {apt.status === "CONFIRMED" && (
+                    <Button asChild className="flex-1 rounded-xl h-11 font-semibold bg-[#0F9D8C] hover:bg-[#0C8577] text-white shadow-sm">
+                      <Link href={`/consultation/${apt.id}`}>
+                        <Video className="h-4 w-4 mr-2" />
+                        Join Consultation
+                      </Link>
+                    </Button>
+                  )}
+                  <Button variant="outline" className="rounded-xl h-11 px-4 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900">
                     Reschedule
-                  </Button>
-                  <Button variant="ghost" className="rounded-xl h-11 w-11 p-0 text-slate-400 hover:text-teal-700 hover:bg-teal-50">
-                    <ChevronRight className="h-5 w-5" />
                   </Button>
                 </div>
               </motion.div>

@@ -39,15 +39,10 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const token =
-          localStorage.getItem("curalink_token") ||
-          sessionStorage.getItem("curalink_token");
-        if (!token) return;
-
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`,
           {
-            headers: { Authorization: `Bearer ${token}` },
+            credentials: "include",
           }
         );
         const data = await res.json();
@@ -82,10 +77,22 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("curalink_token");
-    sessionStorage.removeItem("curalink_token");
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      const csrfRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/csrf-token`);
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.token;
+
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/logout`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout failed:", err);
+    } finally {
+      router.push("/login");
+    }
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {

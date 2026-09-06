@@ -32,15 +32,21 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
       return;
     }
     
-    // Check authentication
-    const storedToken = localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token");
-    if (!storedToken) {
-      // Redirect to login but pass return URL so they come back here
-      router.push(`/login?redirect=/doctors/${id}/book?date=${date}&time=${time}`);
-      return;
-    }
-    setToken(storedToken);
-    setIsAuthenticated(true);
+    // Check authentication via API
+    let mounted = true;
+    const checkAuth = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          credentials: "include"
+        });
+        if (!res.ok) throw new Error("Not auth");
+        if (mounted) setIsAuthenticated(true);
+      } catch (err) {
+        if (mounted) router.push(`/login?redirect=/doctors/${id}/book?date=${date}&time=${time}`);
+      }
+    };
+    checkAuth();
+    return () => { mounted = false; };
   }, [date, time, id, router]);
 
   if (!doctor || !date || !time || isAuthenticated === null) return null;
@@ -50,12 +56,17 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
     setError(null);
     
     try {
+      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.token;
+
       const res = await fetch(`${API_BASE}/appointments/book`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          "X-CSRF-Token": csrfToken
         },
+        credentials: "include",
         body: JSON.stringify({
           doctorId: doctor.id,
           date,

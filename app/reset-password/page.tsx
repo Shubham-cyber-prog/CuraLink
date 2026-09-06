@@ -46,9 +46,17 @@ function ResetPasswordForm() {
 
     setIsLoading(true);
     try {
+      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.token;
+
       const res = await fetch(`${API_BASE}/auth/reset-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken
+        },
+        credentials: "omit",
         body: JSON.stringify({ token, password, confirmPassword }),
       });
       const data = await res.json();

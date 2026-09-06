@@ -37,15 +37,20 @@ export default function FindDoctorPage() {
   }, []);
 
   useEffect(() => {
-    const token =
-      localStorage.getItem("curalink_token") ??
-      sessionStorage.getItem("curalink_token");
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
+    let mounted = true;
+    const checkAuth = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`, {
+          credentials: "include"
+        });
+        if (!res.ok) throw new Error("Not auth");
+        if (mounted) setIsLoading(false);
+      } catch (err) {
+        if (mounted) router.replace("/login");
+      }
+    };
+    checkAuth();
+    return () => { mounted = false; };
   }, [router]);
 
   const handleClearFilters = () => {

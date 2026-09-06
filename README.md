@@ -432,6 +432,41 @@ npx expo start
 
 Scan the QR code with **Expo Go** on your device.
 
+#### 📱 Mobile Backend Connectivity Setup (Physical Device vs Emulator)
+
+The mobile app automatically detects your development machine's LAN IP at runtime during Expo development (`__DEV__`). For physical devices or emulators, follow these configuration rules:
+
+1. **Physical Device (iOS / Android via Expo Go)**:
+   - Find your computer's LAN IP address:
+     - **Windows**: Run `ipconfig` (e.g., `IPv4 Address: 10.221.198.237`).
+     - **Mac / Linux**: Run `hostname -I` or `ifconfig`.
+   - Update `mobile/.env`:
+     ```env
+     EXPO_PUBLIC_API_URL=http://<YOUR_LAN_IP>:5000/api
+     ```
+   - **Crucial**: Ensure your physical phone and dev machine are on the **same Wi-Fi network**.
+
+2. **Android Emulator**:
+   - Use `10.0.2.2` (Android loopback to host OS):
+     ```env
+     EXPO_PUBLIC_API_URL=http://10.0.2.2:5000/api
+     ```
+
+3. **Production Environment**:
+   - Point to real deployed backend:
+     ```env
+     EXPO_PUBLIC_API_URL=https://api.curalink.com/api
+     ```
+
+4. **Windows Firewall Rule (If port 5000 is blocked on LAN)**:
+   - Run in Admin Command Prompt / PowerShell:
+     ```cmd
+     netsh advfirewall firewall add rule name="CuraLink Backend 5000" dir=in action=allow protocol=TCP localport=5000
+     ```
+
+5. **Verify Server Reachability**:
+   - Open in phone browser or curl: `http://<YOUR_LAN_IP>:5000/health` (should return `{"status":"ok",...}`).
+
 ---
 
 ## 🧪 Testing & Quality

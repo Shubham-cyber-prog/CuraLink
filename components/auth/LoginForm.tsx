@@ -38,9 +38,18 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
     setIsLoading(true);
     try {
+      // Fetch CSRF token first
+      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.token;
+
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken 
+        },
+        credentials: "include",
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
       const data = await res.json();
@@ -50,16 +59,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         return;
       }
 
-      const { token, user } = data.data;
-
-      if (rememberMe) {
-        localStorage.setItem("curalink_token", token);
-      } else {
-        sessionStorage.setItem("curalink_token", token);
-      }
+      const { user } = data.data;
 
       if (onSuccess) {
-        onSuccess(user, token);
+        onSuccess(user, ""); // We no longer pass token to client
       } else {
         const role = user.role as string;
         if (role === "DOCTOR") router.push("/doctor-dashboard");
@@ -84,7 +87,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       <AuthError message={error} />
 
       {/* Google Login */}
-      <GoogleAuthButton label="Log in with Google" />
+      <GoogleAuthButton label="Log in with Google" onError={setError} />
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">

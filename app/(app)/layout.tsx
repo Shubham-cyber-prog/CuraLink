@@ -7,13 +7,7 @@ import { motion } from "framer-motion";
 import { AppSidebar, MobileBottomNav } from "@/components/layout/AppSidebar";
 import { TopNavbar } from "@/components/layout/TopNavbar";
 
-function getStoredToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return (
-    localStorage.getItem("curalink_token") ??
-    sessionStorage.getItem("curalink_token")
-  );
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -21,12 +15,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const token = getStoredToken();
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    setIsAuthed(true);
+    let mounted = true;
+    const checkAuth = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Not auth");
+        if (mounted) setIsAuthed(true);
+      } catch (err) {
+        if (mounted) router.replace("/login");
+      }
+    };
+    checkAuth();
+    return () => { mounted = false; };
   }, [router]);
 
   if (!isAuthed) {

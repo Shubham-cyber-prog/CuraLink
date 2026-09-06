@@ -64,17 +64,14 @@ export default function ProfileSettingsPage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token =
-          localStorage.getItem("curalink_token") ||
-          sessionStorage.getItem("curalink_token");
-        if (!token) {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          credentials: "include",
+        });
+        
+        if (res.status === 401) {
           router.replace("/login?redirect=/profile");
           return;
         }
-
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
         const data = await res.json();
 
         if (res.ok && data.success) {
@@ -100,15 +97,17 @@ export default function ProfileSettingsPage() {
     setSaveError(null);
 
     try {
-      const token =
-        localStorage.getItem("curalink_token") ||
-        sessionStorage.getItem("curalink_token");
+      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.token;
+
       const res = await fetch(`${API_BASE}/auth/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken,
         },
+        credentials: "include",
         body: JSON.stringify(formData),
       });
       const data = await res.json();

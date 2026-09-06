@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 
 interface GoogleAuthButtonProps {
   label?: string;
+  onError?: (error: string) => void;
 }
 
-export function GoogleAuthButton({ label = "Continue with Google" }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ label = "Continue with Google", onError }: GoogleAuthButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -19,31 +20,40 @@ export function GoogleAuthButton({ label = "Continue with Google" }: GoogleAuthB
       try {
         setIsLoading(true);
         // Send the access token to our backend for verification and JWT creation
+        // Fetch CSRF token first
+        const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
+        const csrfData = await csrfRes.json();
+        const csrfToken = csrfData.token;
+
         const res = await fetch(`${API_BASE}/auth/google`, {
           method: "POST",
-          headers: {
+          headers: { 
             "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken 
           },
+          credentials: "include",
           body: JSON.stringify({ token: tokenResponse.access_token }),
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          // Store token and redirect
-          localStorage.setItem("curalink_token", data.data.token);
+        const data = await res.json();
+        if (res.ok && data.success) {
+          // Cookies are automatically set by the backend
           router.push("/dashboard");
         } else {
-          const errorText = await res.text();
-          console.error("Authentication failed", res.status, errorText);
+          const errMsg = data.message || "Google authentication failed";
+          console.error("Authentication failed:", res.status, errMsg);
+          if (onError) onError(errMsg);
         }
       } catch (error) {
         console.error("Error during Google Auth", error);
+        if (onError) onError("Unable to complete Google authentication. Please try again.");
       } finally {
         setIsLoading(false);
       }
     },
     onError: (error) => {
       console.error("Google Login Failed", error);
+      if (onError) onError("Google sign-in popup was closed or failed to complete.");
     }
   });
 

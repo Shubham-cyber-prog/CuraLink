@@ -57,9 +57,18 @@ export function SignupForm() {
 
     setIsLoading(true);
     try {
+      // Fetch CSRF token first
+      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.token;
+
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken 
+        },
+        credentials: "include",
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim().toLowerCase(),
@@ -98,7 +107,7 @@ export function SignupForm() {
       <AuthError message={error} />
 
       {/* Google Signup */}
-      <GoogleAuthButton label="Sign up with Google" />
+      <GoogleAuthButton label="Sign up with Google" onError={setError} />
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">

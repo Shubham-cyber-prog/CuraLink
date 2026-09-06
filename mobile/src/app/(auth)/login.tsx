@@ -5,6 +5,7 @@ import { Shield } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { useAuth } from '../../lib/auth-context';
+import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -132,6 +133,18 @@ export default function LoginScreen() {
                 className="w-full"
               />
             </View>
+
+            {/* OR Divider */}
+            <View className="my-5 flex-row items-center gap-3">
+              <View className="flex-1 h-px bg-slate-100" />
+              <Text className="font-inter-medium text-xs text-slate-400">OR</Text>
+              <View className="flex-1 h-px bg-slate-100" />
+            </View>
+
+            <GoogleAuthButton
+              label="Sign in with Google"
+              onError={(msg) => setError(msg)}
+            />
           </View>
 
           <View className="mt-6 flex-row justify-center">

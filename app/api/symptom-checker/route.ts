@@ -7,8 +7,31 @@ const anthropic = createAnthropic({
 
 export const maxDuration = 30;
 
+// Simple in-memory rate limiter for the symptom checker
+// Note: In a real production app with multiple instances, use Redis instead.
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
 export async function POST(req: Request) {
   try {
+    // Rate Limiting Logic (10 requests per hour per IP)
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const now = Date.now();
+    const windowMs = 60 * 60 * 1000; // 1 hour
+    
+    let rateLimit = rateLimitStore.get(ip);
+    if (!rateLimit || now > rateLimit.resetTime) {
+      rateLimit = { count: 1, resetTime: now + windowMs };
+      rateLimitStore.set(ip, rateLimit);
+    } else {
+      rateLimit.count++;
+      if (rateLimit.count > 10) {
+        return new Response(
+          JSON.stringify({ error: "AI symptom checker rate limit exceeded, please try again later." }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const { messages } = await req.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
@@ -38,7 +61,7 @@ If a user describes a life-threatening emergency (e.g., severe chest pain, sudde
       messages,
     });
 
-    return result.toDataStreamResponse();
+    return result.toTextStreamResponse();
   } catch (error: any) {
     console.error("Symptom checker error:", error);
     return new Response(

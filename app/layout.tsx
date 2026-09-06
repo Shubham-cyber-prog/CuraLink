@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -45,7 +46,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${inter.variable} ${geistMono.variable} ${instrument.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">{children}</body>
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }

@@ -19,6 +19,8 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
   
   const [doctor, setDoctor] = useState(MOCK_DOCTORS.find((d) => d.id === id) || null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
 
   useEffect(() => {
     // TODO: replace with real API call to GET /api/doctors/[id]
@@ -103,7 +105,10 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
 
           <motion.section variants={fadeInUp} className="lg:hidden">
             <h2 className="mb-4 text-xl font-semibold text-slate-900">Availability</h2>
-            <AvailabilitySlotPicker availabilitySlots={doctor.availabilitySlots} />
+            <AvailabilitySlotPicker 
+              availabilitySlots={doctor.availabilitySlots} 
+              onSlotSelect={(date, time) => { setSelectedDate(date); setSelectedTime(time); }}
+            />
           </motion.section>
 
           <motion.section variants={fadeInUp}>
@@ -121,7 +126,10 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white p-4 shadow-xl lg:sticky lg:top-24 lg:w-80 lg:shrink-0 lg:rounded-2xl lg:border lg:p-6 lg:shadow-sm">
         <div className="hidden lg:block">
           <h3 className="mb-4 text-lg font-semibold text-slate-900">Book an Appointment</h3>
-          <AvailabilitySlotPicker availabilitySlots={doctor.availabilitySlots} />
+          <AvailabilitySlotPicker 
+            availabilitySlots={doctor.availabilitySlots} 
+            onSlotSelect={(date, time) => { setSelectedDate(date); setSelectedTime(time); }}
+          />
           <div className="my-5 border-t border-slate-100" />
         </div>
         <div className="flex items-center justify-between lg:block">
@@ -129,8 +137,12 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
             <p className="text-sm font-medium text-slate-900">Consultation Fee</p>
             <p className="text-2xl font-bold text-teal-700">$99</p>
           </div>
-          <Button asChild size="lg" className="bg-teal-600 hover:bg-teal-700 lg:w-full">
-            <Link href={`/doctors/${doctor.id}/book`}>Book Appointment</Link>
+          <Button asChild size="lg" disabled={!selectedTime} className="bg-teal-600 hover:bg-teal-700 lg:w-full aria-disabled:opacity-50 aria-disabled:cursor-not-allowed">
+            {selectedTime ? (
+              <Link href={`/doctors/${doctor.id}/book?date=${selectedDate}&time=${selectedTime}`}>Book Appointment</Link>
+            ) : (
+              <span>Select a time</span>
+            )}
           </Button>
         </div>
       </div>

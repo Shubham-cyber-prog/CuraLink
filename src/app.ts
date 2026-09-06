@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes';
+import appointmentRoutes from './routes/appointment.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 export const app = express();
@@ -11,6 +12,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

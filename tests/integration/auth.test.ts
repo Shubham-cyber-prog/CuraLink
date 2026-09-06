@@ -3,7 +3,7 @@ import app from '../../src/app';
 import prisma from '../../src/lib/prisma';
 import { hashPassword } from '../../src/utils/password';
 import { generateToken } from '../../src/utils/jwt';
-import { Role } from '@prisma/client';
+import { Role } from '../../src/types/role';
 
 // Mock Prisma
 jest.mock('../../src/lib/prisma', () => ({

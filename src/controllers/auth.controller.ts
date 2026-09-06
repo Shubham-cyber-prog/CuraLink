@@ -34,6 +34,25 @@ export class AuthController {
     }
   }
 
+  async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { token } = req.body;
+      if (!token || typeof token !== "string") {
+        throw new UnauthorizedError("Google access token is required");
+      }
+
+      const result = await authService.googleLogin(token);
+
+      res.status(200).json({
+        success: true,
+        message: 'Google Login successful',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
@@ -85,6 +104,49 @@ export class AuthController {
       res.status(200).json({
         success: true,
         message: 'Logout successful',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: 'Authentication required' });
+        return;
+      }
+      
+      const user = await authService.getUserById(req.user.id);
+      
+      res.status(200).json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ success: false, message: 'Authentication required' });
+        return;
+      }
+
+      const { name, email } = req.body;
+      if (!name || !email) {
+        res.status(400).json({ success: false, message: 'Name and email are required' });
+        return;
+      }
+
+      const updatedUser = await authService.updateProfile(req.user.id, name, email);
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: updatedUser,
       });
     } catch (error) {
       next(error);

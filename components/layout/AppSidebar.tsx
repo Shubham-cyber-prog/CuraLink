@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -56,10 +57,6 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-// TODO: Replace with real user data from auth context / API
-const MOCK_USER_NAME = "Alex Johnson";
-const MOCK_USER_EMAIL = "alex@example.com";
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -67,6 +64,29 @@ const MOCK_USER_EMAIL = "alex@example.com";
 export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [userName, setUserName] = React.useState("Loading...");
+  const [userEmail, setUserEmail] = React.useState("");
+
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token");
+        if (!token) return;
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          setUserName(data.data.name);
+          setUserEmail(data.data.email);
+        }
+      } catch (err) {
+        setUserName("Guest User");
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("curalink_token");
@@ -138,9 +158,9 @@ export function AppSidebar({ mobileOpen, onMobileClose }: AppSidebarProps) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-800">
-              {MOCK_USER_NAME}
+              {userName}
             </p>
-            <p className="truncate text-xs text-slate-500">{MOCK_USER_EMAIL}</p>
+            <p className="truncate text-xs text-slate-500">{userEmail}</p>
           </div>
         </div>
         <button

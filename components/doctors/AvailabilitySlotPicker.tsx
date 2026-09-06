@@ -10,9 +10,10 @@ interface DaySlot {
 
 interface AvailabilitySlotPickerProps {
   availabilitySlots: DaySlot[];
+  onSlotSelect?: (date: string, time: string) => void;
 }
 
-export function AvailabilitySlotPicker({ availabilitySlots }: AvailabilitySlotPickerProps) {
+export function AvailabilitySlotPicker({ availabilitySlots, onSlotSelect }: AvailabilitySlotPickerProps) {
   const [selectedDate, setSelectedDate] = useState<string>(
     availabilitySlots.length > 0 ? availabilitySlots[0].date : ""
   );
@@ -25,6 +26,13 @@ export function AvailabilitySlotPicker({ availabilitySlots }: AvailabilitySlotPi
     return <p className="text-sm text-slate-500">No availability available.</p>;
   }
 
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
+    if (onSlotSelect) {
+      onSlotSelect(selectedDate, time);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -34,12 +42,13 @@ export function AvailabilitySlotPicker({ availabilitySlots }: AvailabilitySlotPi
             variant={selectedDate === day.date ? "default" : "outline"}
             className={`shrink-0 ${
               selectedDate === day.date 
-                ? "bg-teal-600 hover:bg-teal-700" 
+                ? "bg-teal-600 hover:bg-teal-700 text-white" 
                 : "border-slate-200 text-slate-600"
             }`}
             onClick={() => {
               setSelectedDate(day.date);
               setSelectedTime(""); // Reset time when date changes
+              if (onSlotSelect) onSlotSelect(day.date, "");
             }}
           >
             {day.date}
@@ -55,10 +64,10 @@ export function AvailabilitySlotPicker({ availabilitySlots }: AvailabilitySlotPi
             size="sm"
             className={
               selectedTime === time 
-                ? "bg-teal-600 hover:bg-teal-700" 
+                ? "bg-teal-600 hover:bg-teal-700 text-white" 
                 : "border-slate-200 text-slate-600"
             }
-            onClick={() => setSelectedTime(time)}
+            onClick={() => handleTimeSelect(time)}
           >
             {time}
           </Button>

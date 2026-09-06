@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { ProductMock } from "./ProductMock";
 
 export function Hero() {
-  const reduceMotion = Boolean(useReducedMotion());
-  const variants = getMotionVariants(reduceMotion);
+  // Removed useReducedMotion to fix hydration mismatch. Framer Motion handles system 
+  // reduced motion preferences automatically with standard variants.
+  const variants = getMotionVariants(false);
 
   return (
     <motion.section
@@ -72,7 +73,7 @@ export function Hero() {
         </motion.div>
 
         <motion.div variants={variants.card}>
-          <ProductMock reduceMotion={reduceMotion} />
+          <ProductMock reduceMotion={false} />
         </motion.div>
       </div>
     </motion.section>

@@ -1,5 +1,5 @@
 import { generateToken, verifyToken, JwtPayload } from '../../src/utils/jwt';
-import { Role } from '@prisma/client';
+import { Role } from '../../src/types/role';
 import jwt from 'jsonwebtoken';
 import { env } from '../../src/config/env';
 

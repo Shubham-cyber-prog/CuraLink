@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -12,11 +12,14 @@ import {
   Sparkles,
   Clock,
   HeartPulse,
+  Loader2,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { MotionButton } from "@/components/motion/MotionButton";
+import { MOCK_DOCTORS } from "@/lib/mock-data";
 import {
   getMotionVariants,
   staggerContainer,
@@ -37,12 +40,15 @@ interface UserProfile {
 
 interface Appointment {
   id: string;
+  doctorId: string;
+  date: string; // e.g. "2026-09-06"
+  time: string; // e.g. "10:30 AM"
+  status: "CONFIRMED" | "PENDING" | "CANCELLED" | "COMPLETED";
+}
+
+interface ProcessedAppointment extends Appointment {
   doctorName: string;
   specialty: string;
-  date: string; // ISO-8601 date string
-  time: string; // e.g. "10:30 AM"
-  type: "Video" | "In-Person";
-  status: "CONFIRMED" | "PENDING" | "CANCELLED";
 }
 
 interface DashboardStats {
@@ -52,36 +58,9 @@ interface DashboardStats {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data — TODO: replace with real API calls once endpoints are ready
+// Constants
 // ---------------------------------------------------------------------------
-
-const MOCK_USER: UserProfile = {
-  id: "usr_placeholder",
-  name: "Alex Johnson",
-  email: "alex@example.com",
-  role: "PATIENT",
-};
-
-const MOCK_STATS: DashboardStats = {
-  upcomingCount: 1,
-  completedCount: 4,
-  prescriptionsCount: 2,
-};
-
-// Set to null to test the empty state
-const MOCK_APPOINTMENT: Appointment | null = {
-  id: "appt_placeholder",
-  doctorName: "Dr. Priya Sharma",
-  specialty: "General Practice",
-  date: "Friday, Sep 5, 2026",
-  time: "10:30 AM",
-  type: "Video",
-  status: "CONFIRMED",
-};
-
-
-
-// ---------------------------------------------------------------------------
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 // Sub-components
 // ---------------------------------------------------------------------------
 
@@ -114,12 +93,12 @@ function StatCard({
   );
 }
 
-function AppointmentCard({ appt }: { appt: Appointment }) {
-  const isVideo = appt.type === "Video";
-  const statusColors: Record<Appointment["status"], string> = {
+function AppointmentCard({ appt }: { appt: ProcessedAppointment }) {
+  const statusColors: Record<ProcessedAppointment["status"], string> = {
     CONFIRMED: "bg-teal-50 text-teal-700 ring-1 ring-teal-200",
     PENDING: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
     CANCELLED: "bg-red-50 text-red-600 ring-1 ring-red-200",
+    COMPLETED: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
   };
 
   return (
@@ -162,19 +141,17 @@ function AppointmentCard({ appt }: { appt: Appointment }) {
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <VideoIcon className="h-4 w-4 shrink-0 text-slate-400" />
-            {appt.type}
+            Video
           </div>
         </div>
 
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          {isVideo && (
-            <MotionButton className="flex-1 sm:flex-none">
-              <Button className="w-full sm:w-auto" id="join-call-btn">
-                <VideoIcon className="h-4 w-4" />
-                Join call
-              </Button>
-            </MotionButton>
-          )}
+          <MotionButton className="flex-1 sm:flex-none">
+            <Button className="w-full sm:w-auto" id="join-call-btn">
+              <VideoIcon className="h-4 w-4 mr-2" />
+              Join call
+            </Button>
+          </MotionButton>
           <MotionButton className="flex-1 sm:flex-none">
             <Button
               variant="outline"
@@ -258,12 +235,85 @@ function QuickActionCard({
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
+  const router = useRouter();
   const reduceMotion = Boolean(useReducedMotion());
   const variants = getMotionVariants(reduceMotion);
 
-  const [user] = useState<UserProfile | null>(MOCK_USER);
-  const [stats] = useState<DashboardStats>(MOCK_STATS);
-  const [nextAppointment] = useState<Appointment | null>(MOCK_APPOINTMENT);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({ upcomingCount: 0, completedCount: 0, prescriptionsCount: 2 });
+  const [nextAppointment, setNextAppointment] = useState<ProcessedAppointment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token");
+        if (!token) {
+          router.replace("/login");
+          return;
+        }
+
+        // 1. Fetch User Profile
+        const profileRes = await fetch(`${API_BASE}/auth/me`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const profileData = await profileRes.json();
+        if (profileData.success) {
+          setUser(profileData.data);
+        }
+
+        // 2. Fetch Appointments
+        const apptsRes = await fetch(`${API_BASE}/appointments/my-appointments`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const apptsData = await apptsRes.json();
+        
+        if (apptsData.success) {
+          const allAppts: Appointment[] = apptsData.data;
+          
+          // Calculate Stats
+          let upcomingCount = 0;
+          let completedCount = 0;
+          
+          allAppts.forEach(a => {
+            if (a.status === "CONFIRMED" || a.status === "PENDING") {
+              upcomingCount++;
+            } else if (a.status === "COMPLETED") {
+              completedCount++;
+            }
+          });
+          
+          setStats(s => ({ ...s, upcomingCount, completedCount }));
+
+          // Find Next Appointment (first upcoming)
+          const upcoming = allAppts.find(a => a.status === "CONFIRMED" || a.status === "PENDING");
+          if (upcoming) {
+            const doctor = MOCK_DOCTORS.find(d => d.id === upcoming.doctorId);
+            setNextAppointment({
+              ...upcoming,
+              doctorName: doctor?.name || "Unknown Doctor",
+              specialty: doctor?.specialty || "General"
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Dashboard error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [router]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+      </div>
+    );
+  }
 
   const firstName = user?.name.split(" ")[0] ?? "there";
   const hour = new Date().getHours();

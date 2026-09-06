@@ -7,6 +7,7 @@ import { User, Stethoscope, Check } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
 import { PasswordStrength } from "./PasswordStrength";
 import { AuthError } from "./AuthError";
+import { GoogleAuthButton } from "./GoogleAuthButton";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -95,6 +96,18 @@ export function SignupForm() {
       </div>
 
       <AuthError message={error} />
+
+      {/* Google Signup */}
+      <GoogleAuthButton label="Sign up with Google" />
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-slate-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-2 text-slate-500">Or continue with email</span>
+        </div>
+      </div>
 
       {/* Role Selector */}
       <div className="grid grid-cols-2 gap-3">

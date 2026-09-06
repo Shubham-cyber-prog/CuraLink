@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { authenticate } from '../../src/middleware/auth.middleware';
 import { authorize } from '../../src/middleware/role.middleware';
 import { generateToken } from '../../src/utils/jwt';
-import { Role } from '@prisma/client';
+import { Role } from '../../src/types/role';
 import { UnauthorizedError, ForbiddenError } from '../../src/utils/errors';
 
 describe('Middleware Unit Tests', () => {

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useRouter, useSegments } from 'expo-router';
+import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { api } from './api';
 import { saveToken, getToken, removeToken } from './secure-store';
 
@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const router = useRouter();
   const segments = useSegments();
+  const rootNavigationState = useRootNavigationState();
 
   // ── Bootstrap: check for existing token on mount ──
   useEffect(() => {
@@ -77,19 +78,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── Route guard: redirect based on auth state ──
   useEffect(() => {
-    if (state.isLoading) return;
+    if (state.isLoading || !rootNavigationState?.key) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
+    const firstSegment = (segments[0] as string | undefined);
+    const inAuthGroup = firstSegment === '(auth)';
+    const inTabsGroup = firstSegment === '(tabs)';
+    const inRootOnboarding = !firstSegment || firstSegment === 'index';
 
-    if (state.isAuthenticated && inAuthGroup) {
-      // Logged in but on auth screen → go to dashboard
+    if (state.isAuthenticated && (inAuthGroup || inRootOnboarding)) {
+      // Logged in but on auth/onboarding screen → go to dashboard
       router.replace('/(tabs)');
     } else if (!state.isAuthenticated && inTabsGroup) {
       // Not logged in but on protected screen → go to onboarding
       router.replace('/');
     }
-  }, [state.isAuthenticated, state.isLoading, segments, router]);
+  }, [state.isAuthenticated, state.isLoading, segments, router, rootNavigationState?.key]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post<{ token: string; user: User }>('/auth/login', { email, password });

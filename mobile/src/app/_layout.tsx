@@ -19,10 +19,14 @@ import { NetworkAlertBanner } from '../components/NetworkAlertBanner';
 LogBox.ignoreLogs([
   'Cannot connect to Expo CLI',
   'Inter failed to load',
+  'Splashscreen.setOptions',
 ]);
 
-SplashScreen.preventAutoHideAsync();
-SplashScreen.setOptions({ duration: 0, fade: false });
+try {
+  void SplashScreen.preventAutoHideAsync();
+} catch {
+  // Ignore in reload or non-supported platforms
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({

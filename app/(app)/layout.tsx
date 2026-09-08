@@ -61,8 +61,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Top Navbar */}
         <TopNavbar onMobileMenuToggle={() => setSidebarOpen(true)} />
 
-        {/* Page Content (with mobile bottom padding for MobileBottomNav) */}
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10 pb-20 md:pb-8">
+        {/* Page Content (with mobile bottom padding for FloatingMobileNav) */}
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-10 pb-28 md:pb-8">
           <div className="mx-auto max-w-[1320px]">{children}</div>
         </main>
       </div>

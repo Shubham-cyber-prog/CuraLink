@@ -1,103 +1,95 @@
-# CuraLink — Product Requirement Document (PRD) & Build Status
+# CuraLink — Master Product Requirement Document (PRD) & 10/10 Industry Roadmap
 
-**Current Status:** Phase 1 & 2 Complete — Core Auth (incl. Google OAuth 2.0), AI Triage, Doctor Discovery, Appointment Booking, Role-Based Dashboards, Mobile Client, Security Hardening, Full Test Suite.
-
----
-
-## 1. Tech Stack
-
-- **Web:** Next.js 16 (App Router), React 19, Tailwind CSS v4, Framer Motion, Lucide React, `@react-oauth/google`, Next-Themes
-- **Mobile:** Expo / React Native, Expo Router, NativeWind, Expo SecureStore
-- **Backend:** Express.js + TypeScript (`tsx` watch server), Prisma ORM (SQLite/PostgreSQL), Zod validation
-- **Security:** Dual JWT tokens (15-min access + 7-day refresh), HttpOnly+SameSite=Lax cookies (web), Bearer token (mobile), double-submit CSRF cookie (`curalink_csrf`), granular rate limiters, CSP/HSTS headers
+> **Target Goal:** Transform CuraLink into a 10/10 Industry-Grade, DPDP Act 2023 & NMC Telemedicine Guidelines 2020 compliant Healthcare Telehealth Platform ready for real production launch in India.
 
 ---
 
-## 2. Module Status
+## 📌 1. Executive Summary & Tech Stack
 
-| Module | Status |
-|---|---|
-| Authentication (email, Google OAuth 2.0, JWT refresh, password reset, CSRF, session persistence) | 100% |
-| Real Video/Audio Consultation (Daily.co REST API, meeting tokens, pre-call check, Daily Prebuilt call room, audit logs) | 100% |
-| AI Symptom Checker (urgency triage, specialist recommendation) | 100% |
-| Doctor Discovery & Booking (search, profiles, slot booking, appointments mgmt) | 100% |
-| Role-Based Portals (Patient/Doctor/Admin dashboards, RBAC) | 100% |
-| Mobile Client (auth, onboarding, tab nav, Bearer-token API) | 90% |
-| Testing (Jest — 5 suites, 32 tests passing) | 100% |
+CuraLink is an AI-powered telehealth ecosystem serving Patients, Doctors, and Admins across a Next.js Web Application and Expo React Native Mobile Client sharing a single Express.js backend.
 
-**Fix History:**
-- **Website Login Cookies**: Fixed `credentials: "omit"` to `credentials: "include"` across all auth fetch calls.
-- **CSRF Protection**: Exempted unauthenticated auth endpoints (`/login`, `/register`, `/google`, `/logout`, `/forgot-password`, `/reset-password`) from CSRF check while keeping it strictly active on non-auth state-changing routes (e.g. appointment booking).
-- **Mobile Login**: Backend response now returns `data: { user, token: accessToken }` along with HTTP cookies in the same response.
-- **Google OAuth 2.0 Button**: Fixed response stream re-read crash (`res.text()`) and updated Content-Security-Policy (CSP) headers in `next.config.ts` and `security-headers.middleware.ts` to allow Google Identity Services (`https://accounts.google.com`, `https://gsi.gstatic.com`, `https://apis.google.com`, `frame-src`).
+### Tech Stack
+- **Web Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, Framer Motion, Lucide React, `@react-oauth/google`
+- **Mobile Client:** Expo SDK 57 / React Native 0.86, Expo Router, NativeWind, Expo SecureStore, `expo-auth-session`, `expo-web-browser`
+- **Backend Infrastructure:** Express.js, TypeScript (`tsx`), Prisma ORM (SQLite dev / PostgreSQL prod), Zod validation, Daily.co REST API
+- **Security & Auth:** Dual JWT tokens (15-min access + 7-day refresh), HttpOnly+SameSite=Lax cookies (web), Bearer token in SecureStore (mobile), Backend-Mediated Google OAuth 2.0 (`curalink://` deep-linking), Double-Submit CSRF cookie (`curalink_csrf`), granular rate limiters, security headers (CSP/HSTS)
 
 ---
 
-## 3. Design System (Healthians-inspired, light-first)
+## 📊 2. Current Implementation Status
+
+| Component | Status | Details |
+|---|:---:|---|
+| **Authentication & RBAC** | ✅ 100% | Dual JWT, Email/Password, Backend-Mediated Google OAuth, Password Reset, CSRF, SecureStore (mobile) |
+| **Real Video/Audio Call** | ✅ 100% | Daily.co REST API, room token generation, pre-call readiness check, Daily Prebuilt call rooms, completion flow |
+| **AI Symptom Checker** | ✅ 100% | 24/7 Clinical triage engine, RED/YELLOW/GREEN priority badges, specialist recommendation, possible causes |
+| **Doctor Discovery & Booking** | ✅ 100% | Real-time search, specialty pills, slot selection, appointment booking, manage visits |
+| **Navigation & Design System** | ✅ 100% | Unified floating curved pill bottom bar (<768px web + mobile app), Healthians-inspired light theme (`#0F9D8C`) |
+| **Mobile Backend API Config** | ✅ 100% | Runtime Expo `hostUri` LAN IP auto-detection, Android emulator fallback (`10.0.2.2`), in-app `NetworkAlertBanner` |
+| **Automated Test Suite** | ✅ 100% | Jest — 5 test suites, 32 unit & integration tests passing 100% |
+
+---
+
+## 🗺️ 3. Industry 10/10 Layered Roadmap
+
+### Layer 1 — Core Product Completeness (Highest Priority)
+- [x] **Real Video/Audio Consultation**: Daily.co integration with meeting token auth and completion status.
+- [ ] **Payment Gateway (Razorpay India)**: Consultation fee checkout, automated invoicing, refund handling for cancelled appointments.
+- [ ] **Real Email & SMS Notifications**: Resend/SendGrid email triggers + MSG91/Twilio SMS for appointment confirmations & OTPs.
+- [ ] **Mobile Push Notifications**: Expo Notifications service for appointment reminders & live doctor messages.
+- [ ] **Doctor Onboarding & Verification**: Medical registration license upload, degree proof, and admin verification gate before listing.
+- [ ] **PDF E-Prescription Generation**: Downloadable & shareable PDF prescription generated post-consultation.
+- [ ] **Real Medical Records Storage**: S3 / Cloudinary encrypted file uploads for prescriptions and lab reports.
+- [ ] **Doctor Reviews & Ratings**: Post-consultation rating system with verified patient reviews.
+
+### Layer 2 — Legal & Compliance (Non-Negotiable for Healthcare)
+- [ ] **DPDP Act 2023 Compliance**: Digital Personal Data Protection Act compliance for Indian citizens (explicit consent manager, data principal rights).
+- [ ] **NMC Telemedicine Practice Guidelines 2020**: National Medical Commission guidelines compliance for remote doctor-patient consultations.
+- [ ] **Privacy Policy & Terms of Service**: Legally drafted policies for telehealth, data handling, and liability disclaimers.
+- [ ] **Data Retention & Account Deletion**: User-initiated account and data erasure pipeline.
+- [ ] **Cookie & Consent Manager**: Explicit cookie consent banner for web analytics & session cookies.
+
+### Layer 3 — Infrastructure & DevOps
+- [ ] **Multi-Environment Setup**: Strict separation of `local dev` -> `staging` -> `production`.
+- [ ] **CI/CD Automation**: GitHub Actions pipeline auto-running tests & lint checks before merging PRs.
+- [ ] **Production Hosting**: Railway/AWS for Express API, Supabase/Neon for managed PostgreSQL, Vercel for Next.js.
+- [ ] **Error & Uptime Monitoring**: Sentry for error tracking + UptimeRobot for server health alerts.
+- [ ] **Automated Database Backups**: Daily automated PostgreSQL snapshots with tested restore procedures.
+
+### Layer 4 — Quality, Testing & Security
+- [ ] **End-to-End Testing**: Playwright test suite covering signup -> book appointment -> join call -> payment.
+- [ ] **Accessibility (WCAG 2.1 AA)**: Full keyboard navigation, screen reader support, and high contrast compliance.
+- [ ] **Security Audit & Pen-Testing**: OWASP Top 10 audit, rate-limit stress test, and dependency vulnerability scans (`npm audit`).
+
+### Layer 5 — Business, Operations & Analytics
+- [ ] **Admin Operations Tooling**: Dispute resolution, manual refund triggers, account suspension, and support ticket management.
+- [ ] **Customer Support Channel**: In-app help desk + dedicated support email.
+- [ ] **Product Analytics**: PostHog / GA4 funnel tracking for conversion optimization.
+
+---
+
+## 🎯 4. Order of Attack & Milestones
 
 ```
-Background:      #F8FAFC
-Card surface:     #FFFFFF
-Primary accent:   Teal/Emerald (#0F9D8C)
-Secondary accent: Soft blue (#3B82F6), used sparingly
-Text primary:     #0F172A (dark navy)
-Text secondary:   #64748B (slate)
-Borders:          #E2E8F0, 1px, subtle
-Border radius:    14–18px cards, 10–12px buttons
-Shadows:          Very light (0 1px 3px rgba(0,0,0,0.05))
+Phase 1: Product Completeness (Make it actually usable)
+  ├── 1. Payment Gateway (Razorpay integration for consultation fees)
+  ├── 2. Doctor Onboarding & Medical License Verification (Admin approval gate)
+  ├── 3. Real Email, SMS & Mobile Push Notifications (Resend + MSG91 + Expo Push)
+  ├── 4. PDF E-Prescription Generation & Encrypted Records Storage (S3/Cloudinary)
+  └── 5. Doctor Ratings & Verified Patient Reviews
+
+Phase 2: Legal & Compliance (Make it legally launchable)
+  ├── 1. DPDP Act 2023 & IT Rules 2021 Data Compliance
+  ├── 2. NMC Telemedicine Practice Guidelines 2020 Compliance
+  └── 3. Drafted Privacy Policy, Terms of Service & Account Deletion Pipeline
+
+Phase 3: Infrastructure & Quality (Make it production-stable)
+  ├── 1. Vercel + Railway + Managed PostgreSQL Deployment with Custom Domain & SSL
+  ├── 2. CI/CD GitHub Actions Pipeline
+  ├── 3. Sentry Error Tracking & Uptime Monitoring
+  └── 4. Playwright End-to-End Automated Test Suite
+
+Phase 4: Operations & Launch (Make it a real business)
+  ├── 1. Admin Operations Tooling (Refunds, Account Suspensions, Support Desk)
+  └── 2. Analytics & SEO Optimization
 ```
-
-**Sidebar (logged-in areas only):** Dashboard, Find Doctors, Appointments, AI Symptom Checker, Medical Records — divider — Messages, Notifications — divider — Settings, Help & Support. Keep minimal (~220–240px), never dominant. Landing page uses top navbar only, no sidebar.
-
----
-
-## 4. Known Issues Fixed
-
-| Issue | Root Cause | Fix |
-|---|---|---|
-| Settings page dark/light mismatch | Theme inconsistency across screen | Unified to #F8FAFC everywhere |
-| Landing headline barely visible | Near-white text on light bg | Changed to #0F172A, enforced WCAG AA check |
-| Mismatched serif font on stats | Inconsistent font pairing | Restricted accent font to 1 word only |
-| Website login 403 CSRF error | CSRF applied globally incl. login | Exempted auth routes from CSRF |
-| Website cookies not saving | `credentials: "omit"` on fetch | Changed to `credentials: "include"` |
-| Mobile login silently failing | Backend response missing `token` | Backend now returns `{ user, token }` |
-| Google OAuth button not opening | CSP blocking Google script/iframe | Allowed Google domains in script-src, frame-src, connect-src |
-
----
-
-## 5. Pending / In Progress
-
-- Website responsiveness verification across breakpoints (375px / 768px / 1024px+)
-- Landing page fast product-style carousel
-- Full manual QA pass (every button/link/toggle functional, contrast re-check across all screens)
-
----
-
-## 6. Security Checklist Status
-
-| # | Item | Status |
-|---|---|---|
-| 1 | CORS (origin-restricted) | Done |
-| 2 | JWT/Auth (dual token) | Done |
-| 3 | RBAC | Done |
-| 4 | Input Validation (Zod) | Done |
-| 5 | SQL Injection (Prisma ORM) | Done |
-| 6 | XSS defense | Verify on symptom checker/chat inputs |
-| 7 | CSRF | Done, auth routes exempted |
-| 8 | Rate Limiting | Done |
-| 9 | Security Headers | Done (CSP updated for Google GSI) |
-| 10 | Secrets management | Done |
-| 11 | Audit Logs | Done (admin dashboard) |
-| 12 | Encryption | Verify at-rest encryption for records |
-| 13 | Dependency Security | Verify — run npm audit before deploy |
-| 14 | Logging/Monitoring | Verify — not confirmed yet |
-
----
-
-## 7. Next Priorities (in order)
-
-1. Confirm/fix website responsiveness across breakpoints (375px / 768px / 1024px+)
-2. Implement real geolocation location selector (no mock data)
-3. Manual QA: click every interactive element + re-check contrast on every screen
-4. Landing page product carousel
-5. Close remaining security-checklist verification items (XSS, encryption, dependency audit, monitoring)

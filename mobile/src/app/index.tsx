@@ -9,40 +9,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
   const [fadeAnim] = useState(() => new Animated.Value(0));
   const [slideAnim] = useState(() => new Animated.Value(20));
 
   useEffect(() => {
-    async function checkAuth() {
-      const token = await getToken();
-      if (token) {
-        router.replace('/(tabs)');
-      } else {
-        setIsChecking(false);
-        // Staged animation: fade in and slide up
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      }
-    }
-    checkAuth();
-  }, [router, fadeAnim, slideAnim]);
-
-  if (isChecking) {
-    return (
-      <View className="flex-1 items-center justify-center bg-mint-bg" />
-    );
-  }
+    // Staged animation: fade in and slide up
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
 
   return (
     <LinearGradient

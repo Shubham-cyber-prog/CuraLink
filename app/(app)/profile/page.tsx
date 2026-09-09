@@ -12,7 +12,12 @@ import {
   Monitor,
   Smartphone,
   Key,
+  Palette,
+  Sun,
+  Moon,
+  Laptop,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -25,10 +30,12 @@ interface UserProfile {
   createdAt: string;
 }
 
-type TabType = "general" | "security" | "notifications";
+type TabType = "general" | "security" | "notifications" | "appearance";
 
 export default function ProfileSettingsPage() {
   const router = useRouter();
+  const { theme, setTheme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("general");
@@ -46,6 +53,7 @@ export default function ProfileSettingsPage() {
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     // Load persisted preferences if available
     const savedApptReminders = localStorage.getItem("curalink_notif_appt");
     if (savedApptReminders !== null) {
@@ -108,10 +116,13 @@ export default function ProfileSettingsPage() {
           "X-CSRF-Token": csrfToken,
         },
         credentials: "include",
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+        }),
       });
-      const data = await res.json();
 
+      const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.message || "Failed to update profile settings");
       }
@@ -119,36 +130,36 @@ export default function ProfileSettingsPage() {
       setProfile(data.data);
       setHasChanges(false);
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3500);
+      setTimeout(() => setSaveSuccess(false), 4000);
     } catch (err: any) {
-      setSaveError(err.message || "An error occurred while saving profile");
+      setSaveError(err.message || "An unexpected error occurred");
     } finally {
       setIsSaving(false);
     }
   };
 
   const toggleAppointmentReminders = () => {
-    const val = !appointmentReminders;
-    setAppointmentReminders(val);
-    localStorage.setItem("curalink_notif_appt", String(val));
+    const nextVal = !appointmentReminders;
+    setAppointmentReminders(nextVal);
+    localStorage.setItem("curalink_notif_appt", String(nextVal));
   };
 
   const toggleMarketingUpdates = () => {
-    const val = !marketingUpdates;
-    setMarketingUpdates(val);
-    localStorage.setItem("curalink_notif_mkt", String(val));
+    const nextVal = !marketingUpdates;
+    setMarketingUpdates(nextVal);
+    localStorage.setItem("curalink_notif_mkt", String(nextVal));
   };
 
   const toggle2FA = () => {
-    const val = !twoFactorAuth;
-    setTwoFactorAuth(val);
-    localStorage.setItem("curalink_2fa", String(val));
+    const nextVal = !twoFactorAuth;
+    setTwoFactorAuth(nextVal);
+    localStorage.setItem("curalink_2fa", String(nextVal));
   };
 
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[#0F9D8C]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#0F9D8C] dark:text-[#14B8A6]" />
       </div>
     );
   }
@@ -160,26 +171,26 @@ export default function ProfileSettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E2E8F0] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E2E8F0] dark:border-[#263049] pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A]">
+          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F1F5F9]">
             Settings
           </h1>
-          <p className="mt-1 text-sm text-[#64748B]">
-            Manage your account settings, security options, and email preferences.
+          <p className="mt-1 text-sm text-[#64748B] dark:text-[#94A3B8]">
+            Manage your account settings, security options, appearance, and notifications.
           </p>
         </div>
 
         {/* HIPAA Trust Badge */}
-        <div className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C]" />
+        <div className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300">
+          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C] dark:text-[#14B8A6]" />
           <span>HIPAA-aligned Account</span>
         </div>
       </div>
 
       {/* Settings Navigation Tabs & Content Layout */}
       <div className="flex flex-col md:flex-row gap-6 lg:gap-8">
-        {/* Tabs sidebar - sits directly on light #F8FAFC bg */}
+        {/* Tabs sidebar */}
         <aside className="w-full md:w-56 shrink-0">
           <nav
             className="flex space-x-2 md:flex-col md:space-x-0 md:space-y-1 overflow-x-auto pb-2 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
@@ -188,10 +199,10 @@ export default function ProfileSettingsPage() {
             <button
               id="settings-tab-general"
               onClick={() => setActiveTab("general")}
-              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
                 activeTab === "general"
-                  ? "bg-white text-[#0F172A] border border-[#E2E8F0] shadow-xs font-semibold"
-                  : "text-[#64748B] hover:bg-slate-200/50 hover:text-[#0F172A]"
+                  ? "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs font-semibold"
+                  : "text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-200/50 dark:hover:bg-[#1C2338] hover:text-[#0F172A] dark:hover:text-[#F1F5F9]"
               }`}
             >
               <User className="h-4 w-4" />
@@ -199,12 +210,25 @@ export default function ProfileSettingsPage() {
             </button>
 
             <button
+              id="settings-tab-appearance"
+              onClick={() => setActiveTab("appearance")}
+              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === "appearance"
+                  ? "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs font-semibold"
+                  : "text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-200/50 dark:hover:bg-[#1C2338] hover:text-[#0F172A] dark:hover:text-[#F1F5F9]"
+              }`}
+            >
+              <Palette className="h-4 w-4" />
+              Appearance
+            </button>
+
+            <button
               id="settings-tab-security"
               onClick={() => setActiveTab("security")}
-              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
                 activeTab === "security"
-                  ? "bg-white text-[#0F172A] border border-[#E2E8F0] shadow-xs font-semibold"
-                  : "text-[#64748B] hover:bg-slate-200/50 hover:text-[#0F172A]"
+                  ? "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs font-semibold"
+                  : "text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-200/50 dark:hover:bg-[#1C2338] hover:text-[#0F172A] dark:hover:text-[#F1F5F9]"
               }`}
             >
               <Shield className="h-4 w-4" />
@@ -214,10 +238,10 @@ export default function ProfileSettingsPage() {
             <button
               id="settings-tab-notifications"
               onClick={() => setActiveTab("notifications")}
-              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
                 activeTab === "notifications"
-                  ? "bg-white text-[#0F172A] border border-[#E2E8F0] shadow-xs font-semibold"
-                  : "text-[#64748B] hover:bg-slate-200/50 hover:text-[#0F172A]"
+                  ? "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs font-semibold"
+                  : "text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-200/50 dark:hover:bg-[#1C2338] hover:text-[#0F172A] dark:hover:text-[#F1F5F9]"
               }`}
             >
               <Bell className="h-4 w-4" />
@@ -226,17 +250,17 @@ export default function ProfileSettingsPage() {
           </nav>
         </aside>
 
-        {/* Right Content Panel - pure white card on #F8FAFC */}
+        {/* Right Content Panel */}
         <main className="flex-1 min-w-0">
           {/* GENERAL TAB */}
           {activeTab === "general" && (
             <div className="space-y-6">
-              <section className="rounded-2xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
-                <div className="border-b border-[#E2E8F0] px-6 py-5">
-                  <h2 className="text-base font-bold text-[#0F172A]">
+              <section className="rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden transition-colors duration-200">
+                <div className="border-b border-[#E2E8F0] dark:border-[#263049] px-6 py-5">
+                  <h2 className="text-base font-bold text-[#0F172A] dark:text-[#F1F5F9]">
                     Profile Information
                   </h2>
-                  <p className="text-xs text-[#64748B] mt-1">
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
                     Update your account details and registered email address.
                   </p>
                 </div>
@@ -244,25 +268,25 @@ export default function ProfileSettingsPage() {
                 <div className="p-6 space-y-6">
                   {/* Avatar Upload */}
                   <div className="flex items-center gap-5">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-teal-100 font-bold text-[#0F9D8C] text-2xl border border-teal-200">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-900/60 font-bold text-[#0F9D8C] dark:text-[#14B8A6] text-2xl border border-teal-200 dark:border-teal-800/60">
                       {nameInitial}
                     </div>
                     <div>
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className="rounded-xl border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs font-semibold text-[#0F172A] hover:bg-slate-50"
+                          className="rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#1C2338] px-3 py-1.5 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] cursor-pointer"
                         >
                           Upload avatar
                         </button>
                         <button
                           type="button"
-                          className="rounded-xl px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-red-600"
+                          className="rounded-xl px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
                         >
                           Remove
                         </button>
                       </div>
-                      <p className="text-[11px] text-[#64748B] mt-1.5">
+                      <p className="text-[11px] text-[#64748B] dark:text-[#94A3B8] mt-1.5">
                         JPG, PNG or GIF up to 2MB.
                       </p>
                     </div>
@@ -272,7 +296,7 @@ export default function ProfileSettingsPage() {
                     <div className="space-y-1.5">
                       <label
                         htmlFor="profile-name-input"
-                        className="text-xs font-semibold text-[#0F172A]"
+                        className="text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9]"
                       >
                         Full Name
                       </label>
@@ -285,14 +309,14 @@ export default function ProfileSettingsPage() {
                           setHasChanges(true);
                           setSaveSuccess(false);
                         }}
-                        className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-sm text-[#0F172A] focus:border-[#0F9D8C] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/20"
+                        className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] px-3.5 py-2 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/20"
                       />
                     </div>
 
                     <div className="space-y-1.5">
                       <label
                         htmlFor="profile-email-input"
-                        className="text-xs font-semibold text-[#0F172A]"
+                        className="text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9]"
                       >
                         Email Address
                       </label>
@@ -305,24 +329,24 @@ export default function ProfileSettingsPage() {
                           setHasChanges(true);
                           setSaveSuccess(false);
                         }}
-                        className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2 text-sm text-[#0F172A] focus:border-[#0F9D8C] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/20"
+                        className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] px-3.5 py-2 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/20"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-[#F8FAFC] px-6 py-4 border-t border-[#E2E8F0] flex items-center justify-between flex-wrap gap-3">
+                <div className="bg-[#F8FAFC] dark:bg-[#1C2338] px-6 py-4 border-t border-[#E2E8F0] dark:border-[#263049] flex items-center justify-between flex-wrap gap-3 transition-colors duration-200">
                   <div>
                     {saveError ? (
-                      <p className="text-xs font-medium text-red-600">
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400">
                         {saveError}
                       </p>
                     ) : saveSuccess ? (
-                      <p className="text-xs font-medium text-emerald-600 flex items-center gap-1">
+                      <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                         <Check className="h-3.5 w-3.5" /> Saved successfully
                       </p>
                     ) : (
-                      <p className="text-xs text-[#64748B]">
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
                         Changes will be saved to your patient profile.
                       </p>
                     )}
@@ -331,7 +355,7 @@ export default function ProfileSettingsPage() {
                     id="save-profile-btn"
                     onClick={handleSaveProfile}
                     disabled={!hasChanges || isSaving}
-                    className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#0F9D8C] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0C8577] disabled:opacity-50 transition-colors"
+                    className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-[#0F9D8C] dark:bg-[#14B8A6] px-5 py-2 text-sm font-semibold text-white hover:bg-[#0C8577] dark:hover:bg-teal-500 disabled:opacity-50 transition-colors active:scale-[0.97] cursor-pointer"
                   >
                     {isSaving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -343,41 +367,178 @@ export default function ProfileSettingsPage() {
             </div>
           )}
 
+          {/* APPEARANCE TAB */}
+          {activeTab === "appearance" && (
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden transition-colors duration-200">
+                <div className="border-b border-[#E2E8F0] dark:border-[#263049] px-6 py-5">
+                  <h2 className="text-base font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                    Theme & Visual Preferences
+                  </h2>
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
+                    Choose how CuraLink looks to you. Preferences automatically persist across devices and browser sessions.
+                  </p>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Light Option */}
+                    <div
+                      id="theme-option-light"
+                      onClick={() => setTheme("light")}
+                      className={`group relative flex flex-col justify-between rounded-2xl border-2 p-4 cursor-pointer transition-all duration-200 ${
+                        mounted && theme === "light"
+                          ? "border-[#0F9D8C] bg-teal-50/20 dark:border-[#14B8A6]"
+                          : "border-[#E2E8F0] dark:border-[#263049] hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                          <Sun className="h-5 w-5" />
+                        </div>
+                        <span
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                            mounted && theme === "light"
+                              ? "border-[#0F9D8C] bg-[#0F9D8C]"
+                              : "border-slate-300 dark:border-slate-600"
+                          }`}
+                        >
+                          {mounted && theme === "light" && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                          Light Mode
+                        </p>
+                        <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                          High contrast, crisp clinic palette.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Dark Option */}
+                    <div
+                      id="theme-option-dark"
+                      onClick={() => setTheme("dark")}
+                      className={`group relative flex flex-col justify-between rounded-2xl border-2 p-4 cursor-pointer transition-all duration-200 ${
+                        mounted && theme === "dark"
+                          ? "border-[#0F9D8C] bg-teal-50/20 dark:border-[#14B8A6] dark:bg-teal-950/20"
+                          : "border-[#E2E8F0] dark:border-[#263049] hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-teal-400">
+                          <Moon className="h-5 w-5" />
+                        </div>
+                        <span
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                            mounted && theme === "dark"
+                              ? "border-[#0F9D8C] dark:border-[#14B8A6] bg-[#0F9D8C] dark:bg-[#14B8A6]"
+                              : "border-slate-300 dark:border-slate-600"
+                          }`}
+                        >
+                          {mounted && theme === "dark" && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                          Dark Mode
+                        </p>
+                        <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                          Deep navy #0B1120, gentle on the eyes.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* System Option */}
+                    <div
+                      id="theme-option-system"
+                      onClick={() => setTheme("system")}
+                      className={`group relative flex flex-col justify-between rounded-2xl border-2 p-4 cursor-pointer transition-all duration-200 ${
+                        mounted && theme === "system"
+                          ? "border-[#0F9D8C] bg-teal-50/20 dark:border-[#14B8A6] dark:bg-teal-950/20"
+                          : "border-[#E2E8F0] dark:border-[#263049] hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                          <Laptop className="h-5 w-5" />
+                        </div>
+                        <span
+                          className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                            mounted && theme === "system"
+                              ? "border-[#0F9D8C] dark:border-[#14B8A6] bg-[#0F9D8C] dark:bg-[#14B8A6]"
+                              : "border-slate-300 dark:border-slate-600"
+                          }`}
+                        >
+                          {mounted && theme === "system" && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                          System Sync
+                        </p>
+                        <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                          Follows your device OS appearance.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-100 dark:border-[#263049] bg-slate-50/60 dark:bg-[#0B1120] p-4 text-xs text-[#64748B] dark:text-[#94A3B8]">
+                    <p>
+                      Active mode: <strong className="text-[#0F172A] dark:text-[#F1F5F9] capitalize">{theme || "system"}</strong>
+                      {theme === "system" && (
+                        <span> (resolving to {systemTheme || "light"})</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
           {/* SECURITY TAB */}
           {activeTab === "security" && (
             <div className="space-y-6">
-              <section className="rounded-2xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
-                <div className="border-b border-[#E2E8F0] px-6 py-5">
-                  <h2 className="text-base font-bold text-[#0F172A]">
+              <section className="rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden transition-colors duration-200">
+                <div className="border-b border-[#E2E8F0] dark:border-[#263049] px-6 py-5">
+                  <h2 className="text-base font-bold text-[#0F172A] dark:text-[#F1F5F9]">
                     Change Password
                   </h2>
-                  <p className="text-xs text-[#64748B] mt-1">
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
                     Ensure your account is using a long, random password to stay secure.
                   </p>
                 </div>
                 <div className="p-6 space-y-4 max-w-md">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0F172A]">
+                    <label className="text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9]">
                       Current Password
                     </label>
                     <input
                       type="password"
                       placeholder="••••••••"
-                      className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm text-[#0F172A] focus:border-[#0F9D8C] focus:bg-white focus:outline-none"
+                      className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] px-3 py-2 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#0F172A]">
+                    <label className="text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9]">
                       New Password
                     </label>
                     <input
                       type="password"
                       placeholder="••••••••"
-                      className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm text-[#0F172A] focus:border-[#0F9D8C] focus:bg-white focus:outline-none"
+                      className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] px-3 py-2 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none"
                     />
                   </div>
                   <div className="pt-2">
-                    <button className="min-h-[40px] rounded-xl bg-[#0F172A] px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+                    <button className="min-h-[40px] rounded-xl bg-[#0F172A] dark:bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:hover:bg-slate-700 cursor-pointer active:scale-[0.97] transition-all">
                       Update Password
                     </button>
                   </div>
@@ -385,13 +546,13 @@ export default function ProfileSettingsPage() {
               </section>
 
               {/* Two-Factor Authentication Toggle */}
-              <section className="rounded-2xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
+              <section className="rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden transition-colors duration-200">
                 <div className="p-6 flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-sm font-bold text-[#0F172A]">
+                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
                       Two-Factor Authentication (2FA)
                     </h3>
-                    <p className="text-xs text-[#64748B] mt-1">
+                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
                       Add an extra layer of security using an authenticator app.
                     </p>
                   </div>
@@ -400,14 +561,14 @@ export default function ProfileSettingsPage() {
                     type="button"
                     id="toggle-2fa-btn"
                     onClick={toggle2FA}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      twoFactorAuth ? "bg-[#0F9D8C]" : "bg-slate-200"
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out focus:outline-none ${
+                      twoFactorAuth ? "bg-[#0F9D8C] dark:bg-[#14B8A6]" : "bg-slate-200 dark:bg-slate-700"
                     }`}
                     role="switch"
                     aria-checked={twoFactorAuth}
                   >
                     <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#F1F5F9] shadow-sm ring-0 transition-transform duration-200 ease-out ${
                         twoFactorAuth ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
@@ -420,24 +581,24 @@ export default function ProfileSettingsPage() {
           {/* NOTIFICATIONS TAB */}
           {activeTab === "notifications" && (
             <div className="space-y-6">
-              <section className="rounded-2xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
-                <div className="border-b border-[#E2E8F0] px-6 py-5">
-                  <h2 className="text-base font-bold text-[#0F172A]">
+              <section className="rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden transition-colors duration-200">
+                <div className="border-b border-[#E2E8F0] dark:border-[#263049] px-6 py-5">
+                  <h2 className="text-base font-bold text-[#0F172A] dark:text-[#F1F5F9]">
                     Email Notification Preferences
                   </h2>
-                  <p className="text-xs text-[#64748B] mt-1">
+                  <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
                     Choose what health updates and appointment reminders you receive.
                   </p>
                 </div>
 
-                <div className="divide-y divide-[#E2E8F0]">
+                <div className="divide-y divide-[#E2E8F0] dark:divide-[#263049]">
                   {/* Appointment Reminders Toggle */}
                   <div className="p-6 flex items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-sm font-bold text-[#0F172A]">
+                      <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
                         Appointment Reminders
                       </h3>
-                      <p className="text-xs text-[#64748B] mt-1">
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
                         Receive SMS and email reminders 24 hours prior to scheduled visits.
                       </p>
                     </div>
@@ -446,17 +607,15 @@ export default function ProfileSettingsPage() {
                       type="button"
                       id="toggle-appointment-reminders"
                       onClick={toggleAppointmentReminders}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        appointmentReminders ? "bg-[#0F9D8C]" : "bg-slate-200"
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out focus:outline-none ${
+                        appointmentReminders ? "bg-[#0F9D8C] dark:bg-[#14B8A6]" : "bg-slate-200 dark:bg-slate-700"
                       }`}
                       role="switch"
                       aria-checked={appointmentReminders}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                          appointmentReminders
-                            ? "translate-x-5"
-                            : "translate-x-0"
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#F1F5F9] shadow-sm ring-0 transition-transform duration-200 ease-out ${
+                          appointmentReminders ? "translate-x-5" : "translate-x-0"
                         }`}
                       />
                     </button>
@@ -465,10 +624,10 @@ export default function ProfileSettingsPage() {
                   {/* Marketing Updates Toggle */}
                   <div className="p-6 flex items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-sm font-bold text-[#0F172A]">
+                      <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9]">
                         Marketing & Health Tips
                       </h3>
-                      <p className="text-xs text-[#64748B] mt-1">
+                      <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
                         Receive preventive health insights and promotional updates.
                       </p>
                     </div>
@@ -477,14 +636,14 @@ export default function ProfileSettingsPage() {
                       type="button"
                       id="toggle-marketing-updates"
                       onClick={toggleMarketingUpdates}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        marketingUpdates ? "bg-[#0F9D8C]" : "bg-slate-200"
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-out focus:outline-none ${
+                        marketingUpdates ? "bg-[#0F9D8C] dark:bg-[#14B8A6]" : "bg-slate-200 dark:bg-slate-700"
                       }`}
                       role="switch"
                       aria-checked={marketingUpdates}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#F1F5F9] shadow-sm ring-0 transition-transform duration-200 ease-out ${
                           marketingUpdates ? "translate-x-5" : "translate-x-0"
                         }`}
                       />

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { LocationSelector } from "@/components/layout/LocationSelector";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 interface TopNavbarProps {
   onMobileMenuToggle?: () => void;
@@ -104,13 +105,13 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-[#E2E8F0] bg-white px-4 sm:px-6 lg:px-8 shadow-xs">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-[#E2E8F0] dark:border-[#263049] bg-white/95 dark:bg-[#151B2E]/95 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-xs transition-colors duration-200">
       {/* ---- Left: Logo & Mobile Drawer Toggle ---- */}
       <div className="flex items-center gap-3">
         {onMobileMenuToggle && (
           <button
             onClick={onMobileMenuToggle}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 focus:outline-none md:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1C2338] focus:outline-none md:hidden cursor-pointer"
             aria-label="Open menu"
             id="top-navbar-mobile-menu-btn"
           >
@@ -125,20 +126,20 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
         <LocationSelector />
 
         <form onSubmit={handleSearchSubmit} className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             id="doctor-search-input"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search doctors, specialties, or symptoms..."
-            className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pl-10 pr-4 py-2 text-sm text-[#0F172A] placeholder:text-[#64748B] transition-colors focus:border-[#0F9D8C] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/20"
+            className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] pl-10 pr-4 py-2 text-sm text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] transition-colors focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/20"
           />
         </form>
       </div>
 
-      {/* ---- Right: Actions (Location, Trust badge, Notifications, Profile) ---- */}
-      <div className="flex items-center gap-2 sm:gap-4">
+      {/* ---- Right: Actions (Location, Trust badge, ThemeToggle, Notifications, Profile) ---- */}
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Location selector (Mobile screen) */}
         <div className="md:hidden">
           <LocationSelector />
@@ -146,80 +147,83 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
         {/* Search Toggle icon (Mobile only) */}
         <button
           onClick={() => setSearchOpen(!searchOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 md:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1C2338] md:hidden cursor-pointer"
           aria-label="Search"
         >
           <Search className="h-5 w-5" />
         </button>
 
         {/* HIPAA Trust Signal Badge */}
-        <div className="hidden lg:flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-teal-50/80 px-3 py-1 text-xs font-medium text-teal-800">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C]" />
+        <div className="hidden lg:flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/80 dark:bg-teal-950/40 px-3 py-1 text-xs font-medium text-teal-800 dark:text-teal-300">
+          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C] dark:text-[#14B8A6]" />
           <span>HIPAA-aligned</span>
         </div>
+
+        {/* Dark Mode Toggle */}
+        <ThemeToggle />
 
         {/* Notification Bell Dropdown */}
         <div className="relative" ref={notifRef}>
           <button
             id="navbar-notification-btn"
             onClick={() => setNotificationsOpen(!notificationsOpen)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-[#1C2338] hover:text-slate-900 dark:hover:text-[#F1F5F9] cursor-pointer"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#0F9D8C] ring-2 ring-white" />
+            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] ring-2 ring-white dark:ring-[#151B2E]" />
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-lg ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-4 shadow-xl ring-1 ring-slate-900/5 dark:ring-white/10 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-[#263049] pb-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-[#0F172A]">
+                  <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#F1F5F9]">
                     Notifications
                   </h3>
-                  <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700">
+                  <span className="rounded-full bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300">
                     2 new
                   </span>
                 </div>
                 <Link
                   href="/notifications"
                   onClick={() => setNotificationsOpen(false)}
-                  className="text-xs font-medium text-[#0F9D8C] hover:underline"
+                  className="text-xs font-medium text-[#0F9D8C] dark:text-[#14B8A6] hover:underline"
                 >
                   View all
                 </Link>
               </div>
 
               <div className="mt-3 space-y-2">
-                <div className="flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-[#F8FAFC]">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-[#0F9D8C]">
+                <div className="flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[#1C2338]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-[#14B8A6]">
                     <Calendar className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-[#0F172A]">
+                    <p className="text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9]">
                       Upcoming Appointment Today
                     </p>
-                    <p className="text-xs text-[#64748B]">
+                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
                       Dr. Ananya Sharma • 4:30 PM
                     </p>
-                    <span className="mt-1 block text-[10px] text-slate-400">
+                    <span className="mt-1 block text-[10px] text-slate-400 dark:text-slate-500">
                       10 mins ago
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-[#F8FAFC]">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                <div className="flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[#1C2338]">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
                     <FileText className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-[#0F172A]">
+                    <p className="text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9]">
                       New Lab Report Available
                     </p>
-                    <p className="text-xs text-[#64748B]">
+                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
                       Complete Blood Count (CBC) analysis uploaded.
                     </p>
-                    <span className="mt-1 block text-[10px] text-slate-400">
+                    <span className="mt-1 block text-[10px] text-slate-400 dark:text-slate-500">
                       1 hour ago
                     </span>
                   </div>
@@ -234,25 +238,25 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
           <button
             id="navbar-profile-avatar-btn"
             onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center gap-2.5 rounded-xl border border-[#E2E8F0] p-1.5 pr-2.5 transition-colors hover:bg-slate-50 focus:outline-none"
+            className="flex items-center gap-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-1.5 pr-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-[#1C2338] focus:outline-none cursor-pointer"
             aria-label="User Profile menu"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 font-medium text-[#0F9D8C]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/60 font-medium text-[#0F9D8C] dark:text-[#14B8A6]">
               {userName ? userName.charAt(0).toUpperCase() : "S"}
             </div>
-            <span className="hidden text-sm font-medium text-[#0F172A] sm:inline-block max-w-[120px] truncate">
+            <span className="hidden text-sm font-medium text-[#0F172A] dark:text-[#F1F5F9] sm:inline-block max-w-[120px] truncate">
               {userName}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden sm:inline-block" />
+            <ChevronDown className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 hidden sm:inline-block" />
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#E2E8F0] bg-white p-3 shadow-lg ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 duration-150">
-              <div className="border-b border-[#E2E8F0] px-3 pb-3 pt-1">
-                <p className="text-sm font-semibold text-[#0F172A] truncate">
+            <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-3 shadow-lg ring-1 ring-slate-900/5 dark:ring-white/10 animate-in fade-in zoom-in-95 duration-150">
+              <div className="border-b border-[#E2E8F0] dark:border-[#263049] px-3 pb-3 pt-1">
+                <p className="text-sm font-semibold text-[#0F172A] dark:text-[#F1F5F9] truncate">
                   {userName}
                 </p>
-                <p className="text-xs text-[#64748B] truncate">{userEmail}</p>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] truncate">{userEmail}</p>
               </div>
 
               <div className="mt-2 space-y-1">
@@ -260,15 +264,15 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
                   id="profile-dropdown-settings-link"
                   href="/profile"
                   onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-[#0F172A] transition-colors hover:bg-[#F8FAFC]"
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-[#0F172A] dark:text-[#F1F5F9] transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[#1C2338]"
                 >
-                  <User className="h-4 w-4 text-slate-500" />
+                  <User className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                   Account Settings
                 </Link>
                 <button
                   id="profile-dropdown-logout-btn"
                   onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
                   Log Out
@@ -281,7 +285,7 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
 
       {/* ---- Mobile Search Expand Drawer ---- */}
       {searchOpen && (
-        <div className="absolute inset-x-0 top-full z-40 border-b border-[#E2E8F0] bg-white p-3 shadow-md md:hidden">
+        <div className="absolute inset-x-0 top-full z-40 border-b border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-3 shadow-md md:hidden">
           <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <input
               type="text"

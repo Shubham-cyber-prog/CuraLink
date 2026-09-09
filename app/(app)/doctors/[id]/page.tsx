@@ -1,41 +1,96 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, Star, Clock, Video, User, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, Star, Clock, Video, User, CheckCircle2, RefreshCw, AlertTriangle } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { getMotionVariants, staggerContainer, fadeInUp } from "@/components/motion/variants";
-import { MOCK_DOCTORS } from "@/lib/mock-data";
+import { Doctor } from "@/types/doctor";
 import { ReviewCard } from "@/components/doctors/ReviewCard";
 import { QualificationList } from "@/components/doctors/QualificationList";
 import { AvailabilitySlotPicker } from "@/components/doctors/AvailabilitySlotPicker";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function DoctorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const reduceMotion = Boolean(useReducedMotion());
   const variants = getMotionVariants(reduceMotion);
   
-  const [doctor, setDoctor] = useState(MOCK_DOCTORS.find((d) => d.id === id) || null);
+  const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
 
-  useEffect(() => {
-    // TODO: replace with real API call to GET /api/doctors/[id]
-    // fetch(`/api/doctors/${id}`).then(...)
-    const timer = setTimeout(() => {
-      setDoctor(MOCK_DOCTORS.find((d) => d.id === id) || null);
+  const fetchDoctor = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const res = await fetch(`${API_BASE}/doctors/${id}`);
+      if (res.status === 404) {
+        setDoctor(null);
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to load doctor profile");
+      }
+      setDoctor(data.data);
+      if (data.data?.availabilitySlots?.[0]?.date) {
+        setSelectedDate(data.data.availabilitySlots[0].date);
+      }
+    } catch (err: any) {
+      console.error("Error fetching doctor profile:", err);
+      setError(err.message || "Unable to reach server. Please try again.");
+    } finally {
       setIsLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchDoctor();
+  }, [fetchDoctor]);
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-600 border-t-transparent" />
+      <div className="mx-auto max-w-5xl py-8 px-4 space-y-8 animate-fadeIn">
+        <Skeleton className="h-6 w-32 rounded-lg" />
+        <div className="flex flex-col sm:flex-row gap-6 items-start">
+          <Skeleton className="h-28 w-28 rounded-2xl shrink-0" />
+          <div className="space-y-3 flex-1">
+            <Skeleton className="h-8 w-64 rounded-xl" />
+            <Skeleton className="h-5 w-40 rounded-lg" />
+            <Skeleton className="h-4 w-72 rounded-md" />
+          </div>
+        </div>
+        <div className="space-y-4 pt-4">
+          <Skeleton className="h-6 w-24 rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center py-16 text-center px-4">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+          <AlertTriangle className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-[#F1F5F9]">Failed to load doctor profile</h2>
+        <p className="mt-2 text-sm text-slate-500 max-w-sm">{error}</p>
+        <div className="mt-6 flex gap-3">
+          <Button asChild variant="outline">
+            <Link href="/find-doctor">← Back to search</Link>
+          </Button>
+          <Button onClick={fetchDoctor} className="bg-teal-600 hover:bg-teal-700">
+            <RefreshCw className="h-4 w-4 mr-1.5" /> Retry
+          </Button>
+        </div>
       </div>
     );
   }
@@ -135,7 +190,7 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
         <div className="flex items-center justify-between lg:block">
           <div className="lg:mb-4">
             <p className="text-sm font-medium text-slate-900">Consultation Fee</p>
-            <p className="text-2xl font-bold text-teal-700">$99</p>
+            <p className="text-2xl font-bold text-teal-700">₹{doctor.consultationFee || 500}</p>
           </div>
           <Button asChild size="lg" disabled={!selectedTime} className="bg-teal-600 hover:bg-teal-700 lg:w-full aria-disabled:opacity-50 aria-disabled:cursor-not-allowed">
             {selectedTime ? (

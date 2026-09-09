@@ -5,20 +5,39 @@ import { KeyRound } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { TurnstileWidget } from '../../components/TurnstileWidget';
+import { api } from '../../lib/api';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailError('Enter a valid email address.');
       return;
     }
+    if (!turnstileToken) {
+      setEmailError('Please complete the bot security check to continue.');
+      return;
+    }
     setEmailError('');
-    setIsSent(true);
+    setIsLoading(true);
+    try {
+      await api.post('/auth/forgot-password', {
+        email: email.trim().toLowerCase(),
+        turnstileToken,
+      });
+      setIsSent(true);
+    } catch (err: any) {
+      setEmailError(err.message || 'Unable to send reset instructions. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -51,9 +70,26 @@ export default function ForgotPasswordScreen() {
                   value={email}
                   error={emailError}
                 />
+
+                {/* Cloudflare Turnstile Bot Protection */}
+                <TurnstileWidget
+                  onVerify={(token) => {
+                    setTurnstileToken(token);
+                    setEmailError('');
+                  }}
+                  onExpire={() => setTurnstileToken(null)}
+                  onError={() => setTurnstileToken(null)}
+                />
               </View>
             )}
-            <Button title={isSent ? 'Back to sign in' : 'Send reset link'} onPress={isSent ? () => router.back() : handleSubmit} />
+            <View className="mt-4">
+              <Button
+                title={isSent ? 'Back to sign in' : isLoading ? 'Sending link...' : 'Send reset link'}
+                onPress={isSent ? () => router.back() : handleSubmit}
+                disabled={!isSent && (isLoading || !turnstileToken)}
+                isLoading={isLoading}
+              />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -42,6 +42,7 @@ describe('Authentication API Integration Tests', () => {
       email: 'jane.doe@example.com',
       password: 'SecurePassword123!',
       role: 'PATIENT',
+      turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX',
     };
 
     it('should register a new user successfully with HTTP 201', async () => {
@@ -114,6 +115,7 @@ describe('Authentication API Integration Tests', () => {
     const loginData = {
       email: 'jane.doe@example.com',
       password: 'SecurePassword123!',
+      turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX',
     };
 
     it('should login successfully and return JWT token with HTTP 200', async () => {
@@ -267,7 +269,7 @@ describe('Authentication API Integration Tests', () => {
 
       const res = await request(app)
         .post('/api/auth/forgot-password')
-        .send({ email: 'jane.doe@example.com' });
+        .send({ email: 'jane.doe@example.com', turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX' });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -279,7 +281,7 @@ describe('Authentication API Integration Tests', () => {
 
       const res = await request(app)
         .post('/api/auth/forgot-password')
-        .send({ email: 'nonexistent@curalink.com' });
+        .send({ email: 'nonexistent@curalink.com', turnstileToken: 'XXXX.DUMMY.TOKEN.XXXX' });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);

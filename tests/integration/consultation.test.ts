@@ -18,6 +18,14 @@ jest.mock('../../src/lib/prisma', () => ({
     auditLog: {
       create: jest.fn().mockResolvedValue({}),
     },
+    doctorProfile: {
+      findFirst: jest.fn().mockResolvedValue({
+        id: 'doc-profile-1',
+        userId: 'doc-uuid-200',
+        specialization: 'General Physician',
+        user: { name: 'Dr. Marcus Vance', email: 'marcus.vance@curalink.com' },
+      }),
+    },
   },
 }));
 

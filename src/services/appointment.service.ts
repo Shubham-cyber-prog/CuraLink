@@ -39,13 +39,53 @@ export class AppointmentService {
 
   async getMyAppointments(userId: string) {
     const appointments = await prisma.appointment.findMany({
-      where: { userId },
+      where: {
+        OR: [{ userId }, { doctorId: userId }],
+      },
       orderBy: [
         { date: 'asc' },
         { time: 'asc' }
       ]
     });
-    return appointments;
+
+    if (!prisma.doctorProfile?.findMany) {
+      return appointments;
+    }
+
+    // Lookup doctors for all appointments
+    const doctorIds = [...new Set(appointments.map((a) => a.doctorId))];
+    const doctorProfiles = await prisma.doctorProfile.findMany({
+      where: {
+        OR: [
+          { userId: { in: doctorIds } },
+          { id: { in: doctorIds } },
+        ],
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    const doctorMap = new Map<string, any>();
+    for (const dp of doctorProfiles) {
+      const docData = {
+        id: dp.userId,
+        name: dp.user?.name || 'Dr. Medical Specialist',
+        specialty: dp.specialization,
+        specialization: dp.specialization,
+        experienceYears: dp.experienceYears,
+        consultationFee: dp.consultationFee,
+      };
+      doctorMap.set(dp.userId, docData);
+      doctorMap.set(dp.id, docData);
+    }
+
+    return appointments.map((apt) => ({
+      ...apt,
+      doctor: doctorMap.get(apt.doctorId) || null,
+    }));
   }
 }
 

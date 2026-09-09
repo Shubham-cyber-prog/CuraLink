@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     "./src/app/**/*.{js,jsx,ts,tsx}",
     "./src/components/**/*.{js,jsx,ts,tsx}",
@@ -26,6 +27,14 @@ module.exports = {
         accent: '#0891B2',      // Teal-cyan blend — icons, highlights
         border: '#E2E8F0',      // Border color
         'mint-bg': '#F0FDFA',   // Light mint for alternate sections/cards
+        dark: {
+          bg: '#0B1120',
+          surface: '#151B2E',
+          elevated: '#1C2338',
+          border: '#263049',
+          text: '#F1F5F9',
+          muted: '#94A3B8',
+        },
       },
       fontFamily: {
         inter: ['Inter_400Regular'],

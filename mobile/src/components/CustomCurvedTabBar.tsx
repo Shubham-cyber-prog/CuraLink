@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Stethoscope, CalendarCheck, User, Bot } from 'lucide-react-native';
+import { useTheme } from '../lib/theme-context';
 
 interface CustomTabBarProps {
   state: any;
@@ -12,9 +13,20 @@ interface CustomTabBarProps {
 export function CustomCurvedTabBar({ state, descriptors, navigation }: CustomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 12);
+  const { isDark, colors } = useTheme();
 
   return (
-    <View style={[styles.floatingPill, { bottom: bottomOffset }]}>
+    <View
+      style={[
+        styles.floatingPill,
+        {
+          bottom: bottomOffset,
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          shadowColor: isDark ? '#000000' : '#0F172A',
+        },
+      ]}
+    >
       <View style={styles.tabsRow}>
         {state.routes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
@@ -34,7 +46,7 @@ export function CustomCurvedTabBar({ state, descriptors, navigation }: CustomTab
             }
           };
 
-          const color = isFocused ? '#0F9D8C' : '#64748B';
+          const color = isFocused ? colors.teal : colors.muted;
 
           // Center Elevated Floating AI Check Button
           if (route.name === 'symptom-checker') {
@@ -44,13 +56,22 @@ export function CustomCurvedTabBar({ state, descriptors, navigation }: CustomTab
                   onPress={onPress}
                   style={({ pressed }) => [
                     styles.centerFloatingButton,
-                    isFocused && styles.centerActiveRing,
+                    {
+                      backgroundColor: colors.teal,
+                      borderColor: colors.surface,
+                    },
+                    isFocused && { borderColor: colors.tealBorder },
                     pressed && { transform: [{ scale: 0.94 }] },
                   ]}
                 >
                   <Bot size={24} color="#FFFFFF" />
                 </Pressable>
-                <Text style={[styles.tabLabel, { color: isFocused ? '#0F9D8C' : '#64748B', fontWeight: isFocused ? '700' : '500' }]}>
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: isFocused ? colors.teal : colors.muted, fontWeight: isFocused ? '700' : '500' },
+                  ]}
+                >
                   AI Check
                 </Text>
               </View>
@@ -81,7 +102,14 @@ export function CustomCurvedTabBar({ state, descriptors, navigation }: CustomTab
               style={styles.tabItem}
             >
               <View style={styles.iconContainer}>
-                {isFocused && <View style={styles.activeIndicatorBg} />}
+                {isFocused && (
+                  <View
+                    style={[
+                      styles.activeIndicatorBg,
+                      { backgroundColor: colors.tealBg },
+                    ]}
+                  />
+                )}
                 <IconComponent size={20} color={color} />
               </View>
               <Text
@@ -107,12 +135,9 @@ const styles = StyleSheet.create({
     right: 16,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 16,
   },
@@ -140,7 +165,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     inset: 0,
     borderRadius: 14,
-    backgroundColor: '#F0FDFA',
   },
   tabLabel: {
     fontSize: 10,
@@ -156,18 +180,13 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#0F9D8C',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: '#FFFFFF',
     elevation: 12,
     shadowColor: '#0F9D8C',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
-  },
-  centerActiveRing: {
-    borderColor: '#CCFBF1',
   },
 });

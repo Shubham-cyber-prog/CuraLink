@@ -2,10 +2,25 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DaySlot } from "@/types/doctor";
 
-interface DaySlot {
-  date: string;
-  slots: string[];
+function formatDateLabel(dateStr: string) {
+  try {
+    if (!dateStr.includes("-")) return dateStr;
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (!y || !m || !d) return dateStr;
+    const targetDate = new Date(y, m - 1, d);
+    const today = new Date();
+    const todayZero = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const targetZero = new Date(y, m - 1, d);
+    const diffDays = Math.round((targetZero.getTime() - todayZero.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Tomorrow";
+    return targetDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  } catch {
+    return dateStr;
+  }
 }
 
 interface AvailabilitySlotPickerProps {
@@ -51,7 +66,7 @@ export function AvailabilitySlotPicker({ availabilitySlots, onSlotSelect }: Avai
               if (onSlotSelect) onSlotSelect(day.date, "");
             }}
           >
-            {day.date}
+            {formatDateLabel(day.date)}
           </Button>
         ))}
       </div>

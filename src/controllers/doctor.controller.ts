@@ -70,6 +70,28 @@ export class DoctorController {
     }
   }
 
+  async getDoctorById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const doctor = await doctorVerificationService.getDoctorById(id);
+
+      if (!doctor) {
+        res.status(404).json({
+          success: false,
+          message: 'Doctor not found',
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: doctor,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getMyProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;

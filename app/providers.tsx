@@ -11,9 +11,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="light"
-      enableSystem={false}
-      disableTransitionOnChange
+      defaultTheme="system"
+      enableSystem={true}
+      storageKey="curalink_theme"
+      disableTransitionOnChange={false}
     >
       <GoogleOAuthProvider clientId={clientId}>
         {children}

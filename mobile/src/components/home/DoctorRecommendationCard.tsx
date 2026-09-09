@@ -17,7 +17,7 @@ export function DoctorRecommendationCard({ doctor, onPress }: DoctorRecommendati
       onPress={onPress}
     >
       {({ pressed }) => (
-        <View className={`overflow-hidden rounded-2xl bg-white shadow-sm shadow-slate-200 ${pressed ? 'opacity-90' : ''}`}>
+        <View className={`overflow-hidden rounded-2xl bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049] shadow-sm shadow-slate-200 dark:shadow-none ${pressed ? 'opacity-90' : ''}`}>
           <Image
             accessibilityLabel={`${doctor.name} profile photo`}
             alt={`${doctor.name} profile photo`}
@@ -25,23 +25,23 @@ export function DoctorRecommendationCard({ doctor, onPress }: DoctorRecommendati
             style={{ height: 132, width: '100%' }}
           />
           <View className="p-4">
-            <Text className="font-inter-semibold text-base text-charcoal" numberOfLines={1}>
+            <Text className="font-inter-semibold text-base text-charcoal dark:text-[#F1F5F9]" numberOfLines={1}>
               {doctor.name}
             </Text>
-            <Text className="mt-1 font-inter text-sm text-muted" numberOfLines={1}>
+            <Text className="mt-1 font-inter text-sm text-muted dark:text-slate-400" numberOfLines={1}>
               {doctor.specialty}
             </Text>
             <View className="mt-3 flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <Star color="#F59E0B" fill="#F59E0B" size={15} />
-                <Text className="ml-1 font-inter-semibold text-xs text-charcoal">
+                <Text className="ml-1 font-inter-semibold text-xs text-charcoal dark:text-[#F1F5F9]">
                   {doctor.rating.toFixed(1)}
                 </Text>
-                <Text className="ml-1 font-inter text-xs text-muted">({doctor.reviewCount})</Text>
+                <Text className="ml-1 font-inter text-xs text-muted dark:text-slate-400">({doctor.reviewCount})</Text>
               </View>
               <View className="flex-row items-center">
                 <CalendarDays color="#0D9488" size={14} />
-                <Text className="ml-1 font-inter-medium text-xs text-teal-700">{doctor.nextAvailableLabel}</Text>
+                <Text className="ml-1 font-inter-medium text-xs text-teal-700 dark:text-teal-400">{doctor.nextAvailableLabel}</Text>
               </View>
             </View>
           </View>

@@ -8,6 +8,7 @@ import { PasswordInput } from "./PasswordInput";
 import { PasswordStrength } from "./PasswordStrength";
 import { AuthError } from "./AuthError";
 import { GoogleAuthButton } from "./GoogleAuthButton";
+import { TurnstileWidget } from "./TurnstileWidget";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -21,6 +22,7 @@ export function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<RoleOption>("PATIENT");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -55,6 +57,11 @@ export function SignupForm() {
     setError(null);
     if (!validate()) return;
 
+    if (!turnstileToken) {
+      setError("Please complete the bot security check to continue.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Fetch CSRF token first
@@ -66,7 +73,8 @@ export function SignupForm() {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken 
+          "X-CSRF-Token": csrfToken,
+          "X-Turnstile-Token": turnstileToken,
         },
         credentials: "include",
         body: JSON.stringify({
@@ -74,6 +82,7 @@ export function SignupForm() {
           email: email.trim().toLowerCase(),
           password,
           role,
+          turnstileToken,
         }),
       });
       const data = await res.json();
@@ -100,8 +109,8 @@ export function SignupForm() {
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
       {/* Header */}
       <div className="space-y-1.5">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Create your account</h2>
-        <p className="text-sm text-slate-500 font-normal">Join CuraLink to get started</p>
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#F1F5F9]">Create your account</h2>
+        <p className="text-sm text-slate-500 dark:text-[#94A3B8] font-normal">Join CuraLink to get started</p>
       </div>
 
       <AuthError message={error} />
@@ -111,10 +120,10 @@ export function SignupForm() {
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200" />
+          <div className="w-full border-t border-slate-200 dark:border-[#263049]" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="bg-white px-2 text-slate-500">Or continue with email</span>
+          <span className="bg-white dark:bg-[#151B2E] px-2 text-slate-500 dark:text-[#94A3B8]">Or continue with email</span>
         </div>
       </div>
 
@@ -125,10 +134,10 @@ export function SignupForm() {
             key={r.value}
             type="button"
             onClick={() => setRole(r.value)}
-            className={`relative flex flex-col items-center gap-1.5 rounded-xl border p-3.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500/30 ${
+            className={`relative flex flex-col items-center gap-1.5 rounded-xl border p-3.5 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer active:scale-[0.97] ${
               role === r.value
-                ? "border-teal-500 bg-teal-50/50 ring-1 ring-teal-500/20"
-                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                ? "border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 ring-1 ring-teal-500/20"
+                : "border-slate-200 dark:border-[#263049] bg-white dark:bg-[#1C2338] hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-[#263049]"
             }`}
           >
             {role === r.value && (
@@ -136,18 +145,18 @@ export function SignupForm() {
                 <Check size={12} className="text-white" strokeWidth={3} />
               </div>
             )}
-            <span className={role === r.value ? "text-teal-600" : "text-slate-400"}>{r.icon}</span>
-            <span className={`text-sm font-semibold ${role === r.value ? "text-teal-700" : "text-slate-700"}`}>
+            <span className={role === r.value ? "text-teal-600 dark:text-teal-400" : "text-slate-400 dark:text-slate-500"}>{r.icon}</span>
+            <span className={`text-sm font-semibold ${role === r.value ? "text-teal-700 dark:text-teal-300" : "text-slate-700 dark:text-[#F1F5F9]"}`}>
               {r.label}
             </span>
-            <span className="text-[11px] text-slate-400 text-center leading-tight">{r.description}</span>
+            <span className="text-[11px] text-slate-400 dark:text-[#94A3B8] text-center leading-tight">{r.description}</span>
           </button>
         ))}
       </div>
 
       {/* Full Name */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="signup-name" className="text-sm font-medium text-slate-700">Full Name</label>
+        <label htmlFor="signup-name" className="text-sm font-medium text-slate-700 dark:text-[#F1F5F9]">Full Name</label>
         <input
           id="signup-name"
           type="text"
@@ -155,8 +164,8 @@ export function SignupForm() {
           placeholder="Dr. Jane Doe"
           value={name}
           onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
-          className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 transition-colors placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
-            fieldErrors.name ? "border-red-300" : "border-slate-200"
+          className={`w-full rounded-lg border bg-white dark:bg-[#0B1120] px-3.5 py-2.5 text-sm text-slate-900 dark:text-[#F1F5F9] transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-teal-500 dark:focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+            fieldErrors.name ? "border-red-300 dark:border-red-500" : "border-slate-200 dark:border-[#263049]"
           }`}
         />
         {fieldErrors.name && <span className="text-xs text-red-600 font-medium">{fieldErrors.name}</span>}
@@ -164,7 +173,7 @@ export function SignupForm() {
 
       {/* Email */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="signup-email" className="text-sm font-medium text-slate-700">Email Address</label>
+        <label htmlFor="signup-email" className="text-sm font-medium text-slate-700 dark:text-[#F1F5F9]">Email Address</label>
         <input
           id="signup-email"
           type="email"
@@ -172,8 +181,8 @@ export function SignupForm() {
           placeholder="name@example.com"
           value={email}
           onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
-          className={`w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900 transition-colors placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
-            fieldErrors.email ? "border-red-300" : "border-slate-200"
+          className={`w-full rounded-lg border bg-white dark:bg-[#0B1120] px-3.5 py-2.5 text-sm text-slate-900 dark:text-[#F1F5F9] transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-teal-500 dark:focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+            fieldErrors.email ? "border-red-300 dark:border-red-500" : "border-slate-200 dark:border-[#263049]"
           }`}
         />
         {fieldErrors.email && <span className="text-xs text-red-600 font-medium">{fieldErrors.email}</span>}
@@ -210,21 +219,32 @@ export function SignupForm() {
           type="checkbox"
           checked={agreedToTerms}
           onChange={(e) => { setAgreedToTerms(e.target.checked); clearFieldError("terms"); }}
-          className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer mt-0.5"
+          className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-teal-600 focus:ring-teal-500 cursor-pointer mt-0.5"
         />
-        <span className={`text-xs leading-relaxed ${fieldErrors.terms ? "text-red-600" : "text-slate-500"}`}>
+        <span className={`text-xs leading-relaxed ${fieldErrors.terms ? "text-red-600" : "text-slate-500 dark:text-[#94A3B8]"}`}>
           I agree to CuraLink&apos;s{" "}
-          <Link href="#" className="font-semibold text-teal-600 hover:underline">Terms of Service</Link> and{" "}
-          <Link href="#" className="font-semibold text-teal-600 hover:underline">Privacy Policy</Link>
+          <Link href="/terms-of-service" className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">Terms of Service</Link> and{" "}
+          <Link href="/privacy-policy" className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">Privacy Policy</Link>
         </span>
       </label>
       {fieldErrors.terms && <span className="text-xs text-red-600 font-medium -mt-3 block">{fieldErrors.terms}</span>}
 
+      {/* Cloudflare Turnstile Bot Protection */}
+      <TurnstileWidget
+        action="signup"
+        onVerify={(token) => {
+          setTurnstileToken(token);
+          clearFieldError("turnstile");
+        }}
+        onExpire={() => setTurnstileToken(null)}
+        onError={() => setTurnstileToken(null)}
+      />
+
       {/* Submit */}
       <button
         type="submit"
-        disabled={isLoading}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 text-sm font-semibold text-white shadow-sm shadow-teal-700/20 transition-all duration-200 hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-teal-700"
+        disabled={isLoading || !turnstileToken}
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 dark:bg-teal-600 text-sm font-semibold text-white shadow-sm shadow-teal-700/20 transition-all duration-150 hover:bg-teal-800 dark:hover:bg-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
       >
         {isLoading ? (
           <>
@@ -240,9 +260,9 @@ export function SignupForm() {
       </button>
 
       {/* Login link */}
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-slate-500 dark:text-[#94A3B8]">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+        <Link href="/login" className="font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">
           Log in
         </Link>
       </p>

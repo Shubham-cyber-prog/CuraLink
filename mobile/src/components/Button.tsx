@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Pressable, Text, ActivityIndicator, View, Animated } from 'react-native';
+import { Pressable, Text, ActivityIndicator, View, Animated, Easing } from 'react-native';
 import type { PressableProps } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
+import { useTheme } from '../lib/theme-context';
 
 interface ButtonProps extends PressableProps {
   title: string;
@@ -24,24 +25,27 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
+  const { isDark } = useTheme();
+
   // Keep the animated value stable without reading a ref during render.
   const [scaleAnim] = useState(() => new Animated.Value(1));
 
+  // Calm ease-out press animation (no spring overshoot)
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
+    Animated.timing(scaleAnim, {
       toValue: 0.97,
+      duration: 150,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
     }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
+    Animated.timing(scaleAnim, {
       toValue: 1,
+      duration: 150,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
     }).start();
   };
 
@@ -54,17 +58,17 @@ export function Button({
   };
 
   const variantStyles = {
-    primary: 'bg-teal-600',
-    secondary: 'bg-teal-50',
-    outline: 'bg-transparent border border-teal-600',
+    primary: isDark ? 'bg-teal-500' : 'bg-teal-600',
+    secondary: isDark ? 'bg-teal-950/50 border border-teal-800/60' : 'bg-teal-50',
+    outline: isDark ? 'bg-transparent border border-teal-500' : 'bg-transparent border border-teal-600',
     ghost: 'bg-transparent',
   };
 
   const textColor = {
     primary: '#FFFFFF',
-    secondary: '#0f766e',
-    outline: '#0d9488',
-    ghost: '#0d9488',
+    secondary: isDark ? '#2DD4BF' : '#0f766e',
+    outline: isDark ? '#2DD4BF' : '#0d9488',
+    ghost: isDark ? '#2DD4BF' : '#0d9488',
   };
 
   const textSizeStyle = {
@@ -74,7 +78,7 @@ export function Button({
   };
 
   const iconSize = size === 'sm' ? 16 : 20;
-  const iconColor = isPrimary ? '#FFFFFF' : '#0d9488';
+  const iconColor = isPrimary ? '#FFFFFF' : (isDark ? '#2DD4BF' : '#0d9488');
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>

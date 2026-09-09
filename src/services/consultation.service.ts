@@ -9,6 +9,11 @@ export interface ConsultationRoomResponse {
   roomUrl: string;
   token: string;
   isDoctor: boolean;
+  doctor?: {
+    id: string;
+    name: string;
+    specialty: string;
+  };
   appointment: {
     id: string;
     doctorId: string;
@@ -148,12 +153,46 @@ export class ConsultationService {
       { roomName, role: isDoctor ? 'DOCTOR' : 'PATIENT' }
     );
 
+    // Lookup doctor profile information for consultation metadata if available
+    let doctorInfo = {
+      id: appointment.doctorId,
+      name: 'Dr. Consultation',
+      specialty: 'Telehealth Specialist',
+    };
+
+    if (prisma.doctorProfile?.findFirst) {
+      try {
+        const doctorProfile = await prisma.doctorProfile.findFirst({
+          where: {
+            OR: [
+              { userId: appointment.doctorId },
+              { id: appointment.doctorId },
+            ],
+          },
+          include: {
+            user: { select: { name: true, email: true } },
+          },
+        });
+
+        if (doctorProfile) {
+          doctorInfo = {
+            id: appointment.doctorId,
+            name: doctorProfile.user?.name || 'Dr. Consultation',
+            specialty: doctorProfile.specialization || 'Telehealth Specialist',
+          };
+        }
+      } catch (err) {
+        // Fallback gracefully to default doctorInfo
+      }
+    }
+
     return {
       appointmentId,
       roomName,
       roomUrl,
       token: tokenResult.token,
       isDoctor,
+      doctor: doctorInfo,
       appointment: {
         id: appointment.id,
         doctorId: appointment.doctorId,

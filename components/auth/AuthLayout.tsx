@@ -4,6 +4,7 @@ import React from "react";
 import { ShieldCheck, Sparkles, Activity } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -12,7 +13,7 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, subtitle }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background md:flex-row">
+    <div className="flex min-h-screen w-full flex-col bg-background dark:bg-[#0B1120] md:flex-row transition-colors duration-200">
       <div className="relative hidden select-none overflow-hidden bg-teal-950 p-12 text-white md:flex md:w-[44%] md:flex-col md:justify-between lg:w-[40%]">
         <div className="pointer-events-none absolute inset-0 bg-grid opacity-20" />
         <div className="pointer-events-none absolute -right-16 top-24 h-64 w-64 rounded-full bg-teal-500/20 blur-3xl" />
@@ -63,20 +64,24 @@ export function AuthLayout({ children, subtitle }: AuthLayoutProps) {
       </div>
 
       <div className="relative flex flex-1 flex-col items-center justify-center px-6 py-12 md:px-12 lg:px-20">
+        <div className="absolute right-6 top-6">
+          <ThemeToggle />
+        </div>
+
         <div className="mb-8 flex select-none items-center md:hidden">
           <Logo />
         </div>
 
         <div className="flex w-full max-w-[440px] flex-col gap-6">
-          <div className="rounded-2xl border border-slate-200/70 bg-white p-6 shadow-sm shadow-slate-900/5 sm:p-8">
+          <div className="rounded-2xl border border-slate-200/70 dark:border-[#263049] bg-white dark:bg-[#151B2E] p-6 shadow-sm shadow-slate-900/5 dark:shadow-black/40 sm:p-8 transition-colors duration-200">
             {children}
           </div>
-          <div className="flex justify-center gap-4 text-center text-xs text-slate-400">
-            <Link href="#" className="transition-colors hover:text-slate-600">
+          <div className="flex justify-center gap-4 text-center text-xs text-slate-400 dark:text-slate-500">
+            <Link href="/privacy-policy" className="transition-colors hover:text-slate-600 dark:hover:text-[#F1F5F9]">
               Privacy Policy
             </Link>
             <span>•</span>
-            <Link href="#" className="transition-colors hover:text-slate-600">
+            <Link href="/terms-of-service" className="transition-colors hover:text-slate-600 dark:hover:text-[#F1F5F9]">
               Terms of Service
             </Link>
           </div>

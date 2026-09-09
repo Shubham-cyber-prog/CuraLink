@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { PasswordStrength } from '../../components/PasswordStrength';
 import { GoogleAuthButton } from '../../components/GoogleAuthButton';
+import { TurnstileWidget } from '../../components/TurnstileWidget';
 import { useAuth } from '../../lib/auth-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'PATIENT' | 'DOCTOR'>('PATIENT');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,10 +58,15 @@ export default function RegisterScreen() {
     setError('');
     if (!validate()) return;
 
+    if (!turnstileToken) {
+      setError('Please complete the bot security check to continue');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await register(name.trim(), email.trim().toLowerCase(), password, role);
+      await register(name.trim(), email.trim().toLowerCase(), password, role, turnstileToken);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(msg);
@@ -186,12 +193,22 @@ export default function RegisterScreen() {
               </View>
             </View>
 
-            <View className="mt-6">
+            {/* Turnstile Bot Protection */}
+            <TurnstileWidget
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                setError('');
+              }}
+              onExpire={() => setTurnstileToken(null)}
+              onError={() => setTurnstileToken(null)}
+            />
+
+            <View className="mt-4">
               <Button
                 title={isLoading ? "Creating account..." : "Create Account"}
                 onPress={handleRegister}
                 isLoading={isLoading}
-                disabled={isLoading}
+                disabled={isLoading || !turnstileToken}
                 className="w-full"
               />
             </View>

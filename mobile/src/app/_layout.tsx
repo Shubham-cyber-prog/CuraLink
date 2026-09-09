@@ -12,6 +12,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { LogBox } from 'react-native';
 import { AuthProvider } from '../lib/auth-context';
+import { ThemeProvider, useTheme } from '../lib/theme-context';
 import { AnimatedSplash } from '../components/AnimatedSplash';
 import { NetworkAlertBanner } from '../components/NetworkAlertBanner';
 
@@ -26,6 +27,31 @@ try {
   void SplashScreen.preventAutoHideAsync();
 } catch {
   // Ignore in reload or non-supported platforms
+}
+
+function MainLayoutContent({
+  splashComplete,
+  onSplashComplete,
+}: {
+  splashComplete: boolean;
+  onSplashComplete: () => void;
+}) {
+  const { isDark } = useTheme();
+
+  return (
+    <AuthProvider>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <NetworkAlertBanner />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="symptom-checker" options={{ presentation: 'card' }} />
+        <Stack.Screen name="doctor-booking" options={{ presentation: 'card' }} />
+      </Stack>
+      {!splashComplete ? <AnimatedSplash onAnimationComplete={onSplashComplete} /> : null}
+    </AuthProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -54,17 +80,11 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <StatusBar style="dark" />
-      <NetworkAlertBanner />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="symptom-checker" options={{ presentation: 'card' }} />
-        <Stack.Screen name="doctor-booking" options={{ presentation: 'card' }} />
-      </Stack>
-      {!splashComplete ? <AnimatedSplash onAnimationComplete={onSplashComplete} /> : null}
-    </AuthProvider>
+    <ThemeProvider>
+      <MainLayoutContent
+        splashComplete={splashComplete}
+        onSplashComplete={onSplashComplete}
+      />
+    </ThemeProvider>
   );
 }

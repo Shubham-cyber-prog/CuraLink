@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Shield } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { TurnstileWidget } from '../../components/TurnstileWidget';
 import { useAuth } from '../../lib/auth-context';
 import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -32,9 +34,14 @@ export default function LoginScreen() {
     setError('');
     if (!validate()) return;
 
+    if (!turnstileToken) {
+      setError('Please complete the bot security check to continue');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await login(email.trim().toLowerCase(), password);
+      await login(email.trim().toLowerCase(), password, turnstileToken);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Invalid email or password');
     } finally {
@@ -124,12 +131,22 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            <View className="mt-6">
+            {/* Turnstile Bot Protection */}
+            <TurnstileWidget
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                setError('');
+              }}
+              onExpire={() => setTurnstileToken(null)}
+              onError={() => setTurnstileToken(null)}
+            />
+
+            <View className="mt-4">
               <Button
                 title={isLoading ? "Signing you in..." : "Log in"}
                 onPress={handleLogin}
                 isLoading={isLoading}
-                disabled={isLoading}
+                disabled={isLoading || !turnstileToken}
                 className="w-full"
               />
             </View>

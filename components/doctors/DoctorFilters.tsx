@@ -46,21 +46,21 @@ export function DoctorFilters({
   }, []);
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
+    <div className="flex flex-col gap-4 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-5 shadow-xs dark:shadow-black/20 transition-colors duration-200">
       {/* Active Location bar indicator */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2E8F0] pb-3 text-xs">
-        <div className="flex items-center gap-1.5 font-semibold text-[#0F172A]">
-          <MapPin className="h-4 w-4 text-[#0F9D8C]" />
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2E8F0] dark:border-[#263049] pb-3 text-xs">
+        <div className="flex items-center gap-1.5 font-semibold text-[#0F172A] dark:text-[#F1F5F9]">
+          <MapPin className="h-4 w-4 text-[#0F9D8C] dark:text-[#14B8A6]" />
           <span>Active Location: {selectedLocation.city}, {selectedLocation.state}</span>
         </div>
-        <span className="text-[#64748B]">
+        <span className="text-[#64748B] dark:text-[#94A3B8]">
           Video calls nationwide • In-person visits near {selectedLocation.city}
         </span>
       </div>
 
       {/* Specialty Filters */}
       <div className="space-y-2">
-        <span className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+        <span className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
           Specialty
         </span>
         <div className="flex flex-wrap gap-1.5">
@@ -88,7 +88,7 @@ export function DoctorFilters({
       <div className="grid grid-cols-1 gap-4 pt-1 sm:grid-cols-3">
         {setVisitType && (
           <div className="space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
               Consultation Mode
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -115,7 +115,7 @@ export function DoctorFilters({
         )}
 
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
             Availability
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -141,7 +141,7 @@ export function DoctorFilters({
         </div>
 
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
             Rating
           </span>
           <div className="flex flex-wrap gap-1.5">

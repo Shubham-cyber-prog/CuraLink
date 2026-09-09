@@ -18,8 +18,8 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: 'PATIENT' | 'DOCTOR') => Promise<void>;
+  login: (email: string, password: string, turnstileToken?: string) => Promise<void>;
+  register: (name: string, email: string, password: string, role: 'PATIENT' | 'DOCTOR', turnstileToken?: string) => Promise<void>;
   loginWithGoogle: (googleToken: string) => Promise<void>;
   loginWithToken: (authToken: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -94,8 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.isAuthenticated, state.isLoading, segments, router, rootNavigationState?.key]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await api.post<{ token: string; user: User }>('/auth/login', { email, password });
+  const login = useCallback(async (email: string, password: string, turnstileToken?: string) => {
+    const res = await api.post<{ token: string; user: User }>('/auth/login', { email, password, turnstileToken });
     if (res.data?.token) {
       await saveToken(res.data.token);
       setState({
@@ -107,8 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string, role: 'PATIENT' | 'DOCTOR') => {
-    const res = await api.post<{ token: string; user: User }>('/auth/register', { name, email, password, role });
+  const register = useCallback(async (name: string, email: string, password: string, role: 'PATIENT' | 'DOCTOR', turnstileToken?: string) => {
+    const res = await api.post<{ token: string; user: User }>('/auth/register', { name, email, password, role, turnstileToken });
     if (res.data?.token) {
       await saveToken(res.data.token);
       setState({

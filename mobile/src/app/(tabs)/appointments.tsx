@@ -92,36 +92,36 @@ export default function AppointmentsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50 dark:bg-[#0B1120]">
       {/* Header */}
       <View
         style={{ paddingTop: Math.max(insets.top, 16) }}
-        className="bg-white px-5 pb-4 border-b border-slate-100 space-y-4"
+        className="bg-white dark:bg-[#151B2E] px-5 pb-4 border-b border-slate-100 dark:border-[#263049] space-y-4"
       >
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className="font-inter-bold text-2xl text-charcoal">My Appointments</Text>
-            <Text className="font-inter text-xs text-muted">Manage your telehealth visits & history</Text>
+            <Text className="font-inter-bold text-2xl text-charcoal dark:text-[#F1F5F9]">My Appointments</Text>
+            <Text className="font-inter text-xs text-muted dark:text-slate-400">Manage your telehealth visits & history</Text>
           </View>
           <Pressable
             onPress={() => router.push('/doctor-booking')}
-            className="bg-teal-600 px-3.5 py-2 rounded-xl"
+            className="bg-teal-600 dark:bg-teal-500 px-3.5 py-2 rounded-xl"
           >
             <Text className="font-inter-semibold text-xs text-white">+ Book Visit</Text>
           </Pressable>
         </View>
 
         {/* Tab Switcher */}
-        <View className="flex-row rounded-xl bg-slate-100 p-1">
+        <View className="flex-row rounded-xl bg-slate-100 dark:bg-[#1C2338] p-1">
           <Pressable
             onPress={() => setFilterTab('upcoming')}
             className={`flex-1 py-2 rounded-lg items-center ${
-              filterTab === 'upcoming' ? 'bg-white shadow-sm' : ''
+              filterTab === 'upcoming' ? 'bg-white dark:bg-[#151B2E] shadow-sm' : ''
             }`}
           >
             <Text
               className={`font-inter-semibold text-xs ${
-                filterTab === 'upcoming' ? 'text-teal-700' : 'text-slate-600'
+                filterTab === 'upcoming' ? 'text-teal-700 dark:text-teal-400' : 'text-slate-600 dark:text-slate-400'
               }`}
             >
               Upcoming ({upcoming.length})
@@ -130,12 +130,12 @@ export default function AppointmentsScreen() {
           <Pressable
             onPress={() => setFilterTab('past')}
             className={`flex-1 py-2 rounded-lg items-center ${
-              filterTab === 'past' ? 'bg-white shadow-sm' : ''
+              filterTab === 'past' ? 'bg-white dark:bg-[#151B2E] shadow-sm' : ''
             }`}
           >
             <Text
               className={`font-inter-semibold text-xs ${
-                filterTab === 'past' ? 'text-teal-700' : 'text-slate-600'
+                filterTab === 'past' ? 'text-teal-700 dark:text-teal-400' : 'text-slate-600 dark:text-slate-400'
               }`}
             >
               Past Visits ({past.length})
@@ -155,10 +155,10 @@ export default function AppointmentsScreen() {
       >
         {filterTab === 'upcoming' ? (
           upcoming.length === 0 ? (
-            <Card className="items-center py-10 border border-slate-100 bg-white space-y-3">
+            <Card className="items-center py-10 border border-slate-100 dark:border-[#263049] bg-white dark:bg-[#151B2E] space-y-3">
               <CalendarCheck size={36} color="#94A3B8" />
-              <Text className="font-inter-semibold text-base text-charcoal">No upcoming appointments</Text>
-              <Text className="font-inter text-xs text-muted text-center px-4">
+              <Text className="font-inter-semibold text-base text-charcoal dark:text-[#F1F5F9]">No upcoming appointments</Text>
+              <Text className="font-inter text-xs text-muted dark:text-slate-400 text-center px-4">
                 You don't have any scheduled appointments right now.
               </Text>
               <Button
@@ -169,23 +169,23 @@ export default function AppointmentsScreen() {
           ) : (
             <View className="space-y-4">
               {upcoming.map((appt) => (
-                <Card key={appt.id} className="border border-slate-100 bg-white p-4 space-y-4">
-                  <View className="flex-row items-center justify-between border-b border-slate-100 pb-3">
+                <Card key={appt.id} className="border border-slate-100 dark:border-[#263049] bg-white dark:bg-[#151B2E] p-4 space-y-4">
+                  <View className="flex-row items-center justify-between border-b border-slate-100 dark:border-[#263049] pb-3">
                     <View className="flex-row items-center gap-3">
-                      <View className="h-12 w-12 items-center justify-center rounded-full bg-teal-50 border border-teal-100">
+                      <View className="h-12 w-12 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800/60">
                         <Stethoscope size={20} color="#0D9488" />
                       </View>
                       <View>
-                        <Text className="font-inter-bold text-charcoal text-base">{appt.doctorName}</Text>
-                        <Text className="font-inter text-xs text-muted">{appt.specialty}</Text>
+                        <Text className="font-inter-bold text-charcoal dark:text-[#F1F5F9] text-base">{appt.doctorName}</Text>
+                        <Text className="font-inter text-xs text-muted dark:text-slate-400">{appt.specialty}</Text>
                       </View>
                     </View>
                     <Badge label={appt.status} variant="success" />
                   </View>
 
-                  <View className="flex-row items-center gap-2.5 rounded-xl bg-teal-50/60 p-3 border border-teal-100">
+                  <View className="flex-row items-center gap-2.5 rounded-xl bg-teal-50/60 dark:bg-teal-950/40 p-3 border border-teal-100 dark:border-teal-800/60">
                     <Clock size={16} color="#0D9488" />
-                    <Text className="font-inter-medium text-xs text-teal-900">
+                    <Text className="font-inter-medium text-xs text-teal-900 dark:text-teal-200">
                       {appt.date} • {appt.time}
                     </Text>
                   </View>
@@ -202,22 +202,22 @@ export default function AppointmentsScreen() {
           )
         ) : (
           past.length === 0 ? (
-            <Card className="items-center py-10 border border-slate-100 bg-white">
-              <Text className="font-inter-semibold text-base text-charcoal mb-1">No past history</Text>
-              <Text className="font-inter text-xs text-muted">Completed visit history will appear here.</Text>
+            <Card className="items-center py-10 border border-slate-100 dark:border-[#263049] bg-white dark:bg-[#151B2E]">
+              <Text className="font-inter-semibold text-base text-charcoal dark:text-[#F1F5F9] mb-1">No past history</Text>
+              <Text className="font-inter text-xs text-muted dark:text-slate-400">Completed visit history will appear here.</Text>
             </Card>
           ) : (
             <View className="space-y-4">
               {past.map((appt) => (
-                <Card key={appt.id} className="border border-slate-100 bg-white p-4 space-y-3 opacity-90">
-                  <View className="flex-row items-center justify-between border-b border-slate-100 pb-3">
+                <Card key={appt.id} className="border border-slate-100 dark:border-[#263049] bg-white dark:bg-[#151B2E] p-4 space-y-3 opacity-90">
+                  <View className="flex-row items-center justify-between border-b border-slate-100 dark:border-[#263049] pb-3">
                     <View className="flex-row items-center gap-3">
-                      <View className="h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+                      <View className="h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-[#1C2338]">
                         <Stethoscope size={18} color="#94A3B8" />
                       </View>
                       <View>
-                        <Text className="font-inter-bold text-charcoal text-sm">{appt.doctorName}</Text>
-                        <Text className="font-inter text-xs text-muted">{appt.specialty}</Text>
+                        <Text className="font-inter-bold text-charcoal dark:text-[#F1F5F9] text-sm">{appt.doctorName}</Text>
+                        <Text className="font-inter text-xs text-muted dark:text-slate-400">{appt.specialty}</Text>
                       </View>
                     </View>
                     <Badge label={appt.status} variant={appt.status === 'COMPLETED' ? 'default' : 'danger'} />
@@ -226,13 +226,13 @@ export default function AppointmentsScreen() {
                   <View className="flex-row items-center justify-between pt-1">
                     <View className="flex-row items-center gap-2">
                       <Clock size={14} color="#94A3B8" />
-                      <Text className="font-inter text-xs text-muted">{appt.date} • {appt.time}</Text>
+                      <Text className="font-inter text-xs text-muted dark:text-slate-400">{appt.date} • {appt.time}</Text>
                     </View>
                     <Pressable
                       onPress={() => router.push('/doctor-booking')}
                       className="flex-row items-center gap-1"
                     >
-                      <Text className="font-inter-semibold text-xs text-teal-700">Book Again</Text>
+                      <Text className="font-inter-semibold text-xs text-teal-700 dark:text-teal-400">Book Again</Text>
                       <ChevronRight size={14} color="#0D9488" />
                     </Pressable>
                   </View>

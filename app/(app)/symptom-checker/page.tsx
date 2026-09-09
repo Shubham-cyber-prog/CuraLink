@@ -9,9 +9,9 @@ import {
   Bot,
   ArrowLeft,
   ShieldCheck,
-  Stethoscope,
 } from "lucide-react";
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 
 interface Message {
   id: string;
@@ -20,6 +20,7 @@ interface Message {
 }
 
 export default function SymptomCheckerPage() {
+  const shouldReduceMotion = useReducedMotion();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -34,7 +35,7 @@ export default function SymptomCheckerPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,44 +97,47 @@ export default function SymptomCheckerPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E2E8F0] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E2E8F0] dark:border-[#263049] pb-5">
         <div className="flex items-center gap-3">
           <Link
             href="/dashboard"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-slate-600 hover:bg-slate-50"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1C2338] transition-colors active:scale-[0.97]"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] flex items-center gap-2">
-              <Bot className="h-6 w-6 text-[#0F9D8C]" />
+            <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F1F5F9] flex items-center gap-2">
+              <Bot className="h-6 w-6 text-[#0F9D8C] dark:text-[#14B8A6]" />
               AI Symptom Checker
             </h1>
-            <p className="text-sm text-[#64748B]">
+            <p className="text-sm text-[#64748B] dark:text-[#94A3B8]">
               Evaluate your health symptoms & receive preliminary medical guidance.
             </p>
           </div>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800 self-start sm:self-auto">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C]" />
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 self-start sm:self-auto">
+          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C] dark:text-[#14B8A6]" />
           <span>Private & Secure Session</span>
         </div>
       </div>
 
       {/* Chat Container */}
-      <div className="flex flex-col h-[580px] rounded-2xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
+      <div className="flex flex-col h-[580px] rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs dark:shadow-black/20 overflow-hidden transition-colors duration-200">
         {/* Messages Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#F8FAFC]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#F8FAFC] dark:bg-[#0B1120] transition-colors duration-200">
           {messages.map((m) => (
-            <div
+            <motion.div
               key={m.id}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className={`flex gap-3 ${
                 m.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
               {m.role === "assistant" && (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0F9D8C] font-bold">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6] font-bold">
                   <Bot className="h-5 w-5" />
                 </div>
               )}
@@ -141,60 +145,70 @@ export default function SymptomCheckerPage() {
               <div
                 className={`max-w-xl rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   m.role === "user"
-                    ? "bg-[#0F9D8C] text-white rounded-br-none"
-                    : "bg-white text-[#0F172A] border border-[#E2E8F0] shadow-xs rounded-bl-none"
+                    ? "bg-[#0F9D8C] dark:bg-[#14B8A6] text-white rounded-br-none shadow-xs"
+                    : "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs rounded-bl-none"
                 }`}
               >
                 <p className="whitespace-pre-line">{m.content}</p>
               </div>
 
               {m.role === "user" && (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white font-semibold text-xs">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">
                   S
                 </div>
               )}
-            </div>
+            </motion.div>
           ))}
 
+          {/* Typing Indicator with 3 Animated Staggered Dots */}
           {isLoading && (
-            <div className="flex gap-3 justify-start">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-[#0F9D8C]">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex gap-3 justify-start items-center"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6]">
                 <Bot className="h-5 w-5 animate-pulse" />
               </div>
-              <div className="flex items-center gap-1.5 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 text-xs text-[#64748B] shadow-xs">
-                <span className="h-2 w-2 rounded-full bg-[#0F9D8C] animate-ping" />
-                Analyzing symptoms...
+              <div className="flex items-center gap-2 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] px-4 py-3 text-xs text-[#64748B] dark:text-[#94A3B8] shadow-xs">
+                <span>CuraLink AI is thinking</span>
+                <span className="flex items-center gap-1 ml-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse [animation-delay:200ms]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse [animation-delay:400ms]" />
+                </span>
               </div>
-            </div>
+            </motion.div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Disclaimer Banner */}
-        <div className="flex items-center gap-2 border-t border-[#E2E8F0] bg-amber-50/70 px-4 py-2 text-xs font-medium text-amber-800">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+        <div className="flex items-center gap-2 border-t border-[#E2E8F0] dark:border-[#263049] bg-amber-50/70 dark:bg-amber-950/30 px-4 py-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <span>
-            This AI tool provides informational guidance only. For medical emergencies, call 911 or visit an emergency room immediately.
+            This AI tool provides informational guidance only. For medical emergencies, call 911/112 or visit an emergency room immediately.
           </span>
         </div>
 
         {/* Form Footer */}
         <form
           onSubmit={handleSubmit}
-          className="flex items-center gap-2 border-t border-[#E2E8F0] p-3 bg-white"
+          className="flex items-center gap-2 border-t border-[#E2E8F0] dark:border-[#263049] p-3 bg-white dark:bg-[#151B2E] transition-colors duration-200"
         >
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Describe your symptoms (e.g. 'Mild fever and dry cough since yesterday')..."
-            className="flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5 text-sm text-[#0F172A] focus:border-[#0F9D8C] focus:bg-white focus:outline-none"
+            className="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] px-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none transition-colors"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="flex h-10 min-w-[40px] items-center justify-center rounded-xl bg-[#0F9D8C] px-4 text-white hover:bg-[#0C8577] disabled:opacity-50 transition-colors"
+            className="flex h-10 min-w-[40px] items-center justify-center rounded-xl bg-[#0F9D8C] dark:bg-[#14B8A6] px-4 text-white hover:bg-[#0C8577] dark:hover:bg-teal-500 disabled:opacity-50 transition-all active:scale-[0.97] cursor-pointer"
           >
             <Send className="h-4 w-4" />
           </button>

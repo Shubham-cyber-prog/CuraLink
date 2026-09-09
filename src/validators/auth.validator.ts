@@ -15,11 +15,13 @@ export const registerSchema = z.object({
       message: 'Public registration for ADMIN role is strictly forbidden',
     })
     .default(Role.PATIENT),
+  turnstileToken: z.string().optional(),
 });
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
+  turnstileToken: z.string().optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -27,6 +29,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 export const forgotPasswordSchema = z.object({
   email: z.string().trim().toLowerCase().email('Invalid email address'),
+  turnstileToken: z.string().optional(),
 });
 
 export const resetPasswordSchema = z.object({

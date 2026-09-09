@@ -3,18 +3,19 @@ import { authController } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { authLimiter } from '../middleware/rate-limit.middleware';
+import { verifyTurnstile } from '../middleware/turnstile.middleware';
 import { Role } from '../types/role';
 
 const router = Router();
 
-// Public routes (Rate limited)
-router.post('/register', authLimiter, (req, res, next) => authController.register(req, res, next));
-router.post('/login', authLimiter, (req, res, next) => authController.login(req, res, next));
+// Public routes (Rate limited & Bot Protected)
+router.post('/register', authLimiter, verifyTurnstile, (req, res, next) => authController.register(req, res, next));
+router.post('/login', authLimiter, verifyTurnstile, (req, res, next) => authController.login(req, res, next));
 router.post('/google', authLimiter, (req, res, next) => authController.googleLogin(req, res, next));
 router.get('/google/mobile-login', (req, res) => authController.googleMobileLogin(req, res));
 router.get('/google/callback', (req, res, next) => authController.googleMobileCallback(req, res, next));
 router.post('/logout', (req, res, next) => authController.logout(req, res, next));
-router.post('/forgot-password', authLimiter, (req, res, next) => authController.forgotPassword(req, res, next));
+router.post('/forgot-password', authLimiter, verifyTurnstile, (req, res, next) => authController.forgotPassword(req, res, next));
 router.post('/reset-password', authLimiter, (req, res, next) => authController.resetPassword(req, res, next));
 
 // Token refresh (uses curalink_refresh cookie)

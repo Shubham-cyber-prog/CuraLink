@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ViewProps } from 'react-native';
+import { useTheme } from '../lib/theme-context';
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
@@ -8,7 +9,7 @@ interface CardProps extends ViewProps {
 export function Card({ children, className = '', ...props }: CardProps) {
   return (
     <View
-      className={`rounded-2xl border border-border bg-white p-5 shadow-sm shadow-slate-100 ${className}`}
+      className={`rounded-2xl border border-border dark:border-[#263049] bg-white dark:bg-[#151B2E] p-5 shadow-sm shadow-slate-100 dark:shadow-none ${className}`}
       {...props}
     >
       {children}
@@ -22,13 +23,30 @@ interface BadgeProps extends ViewProps {
 }
 
 export function Badge({ label, variant = 'default', className = '', ...props }: BadgeProps) {
-  // Exact status colors from web design system
+  const { isDark } = useTheme();
+
+  // Contrast-tested status colors for light and dark modes
   const variantConfig = {
-    success: { bg: '#D1FAE5', text: '#065F46' },    // green-100 / green-800
-    warning: { bg: '#FEF3C7', text: '#92400E' },    // amber-100 / amber-800
-    danger:  { bg: '#FEE2E2', text: '#991B1B' },    // red-100 / red-800
-    info:    { bg: '#DBEAFE', text: '#1E40AF' },    // blue-100 / blue-800
-    default: { bg: '#F1F5F9', text: '#475569' },    // slate-100 / slate-600
+    success: {
+      bg: isDark ? 'rgba(16, 185, 129, 0.18)' : '#D1FAE5',
+      text: isDark ? '#34D399' : '#065F46',
+    },
+    warning: {
+      bg: isDark ? 'rgba(245, 158, 11, 0.18)' : '#FEF3C7',
+      text: isDark ? '#FBBF24' : '#92400E',
+    },
+    danger: {
+      bg: isDark ? 'rgba(239, 68, 68, 0.18)' : '#FEE2E2',
+      text: isDark ? '#F87171' : '#991B1B',
+    },
+    info: {
+      bg: isDark ? 'rgba(59, 130, 246, 0.18)' : '#DBEAFE',
+      text: isDark ? '#60A5FA' : '#1E40AF',
+    },
+    default: {
+      bg: isDark ? 'rgba(148, 163, 184, 0.18)' : '#F1F5F9',
+      text: isDark ? '#CBD5E1' : '#475569',
+    },
   };
 
   const config = variantConfig[variant];

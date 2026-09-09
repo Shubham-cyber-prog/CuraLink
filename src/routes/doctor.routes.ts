@@ -9,15 +9,19 @@ const router = Router();
 // Public route to view verified doctors
 router.get('/verified', (req, res, next) => doctorController.getVerifiedDoctors(req, res, next));
 
+// Authenticated doctor profile (must be defined before /:id)
+router.get('/me', authenticate, authorize(Role.DOCTOR), (req, res, next) =>
+  doctorController.getMyProfile(req, res, next)
+);
+
+// Public route to view a single verified doctor by ID
+router.get('/:id', (req, res, next) => doctorController.getDoctorById(req, res, next));
+
 // Authenticated routes
 router.use(authenticate);
 
 router.post('/verify-submit', authorize(Role.DOCTOR), (req, res, next) =>
   doctorController.submitVerification(req, res, next)
-);
-
-router.get('/me', authorize(Role.DOCTOR), (req, res, next) =>
-  doctorController.getMyProfile(req, res, next)
 );
 
 // Admin-only route to approve/reject verification status

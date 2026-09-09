@@ -12,6 +12,8 @@ const envSchema = z.object({
   REFRESH_TOKEN_EXPIRY: z.string().default('7d'),
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be a 64-character hex string (32 bytes)'),
+  TURNSTILE_SECRET_KEY: z.string().default('1x0000000000000000000000000000000AA'),
+  TURNSTILE_SITE_KEY: z.string().default('1x00000000000000000000AA'),
 });
 
 const _env = envSchema.safeParse(process.env);

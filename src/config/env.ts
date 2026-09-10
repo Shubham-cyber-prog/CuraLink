@@ -7,6 +7,7 @@ const envSchema = z.object({
   PORT: z.string().default('5000').transform((val) => parseInt(val, 10)),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+<<<<<<< Updated upstream
   JWT_SECRET: z.string().min(64, 'JWT_SECRET must be at least 64 characters long for security'),
   ACCESS_TOKEN_EXPIRY: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRY: z.string().default('7d'),
@@ -14,6 +15,11 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be a 64-character hex string (32 bytes)'),
   TURNSTILE_SECRET_KEY: z.string().default('1x0000000000000000000000000000000AA'),
   TURNSTILE_SITE_KEY: z.string().default('1x00000000000000000000AA'),
+=======
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long for security'),
+  JWT_EXPIRES_IN: z.string().default('7d'),
+  GOOGLE_CLIENT_ID: z.string().min(1, 'GOOGLE_CLIENT_ID is required'),
+>>>>>>> Stashed changes
 });
 
 const _env = envSchema.safeParse(process.env);

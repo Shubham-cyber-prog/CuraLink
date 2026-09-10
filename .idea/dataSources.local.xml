@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="dataSourceStorageLocal" created-in="WS-262.9437.145">
+    <data-source name="curalink@localhost" uuid="ac37861b-b4de-4133-a4de-257e65683354">
+      <database-info product="" version="" jdbc-version="" driver-name="" driver-version="" dbms="POSTGRES" />
+      <secret-storage>master_key</secret-storage>
+      <user-name>curalink_user</user-name>
+      <schema-mapping />
+    </data-source>
+  </component>
+</project>

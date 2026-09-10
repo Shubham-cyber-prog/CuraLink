@@ -1,8 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
+<<<<<<< Updated upstream
 import { auditService, AuditAction } from '../services/audit.service';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator';
 import { profileSchema } from '../validators/profile.validator';
+=======
+import { registerSchema, loginSchema, googleLoginSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator';
+>>>>>>> Stashed changes
 import { UnauthorizedError } from '../utils/errors';
 import { setAuthCookies, clearAuthCookies } from '../utils/cookie';
 import { z } from 'zod';
@@ -74,6 +78,7 @@ export class AuthController {
     }
   }
 
+<<<<<<< Updated upstream
   googleMobileLogin(req: Request, res: Response): void {
     const clientId = process.env.GOOGLE_CLIENT_ID || '498397902593-9h36l23od7sngoejesi3h84m7enrhm0c.apps.googleusercontent.com';
     const host = req.headers.host || 'localhost:5000';
@@ -137,6 +142,19 @@ export class AuthController {
     } catch (error) {
       // Clear cookies if refresh fails (likely expired or revoked)
       clearAuthCookies(res);
+=======
+  async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const validatedInput = googleLoginSchema.parse(req.body);
+      const result = await authService.loginWithGoogle(validatedInput.credential);
+
+      res.status(200).json({
+        success: true,
+        message: 'Google login successful',
+        data: result,
+      });
+    } catch (error) {
+>>>>>>> Stashed changes
       next(error);
     }
   }

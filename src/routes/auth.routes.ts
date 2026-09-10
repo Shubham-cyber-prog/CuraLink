@@ -8,12 +8,19 @@ import { Role } from '../types/role';
 
 const router = Router();
 
+<<<<<<< Updated upstream
 // Public routes (Rate limited & Bot Protected)
 router.post('/register', authLimiter, verifyTurnstile, (req, res, next) => authController.register(req, res, next));
 router.post('/login', authLimiter, verifyTurnstile, (req, res, next) => authController.login(req, res, next));
 router.post('/google', authLimiter, (req, res, next) => authController.googleLogin(req, res, next));
 router.get('/google/mobile-login', (req, res) => authController.googleMobileLogin(req, res));
 router.get('/google/callback', (req, res, next) => authController.googleMobileCallback(req, res, next));
+=======
+// Public routes
+router.post('/register', (req, res, next) => authController.register(req, res, next));
+router.post('/login', (req, res, next) => authController.login(req, res, next));
+router.post('/google', (req, res, next) => authController.googleLogin(req, res, next));
+>>>>>>> Stashed changes
 router.post('/logout', (req, res, next) => authController.logout(req, res, next));
 router.post('/forgot-password', authLimiter, verifyTurnstile, (req, res, next) => authController.forgotPassword(req, res, next));
 router.post('/reset-password', authLimiter, (req, res, next) => authController.resetPassword(req, res, next));

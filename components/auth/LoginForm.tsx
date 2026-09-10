@@ -3,12 +3,27 @@
 import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import { PasswordInput } from "./PasswordInput";
 import { AuthError } from "./AuthError";
 import { GoogleAuthButton } from "./GoogleAuthButton";
 import { TurnstileWidget } from "./TurnstileWidget";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: { client_id: string; callback: (response: { credential: string }) => void }) => void;
+          renderButton: (element: HTMLElement, options: Record<string, string>) => void;
+        };
+      };
+    };
+  }
+}
 
 interface LoginFormProps {
   onSuccess?: (user: Record<string, unknown>, token: string) => void;
@@ -21,8 +36,49 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [rememberMe, setRememberMe] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const finishLogin = (user: Record<string, unknown>, token: string) => {
+    if (rememberMe) localStorage.setItem("curalink_token", token);
+    else sessionStorage.setItem("curalink_token", token);
+
+    if (onSuccess) {
+      onSuccess(user, token);
+      return;
+    }
+
+    const role = user.role as string;
+    if (role === "DOCTOR") router.push("/doctor-dashboard");
+    else if (role === "ADMIN") router.push("/admin-dashboard");
+    else router.push("/dashboard");
+  };
+
+  const handleGoogleLogin = async (credential: string) => {
+    setError(null);
+    setIsGoogleLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.message || "Unable to sign in with Google");
+        return;
+      }
+
+      finishLogin(data.data.user, data.data.token);
+    } catch {
+      setError("Unable to connect to the server. Please try again.");
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   const validate = useCallback(() => {
     const errors: Record<string, string> = {};
@@ -67,6 +123,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         return;
       }
 
+<<<<<<< Updated upstream
       const { user } = data.data;
 
       if (onSuccess) {
@@ -78,6 +135,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         else router.push("/dashboard");
       }
     } catch (err) {
+=======
+      const { token, user } = data.data;
+
+      finishLogin(user, token);
+    } catch {
+>>>>>>> Stashed changes
       setError("Unable to connect to the server. Please try again.");
     } finally {
       setIsLoading(false);
@@ -188,6 +251,30 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           "Log in"
         )}
       </button>
+
+      {GOOGLE_CLIENT_ID && (
+        <>
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>or</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </div>
+          <Script
+            src="https://accounts.google.com/gsi/client"
+            strategy="afterInteractive"
+            onLoad={() => {
+              if (!window.google) return;
+              window.google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: (response) => void handleGoogleLogin(response.credential),
+              });
+              const button = document.getElementById("google-sign-in-button");
+              if (button) window.google.accounts.id.renderButton(button, { theme: "outline", size: "large", width: "400" });
+            }}
+          />
+          <div id="google-sign-in-button" className={isGoogleLoading ? "pointer-events-none opacity-60" : "flex justify-center"} />
+        </>
+      )}
 
       {/* Sign up link */}
       <p className="text-center text-sm text-slate-500 dark:text-[#94A3B8]">

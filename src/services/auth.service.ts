@@ -4,8 +4,17 @@ import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken, generateRefreshToken, generateResetToken, verifyResetToken, verifyRefreshToken, decodeToken } from '../utils/jwt';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
 import { ConflictError, UnauthorizedError, BadRequestError } from '../utils/errors';
+<<<<<<< Updated upstream
 import { Role } from '../types/role';
 import { env } from '../config/env';
+=======
+import { Role } from '@prisma/client';
+import { OAuth2Client } from 'google-auth-library';
+import { randomUUID } from 'node:crypto';
+import { env } from '../config/env';
+
+const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+>>>>>>> Stashed changes
 
 export interface SafeUser {
   id: string;
@@ -117,6 +126,7 @@ export class AuthService {
     };
   }
 
+<<<<<<< Updated upstream
   async googleLoginWithCode(code: string, redirectUri: string): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
     const clientId = process.env.GOOGLE_CLIENT_ID || '498397902593-9h36l23od7sngoejesi3h84m7enrhm0c.apps.googleusercontent.com';
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -261,6 +271,53 @@ export class AuthService {
         data: { revokedAt: new Date() }
       });
     }
+=======
+  async loginWithGoogle(credential: string): Promise<{ token: string; user: SafeUser }> {
+    let payload;
+
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw new UnauthorizedError('Invalid Google credential');
+    }
+
+    if (!payload?.sub || !payload.email || payload.email_verified !== true) {
+      throw new UnauthorizedError('Google account email is not verified');
+    }
+
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    let user = await prisma.user.findUnique({ where: { googleId: payload.sub } });
+
+    if (!user) {
+      user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    }
+
+    if (user) {
+      if (!user.googleId) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId: payload.sub },
+        });
+      }
+    } else {
+      user = await prisma.user.create({
+        data: {
+          name: payload.name?.trim() || normalizedEmail.split('@')[0],
+          email: normalizedEmail,
+          googleId: payload.sub,
+          passwordHash: await hashPassword(randomUUID()),
+          role: Role.PATIENT,
+        },
+      });
+    }
+
+    const token = generateToken({ id: user.id, email: user.email, role: user.role });
+    return { token, user: this.toSafeUser(user) };
+>>>>>>> Stashed changes
   }
 
   async getUserById(id: string): Promise<SafeUser> {
@@ -272,6 +329,17 @@ export class AuthService {
       throw new BadRequestError('User not found');
     }
 
+    return this.toSafeUser(user);
+  }
+
+  private toSafeUser(user: {
+    id: string;
+    name: string;
+    email: string;
+    role: Role;
+    createdAt: Date;
+    updatedAt: Date;
+  }): SafeUser {
     return {
       id: user.id,
       name: user.name,
@@ -334,8 +402,9 @@ export class AuthService {
 
     try {
       verifyResetToken(token, user.passwordHash);
-    } catch (err: any) {
-      throw new BadRequestError(err.message || 'Invalid or expired reset token');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid or expired reset token';
+      throw new BadRequestError(message);
     }
 
     const passwordHash = await hashPassword(password);

@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f58a3e09-33d8-4379-9b3d-29082bd698b9" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/app/(app)/doctors/[id]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(app)/doctors/[id]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(app)/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(app)/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(doctor)/doctor-appointments/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(doctor)/doctor-appointments/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(doctor)/doctor-dashboard/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(doctor)/doctor-dashboard/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(doctor)/doctor-profile/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(doctor)/doctor-profile/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/(doctor)/layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/(doctor)/layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/_lib/auth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/_lib/auth.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/appointments/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/appointments/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/auth/me/route.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/auth/me/route.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/globals.css" beforeDir="false" afterPath="$PROJECT_DIR$/app/globals.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/doctors/AvailabilitySlotPicker.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/doctors/AvailabilitySlotPicker.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/doctors/DoctorFilters.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/doctors/DoctorFilters.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/layout/AppSidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/layout/AppSidebar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/components/layout/DoctorSidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/components/layout/DoctorSidebar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/middleware.ts" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DatabaseLocalColorSettings">
+    <colors>
+      <entry key="ac37861b-b4de-4133-a4de-257e65683354" value="" />
+    </colors>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {}
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Shubham-cyber-prog/CuraLink.git&quot;,
+    &quot;accountId&quot;: &quot;2e2120dc-9de5-4cae-ad91-5fbfea6c74b0&quot;
+  }
+}</component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.0000187878235662" />
+      <entry key="MS500" value="1.288473053540208" />
+      <entry key="S2" value="3.6500907138478587" />
+      <entry key="S5" value="5.304937518039477" />
+      <entry key="S10" value="6.077917389658266" />
+      <entry key="S30" value="6.674309455766879" />
+      <entry key="S60" value="6.834743328122797" />
+      <entry key="M2" value="6.916759394719891" />
+      <entry key="M5" value="6.966555589930842" />
+      <entry key="M10" value="6.983252997618985" />
+      <entry key="M15" value="6.988829813591423" />
+      <entry key="M30" value="6.9944121458075665" />
+      <entry key="H1" value="6.997205382298221" />
+      <entry key="H2" value="6.9986025184528815" />
+      <entry key="H4" value="6.999301216046779" />
+      <entry key="D1" value="6.999883530010145" />
+      <entry key="W1" value="6.9999833612831335" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="0.0" />
+      <entry key="M15" value="0.0" />
+      <entry key="M30" value="0.0" />
+      <entry key="H1" value="0.0" />
+      <entry key="H2" value="0.0" />
+      <entry key="H4" value="0.0" />
+      <entry key="D1" value="0.0" />
+      <entry key="W1" value="0.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="0.002741490068322209" />
+      <entry key="MS500" value="0.5867158783709786" />
+      <entry key="S2" value="3.3698499141682214" />
+      <entry key="S5" value="5.176892765660395" />
+      <entry key="S10" value="6.010619777548798" />
+      <entry key="S30" value="6.6510754972860955" />
+      <entry key="S60" value="6.82302106483252" />
+      <entry key="M2" value="6.9108715382046855" />
+      <entry key="M5" value="6.964193980744909" />
+      <entry key="M10" value="6.982071110839634" />
+      <entry key="M15" value="6.988041648256959" />
+      <entry key="M30" value="6.994017942650496" />
+      <entry key="H1" value="6.997008250581763" />
+      <entry key="H2" value="6.99850394505824" />
+      <entry key="H4" value="6.999251927465112" />
+      <entry key="D1" value="6.9998753149847985" />
+      <entry key="W1" value="6.999982187701674" />
+    </decayedShown>
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="QODANA_PROBLEMS_VIEW_TAB" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3IfHye7M4JjLSTYnb79UGMh2l8g" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "KEY_CHAT_IN_TOOLWINDOW": "false",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "#8 on 2026-08-29-rsxf",
+    "js.debugger.nextJs.config.created.client": "true",
+    "js.debugger.nextJs.config.created.server": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "last_opened_file_path": "/home/subham-nayak/curalink",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "npm.Next.js: server-side.executor": "Run",
+    "settings.editor.selected.configurable": "ml.llm.LLMThirdPartyAiProvidersConfigurable",
+    "to.speed.mode.migration.done": "true",
+    "ts.external.directory.path": "/home/subham-nayak/curalink/node_modules/typescript/lib"
+  },
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "postgresql"
+    ]
+  }
+}]]></component>
+  <component name="RunManager" selected="npm.Next.js: server-side">
+    <configuration name="Next.js: debug client-side" type="JavascriptDebugType" uri="http://localhost:3000/">
+      <method v="2" />
+    </configuration>
+    <configuration name="Next.js: server-side" type="js.build_tools.npm">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="dev" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-4abd2a77f808-JavaScript-WS-262.9437.145" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f58a3e09-33d8-4379-9b3d-29082bd698b9" name="Changes" comment="" />
+      <created>1788148959593</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1788148959593</updated>
+      <workItem from="1788148961771" duration="3705000" />
+      <workItem from="1788152689154" duration="2904000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

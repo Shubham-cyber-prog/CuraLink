@@ -11,9 +11,15 @@ model User {
   id           String   @id @default(uuid())
   name         String
   email        String   @unique
+<<<<<<< Updated upstream
   passwordHash String?
   googleId     String?  @unique
   role         String   @default("PATIENT")
+=======
+  passwordHash String
+  googleId     String?  @unique
+  role         Role     @default(PATIENT)
+>>>>>>> Stashed changes
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

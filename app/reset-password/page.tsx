@@ -88,6 +88,7 @@ function ResetPasswordForm() {
         </div>
         <Link
           href="/login"
+          target="_self"
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 text-sm font-semibold text-white shadow-sm shadow-teal-700/20 transition-all duration-200 hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.98]"
         >
           Go to login
@@ -147,7 +148,7 @@ function ResetPasswordForm() {
       </button>
 
       <p className="text-center text-sm text-slate-500">
-        <Link href="/login" className="inline-flex items-center gap-1.5 font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+        <Link href="/login" target="_self" className="inline-flex items-center gap-1.5 font-semibold text-teal-600 hover:text-teal-700 transition-colors">
           <ArrowLeft size={14} />
           Back to login
         </Link>

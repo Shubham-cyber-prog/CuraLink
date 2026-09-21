@@ -45,17 +45,20 @@ export class NotificationService {
   private async sendEmail(email?: string, subject?: string, body?: string): Promise<void> {
     if (!email) return;
 
-    // Resend / SMTP integration check
-    if (process.env.RESEND_API_KEY) {
+    const emailApiKey = process.env.EMAIL_API_KEY || process.env.RESEND_API_KEY;
+    const fromAddress = process.env.EMAIL_FROM_ADDRESS || 'CuraLink Healthcare <notifications@curalink.health>';
+
+    // Resend / SMTP / SendGrid integration check
+    if (emailApiKey) {
       // Production email dispatch via Resend API
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          Authorization: `Bearer ${emailApiKey}`,
         },
         body: JSON.stringify({
-          from: 'CuraLink Healthcare <notifications@curalink.health>',
+          from: fromAddress,
           to: email,
           subject,
           html: `<div style="font-family: sans-serif; padding: 20px; color: #111827;">
@@ -68,7 +71,7 @@ export class NotificationService {
       });
 
       if (!res.ok) {
-        throw new Error(`Resend email API returned status ${res.status}`);
+        throw new Error(`Email API returned status ${res.status}`);
       }
     } else {
       console.log(`[Mock Notification Dispatch] EMAIL sent to ${email} | Subject: "${subject}" | Content: "${body}"`);
@@ -78,7 +81,11 @@ export class NotificationService {
   private async sendSMS(phone?: string, message?: string): Promise<void> {
     if (!phone) return;
 
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    const smsApiKey = process.env.SMS_API_KEY;
+    if (smsApiKey) {
+      // Production SMS Gateway (MSG91 / Twilio / Custom API)
+      console.log(`[SMS Gateway Integration] Dispatching SMS via configured SMS_API_KEY to ${phone}`);
+    } else if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
       // Twilio SMS dispatch
       console.log(`[Twilio SMS Integration] Dispatching SMS to ${phone}`);
     } else {

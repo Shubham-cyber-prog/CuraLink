@@ -33,6 +33,9 @@ export interface Doctor {
   availabilitySlots: DaySlot[];
   reviews: DoctorReview[];
   consultationFee?: number;
+  city?: string | null;
+  location?: string;
   medicalLicenseNumber?: string;
   verificationStatus?: string;
 }
+

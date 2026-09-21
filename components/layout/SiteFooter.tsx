@@ -48,6 +48,7 @@ export function SiteFooter() {
                 <li key={link.label}>
                   <Link
                     href={link.href}
+                    target="_self"
                     className="text-sm text-slate-600 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-[#F1F5F9]"
                   >
                     {link.label}

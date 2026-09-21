@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Shield, UserCircle, Stethoscope } from 'lucide-react-native';
+import { UserCircle, Stethoscope } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { PasswordStrength } from '../../components/PasswordStrength';
@@ -10,6 +10,7 @@ import { TurnstileWidget } from '../../components/TurnstileWidget';
 import { useAuth } from '../../lib/auth-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import logoImg from '../../../assets/images/logo.png';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function RegisterScreen() {
     setError('');
     if (!validate()) return;
 
-    if (!turnstileToken) {
+    if (!__DEV__ && !turnstileToken) {
       setError('Please complete the bot security check to continue');
       return;
     }
@@ -66,7 +67,7 @@ export default function RegisterScreen() {
     setIsLoading(true);
 
     try {
-      await register(name.trim(), email.trim().toLowerCase(), password, role, turnstileToken);
+      await register(name.trim(), email.trim().toLowerCase(), password, role, turnstileToken || undefined);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setError(msg);
@@ -95,19 +96,15 @@ export default function RegisterScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CuraLink Logo */}
-          <View className="mb-6 items-center">
-            <View 
-              style={{
-                shadowColor: '#0d9488',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.1,
-                shadowRadius: 12,
-                elevation: 8,
-              }}
-              className="mb-3 h-14 w-14 items-center justify-center rounded-2xl bg-white border border-teal-100"
-            >
-              <Shield size={28} color="#0d9488" />
+          {/* CuraLink Logo (clean transparent mark) */}
+          <View className="mb-5 items-center">
+            <View className="mb-2 h-14 w-14 items-center justify-center">
+              <Image
+                source={logoImg}
+                style={{ width: 56, height: 56 }}
+                resizeMode="contain"
+                alt="CuraLink Logo"
+              />
             </View>
             <Text className="font-inter-bold text-xl text-charcoal">
               Cura<Text className="text-teal-600">Link</Text>
@@ -193,22 +190,24 @@ export default function RegisterScreen() {
               </View>
             </View>
 
-            {/* Turnstile Bot Protection */}
-            <TurnstileWidget
-              onVerify={(token) => {
-                setTurnstileToken(token);
-                setError('');
-              }}
-              onExpire={() => setTurnstileToken(null)}
-              onError={() => setTurnstileToken(null)}
-            />
+            {/* Turnstile Bot Protection (hidden in dev) */}
+            {!__DEV__ && (
+              <TurnstileWidget
+                onVerify={(token) => {
+                  setTurnstileToken(token);
+                  setError('');
+                }}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+              />
+            )}
 
             <View className="mt-4">
               <Button
                 title={isLoading ? "Creating account..." : "Create Account"}
                 onPress={handleRegister}
                 isLoading={isLoading}
-                disabled={isLoading || !turnstileToken}
+                disabled={isLoading || (!__DEV__ && !turnstileToken)}
                 className="w-full"
               />
             </View>
@@ -222,6 +221,7 @@ export default function RegisterScreen() {
 
             <GoogleAuthButton
               label="Sign up with Google"
+              role={role}
               onError={(msg) => setError(msg)}
             />
           </View>

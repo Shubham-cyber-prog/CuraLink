@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Doctor } from "@/types/doctor";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { api } from "@/lib/api";
 
 export default function BookAppointmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -37,10 +37,8 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
     let mounted = true;
     const checkAuth = async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          credentials: "include"
-        });
-        if (!res.ok) throw new Error("Not auth");
+        const res = await api.get("/auth/me");
+        if (!res.success) throw new Error("Not auth");
         if (mounted) setIsAuthenticated(true);
       } catch (err) {
         if (mounted) router.push(`/login?redirect=/doctors/${id}/book?date=${date}&time=${time}`);
@@ -50,8 +48,7 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
     const fetchDoctor = async () => {
       try {
         setIsLoadingDoctor(true);
-        const res = await fetch(`${API_BASE}/doctors/${id}`);
-        const data = await res.json();
+        const data = await api.get(`/doctors/${id}`);
         if (mounted && data.success && data.data) {
           setDoctor(data.data);
         }
@@ -91,27 +88,13 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
     setError(null);
     
     try {
-      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
-      const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.token;
-
-      const res = await fetch(`${API_BASE}/appointments/book`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          doctorId: doctor.id,
-          date,
-          time
-        })
+      const data = await api.post("/appointments/book", {
+        doctorId: doctor.id,
+        date,
+        time,
       });
       
-      const data = await res.json();
-      
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.message || "Failed to book appointment");
       }
       

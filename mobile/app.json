@@ -1,21 +1,32 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "CuraLink",
+    "slug": "curalink",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "curalink",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.curalink.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "CuraLink needs access to your camera for secure video consultations with doctors.",
+        "NSMicrophoneUsageDescription": "CuraLink needs access to your microphone for secure video consultations with doctors."
+      }
     },
     "android": {
+      "package": "com.curalink.app",
       "adaptiveIcon": {
         "backgroundColor": "#F0FDFA",
         "foregroundImage": "./assets/images/splash-icon.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "output": "static",
@@ -36,11 +47,17 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d943f7d5-8218-4811-b232-8c4e59bca675"
+      }
     }
   }
 }

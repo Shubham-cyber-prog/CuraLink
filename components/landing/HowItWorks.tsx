@@ -1,11 +1,14 @@
-import { FadeIn } from "./FadeIn";
+"use client";
+
+import { motion } from "framer-motion";
+import { staggerGrid, cardReveal, scaleIn } from "@/components/motion/variants";
 
 const STEPS = [
   {
     step: 1,
     title: "Describe your symptoms",
     description:
-      "Tell our AI what you’re experiencing — in your own words, any time of day. No medical jargon required.",
+      "Tell our AI what you're experiencing — in your own words, any time of day. No medical jargon required.",
   },
   {
     step: 2,
@@ -25,38 +28,49 @@ export function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="bg-white/60 px-6 py-20 sm:py-24"
+      className="bg-white/60 dark:bg-[#0f172a]/60 px-6 py-20 sm:py-24"
       aria-labelledby="steps-heading"
     >
-      <FadeIn className="mx-auto max-w-6xl" delayMs={80}>
-        <div className="mx-auto mb-14 max-w-2xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+      <motion.div
+        className="mx-auto max-w-6xl"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+        variants={staggerGrid}
+      >
+        <div className="mb-14 max-w-xl">
+          <motion.p
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400"
+            variants={cardReveal}
+          >
             The process
-          </p>
-          <h2
+          </motion.p>
+          <motion.h2
             id="steps-heading"
-            className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl"
+            className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white md:text-4xl"
+            variants={cardReveal}
           >
             Three steps to better care
-          </h2>
+          </motion.h2>
         </div>
 
         <ol className="grid gap-10 md:grid-cols-3 md:gap-8">
           {STEPS.map((item) => (
-            <li key={item.step} className="flex flex-col gap-3">
-              <span aria-hidden="true" className="font-display text-5xl text-teal-200">
+            <motion.li key={item.step} className="flex flex-col gap-3" variants={cardReveal}>
+              <motion.span
+                aria-hidden="true"
+                className="font-display text-5xl text-teal-200 dark:text-teal-800"
+                variants={scaleIn}
+              >
                 {String(item.step).padStart(2, "0")}
-              </span>
-              <h3 className="text-base font-semibold tracking-tight text-slate-900">{item.title}</h3>
-              <p className="text-sm leading-relaxed text-slate-500">{item.description}</p>
-            </li>
+              </motion.span>
+              <h3 className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">{item.title}</h3>
+              <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">{item.description}</p>
+            </motion.li>
           ))}
         </ol>
 
-        <div className="mt-10 hidden justify-center md:flex" aria-hidden="true">
-          <div className="h-px w-2/3 bg-gradient-to-r from-transparent via-teal-200 to-transparent" />
-        </div>
-      </FadeIn>
+      </motion.div>
     </section>
   );
 }

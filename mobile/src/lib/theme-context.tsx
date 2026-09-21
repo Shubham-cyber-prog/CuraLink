@@ -34,10 +34,10 @@ const lightColors: ThemeColors = {
   border: '#E2E8F0',
   text: '#1E293B',
   muted: '#64748B',
-  teal: '#0D9488',
+  teal: '#085041',
   tealBg: '#F0FDFA',
   tealBorder: '#CCFBF1',
-  accent: '#0891B2',
+  accent: '#085041',
 };
 
 const darkColors: ThemeColors = {
@@ -47,10 +47,10 @@ const darkColors: ThemeColors = {
   border: '#263049',
   text: '#F1F5F9',
   muted: '#94A3B8',
-  teal: '#14B8A6',
-  tealBg: 'rgba(20, 184, 166, 0.15)',
-  tealBorder: 'rgba(20, 184, 166, 0.3)',
-  accent: '#38BDF8',
+  teal: '#2DD4BF',
+  tealBg: 'rgba(45, 212, 191, 0.15)',
+  tealBorder: 'rgba(45, 212, 191, 0.3)',
+  accent: '#2DD4BF',
 };
 
 const ThemeContext = createContext<ThemeContextType>({

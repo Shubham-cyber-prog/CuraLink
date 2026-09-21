@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import Link from "next/link";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { AuthError } from "@/components/auth/AuthError";
@@ -16,6 +16,15 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [emailError, setEmailError] = useState("");
+
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+    setError(null);
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken(null);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +91,7 @@ export default function ForgotPasswordPage() {
           </div>
           <Link
             href="/login"
+            target="_self"
             className="inline-flex items-center gap-2 text-sm font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition-colors"
           >
             <ArrowLeft size={16} />
@@ -121,12 +131,9 @@ export default function ForgotPasswordPage() {
           {/* Cloudflare Turnstile Bot Protection */}
           <TurnstileWidget
             action="forgot-password"
-            onVerify={(token) => {
-              setTurnstileToken(token);
-              setError(null);
-            }}
-            onExpire={() => setTurnstileToken(null)}
-            onError={() => setTurnstileToken(null)}
+            onVerify={handleTurnstileVerify}
+            onExpire={handleTurnstileExpire}
+            onError={handleTurnstileExpire}
           />
 
           <button
@@ -149,7 +156,7 @@ export default function ForgotPasswordPage() {
 
           <p className="text-center text-sm text-slate-500 dark:text-slate-400">
             Remember your password?{" "}
-            <Link href="/login" className="font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition-colors">
+            <Link href="/login" target="_self" className="font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition-colors">
               Log in
             </Link>
           </p>

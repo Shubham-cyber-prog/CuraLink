@@ -44,8 +44,6 @@ export default function TabLayout() {
           title: 'Profile',
         }}
       />
-
-      <Tabs.Screen name="chat" options={{ href: null }} />
     </Tabs>
   );
 }

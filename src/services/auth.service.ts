@@ -4,17 +4,12 @@ import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken, generateRefreshToken, generateResetToken, verifyResetToken, verifyRefreshToken, decodeToken } from '../utils/jwt';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
 import { ConflictError, UnauthorizedError, BadRequestError } from '../utils/errors';
-<<<<<<< Updated upstream
 import { Role } from '../types/role';
-import { env } from '../config/env';
-=======
-import { Role } from '@prisma/client';
 import { OAuth2Client } from 'google-auth-library';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
->>>>>>> Stashed changes
 
 export interface SafeUser {
   id: string;
@@ -76,6 +71,20 @@ export class AuthService {
       },
     });
 
+    if (input.role === Role.DOCTOR) {
+      const existingProfile = await prisma.doctorProfile.findUnique({ where: { userId: user.id } });
+      if (!existingProfile) {
+        await prisma.doctorProfile.create({
+          data: {
+            userId: user.id,
+            specialization: 'General Practice',
+            medicalLicenseNumber: 'PENDING',
+            verificationStatus: 'PENDING',
+          },
+        });
+      }
+    }
+
     const tokens = await this.createTokens(user);
 
     return {
@@ -126,8 +135,7 @@ export class AuthService {
     };
   }
 
-<<<<<<< Updated upstream
-  async googleLoginWithCode(code: string, redirectUri: string): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
+  async googleLoginWithCode(code: string, redirectUri: string, requestedRole: string = 'PATIENT'): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
     const clientId = process.env.GOOGLE_CLIENT_ID || '498397902593-9h36l23od7sngoejesi3h84m7enrhm0c.apps.googleusercontent.com';
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 
@@ -159,10 +167,10 @@ export class AuthService {
       throw new UnauthorizedError('Google did not return an access token');
     }
 
-    return this.googleLogin(accessToken);
+    return this.googleLogin(accessToken, requestedRole);
   }
 
-  async googleLogin(token: string): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
+  async googleLogin(token: string, requestedRole: string = 'PATIENT'): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
     const googleRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -184,15 +192,31 @@ export class AuthService {
       where: { email },
     });
 
+    const targetRole = requestedRole === 'DOCTOR' ? Role.DOCTOR : Role.PATIENT;
+
     if (!user) {
       user = await prisma.user.create({
         data: {
           email,
           name: name || email.split("@")[0],
           googleId,
-          role: "PATIENT",
+          role: targetRole,
         },
       });
+
+      if (targetRole === Role.DOCTOR) {
+        const existingProfile = await prisma.doctorProfile.findUnique({ where: { userId: user.id } });
+        if (!existingProfile) {
+          await prisma.doctorProfile.create({
+            data: {
+              userId: user.id,
+              specialization: 'General Practice',
+              medicalLicenseNumber: 'PENDING',
+              verificationStatus: 'PENDING',
+            },
+          });
+        }
+      }
     } else if (!user.googleId) {
       user = await prisma.user.update({
         where: { email },
@@ -271,8 +295,9 @@ export class AuthService {
         data: { revokedAt: new Date() }
       });
     }
-=======
-  async loginWithGoogle(credential: string): Promise<{ token: string; user: SafeUser }> {
+  }
+
+  async loginWithGoogle(credential: string, requestedRole: string = 'PATIENT'): Promise<{ token: string; user: SafeUser }> {
     let payload;
 
     try {
@@ -296,6 +321,8 @@ export class AuthService {
       user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     }
 
+    const targetRole = requestedRole === 'DOCTOR' ? Role.DOCTOR : Role.PATIENT;
+
     if (user) {
       if (!user.googleId) {
         user = await prisma.user.update({
@@ -310,14 +337,27 @@ export class AuthService {
           email: normalizedEmail,
           googleId: payload.sub,
           passwordHash: await hashPassword(randomUUID()),
-          role: Role.PATIENT,
+          role: targetRole,
         },
       });
+
+      if (targetRole === Role.DOCTOR) {
+        const existingProfile = await prisma.doctorProfile.findUnique({ where: { userId: user.id } });
+        if (!existingProfile) {
+          await prisma.doctorProfile.create({
+            data: {
+              userId: user.id,
+              specialization: 'General Practice',
+              medicalLicenseNumber: 'PENDING',
+              verificationStatus: 'PENDING',
+            },
+          });
+        }
+      }
     }
 
-    const token = generateToken({ id: user.id, email: user.email, role: user.role });
+    const token = generateToken({ id: user.id, email: user.email, role: user.role as Role });
     return { token, user: this.toSafeUser(user) };
->>>>>>> Stashed changes
   }
 
   async getUserById(id: string): Promise<SafeUser> {
@@ -336,7 +376,7 @@ export class AuthService {
     id: string;
     name: string;
     email: string;
-    role: Role;
+    role: Role | string;
     createdAt: Date;
     updatedAt: Date;
   }): SafeUser {

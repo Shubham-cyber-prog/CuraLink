@@ -3,6 +3,7 @@
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { InitialSiteLoader } from "@/components/layout/InitialSiteLoader";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Using the NEXT_PUBLIC environment variable, with a fallback if the dev server hasn't been restarted
@@ -17,6 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange={false}
     >
       <GoogleOAuthProvider clientId={clientId}>
+        <InitialSiteLoader />
         {children}
       </GoogleOAuthProvider>
     </ThemeProvider>

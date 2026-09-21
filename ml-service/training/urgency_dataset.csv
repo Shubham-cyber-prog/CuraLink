@@ -1,0 +1,181 @@
+symptom_text,urgency_label
+"I have a mild tension headache since yesterday evening",LOW
+"Mild headache and feeling a bit tired after working on computer",LOW
+"Slight runny nose and sneezing once or twice this morning",LOW
+"Feeling minor muscle soreness in my legs after gym workout yesterday",LOW
+"Small superficial paper cut on my index finger, cleaned and dry",LOW
+"Dry throat after speaking for several hours, no fever",LOW
+"Minor skin dryness and mild itching on my forearms during winter",LOW
+"Feeling slightly drowsy and low energy today",LOW
+"Mild localized bruise on my shin from bumping into the table",LOW
+"Occasional mild bloating after eating a heavy dinner",LOW
+"Mild seasonal allergy symptoms with occasional watery eyes",LOW
+"Slight stuffy nose upon waking up, clears up after hot shower",LOW
+"Mild eye strain from reading books without my glasses",LOW
+"A little bit of neck stiffness from sleeping in an awkward position",LOW
+"Minor lip chapping due to cold weather",LOW
+"Mild ankle soreness after walking 10000 steps yesterday",LOW
+"Feeling full quickly after a small meal, no nausea or vomiting",LOW
+"Slight dry cough once an hour, throat feels ticklish",LOW
+"Mild fatigue at the end of a long work week",LOW
+"Slight dandruff and mild scalp itchiness",LOW
+"Minor sunburn on shoulders after 30 minutes in the sun, skin pink but not blistering",LOW
+"Occasional burping after drinking carbonated soda",LOW
+"Mild ache in my wrist after typing on the laptop keyboard all day",LOW
+"Small superficial scrape on knee from tripping on grass, bleeding stopped right away",LOW
+"Mild sinus congestion without fever or facial pain",LOW
+"Slight hoarseness in voice after cheering at a sports game",LOW
+"Minor ache in lower back after lifting a grocery bag",LOW
+"Mild localized redness from a mosquito bite on my arm",LOW
+"Feeling a little lethargic after not sleeping well last night",LOW
+"Mild sour taste in mouth after eating spicy dinner",LOW
+"Mildly chapped hands from frequent hand washing with soap",LOW
+"Minor heel soreness after wearing new stiff shoes for the first time",LOW
+"Slight post nasal drip causing mild throat clearing",LOW
+"Mild tenderness on arm where I received my routine vaccine yesterday",LOW
+"Minor stomach grumbling and slight hunger pangs",LOW
+"Feeling mildly lightheaded when standing up too fast, goes away in 2 seconds",LOW
+"Slight dry skin patches on elbows",LOW
+"Mild jaw stiffness after chewing hard gum",LOW
+"Occasional sneeze when dusting the bookshelf",LOW
+"Minor paper scrape on palm, washed with soap and bandaged",LOW
+"Slight ear fullness after swimming, water trapped in outer ear",LOW
+"Mild muscle fatigue across shoulders from carrying a backpack",LOW
+"Slight headache that improved after drinking a glass of water",LOW
+"Minor toe stub against bed frame, bruised but can walk fine",LOW
+"Mild dry mouth when waking up in air conditioned room",LOW
+"Slight gas and mild abdominal distension after eating lentils",LOW
+"Mild tension at the temples after staring at phone screen",LOW
+"Occasional throat tickle with dry room air",LOW
+"Minor friction blister on the back of my heel from running shoes",LOW
+"Mild soreness in calves after jogging 2 miles",LOW
+"Slight nasal dryness in winter months",LOW
+"Minor thumb scrape while cutting vegetables, clean and bandaged",LOW
+"Mild drowsiness in the afternoon after lunch",LOW
+"Occasional dry eye sensation after contact lens wear",LOW
+"Slight shoulder tightness from sitting at desk",LOW
+"Mild lower leg stiffness after sitting through a long movie",LOW
+"Minor redness on cheek from shaving razor",LOW
+"Mild bloating that went away after a walk",LOW
+"Slight tickle in throat when breathing cold air outside",LOW
+"Mild tension around neck after working at desk all day",LOW
+"I have had a fever of 101F for 3 days and it is not breaking",MEDIUM
+"Persistent wet productive cough for 5 days with yellow phlegm",MEDIUM
+"Moderate throbbing migraine for 2 days sensitive to light",MEDIUM
+"Recurrent cramping abdominal pain with diarrhea for past 24 hours",MEDIUM
+"Red spreading skin rash on my torso that has been itching intensely for 4 days",MEDIUM
+"Burning pain and frequent urgency during urination for two days",MEDIUM
+"Persistent nausea and inability to keep solid food down since yesterday",MEDIUM
+"Deep cut on thumb that continues to ooze blood through the bandage after 30 minutes",MEDIUM
+"Moderate joint swelling, heat, and stiffness in my right knee for 3 days",MEDIUM
+"Earache with throbbing pain, muffled hearing, and slight discharge for 48 hours",MEDIUM
+"Fever of 100.8F with body chills and persistent flu like symptoms",MEDIUM
+"Moderate asthma wheezing that is only partially relieved by my rescue inhaler",MEDIUM
+"Severe sinus pain with thick greenish discharge and facial pressure for a week",MEDIUM
+"Persistent diarrhea for 3 days leading to mild dehydration and weakness",MEDIUM
+"Sprained ankle from sports with moderate swelling and unable to bear full weight",MEDIUM
+"Worsening eczema flare up with cracked bleeding skin on hands",MEDIUM
+"Persistent acid reflux and burning sensation in chest after every meal for a week",MEDIUM
+"Unexplained painful lump in groin area that has enlarged over the past week",MEDIUM
+"Moderate lower back pain radiating down to my buttocks for 5 days",MEDIUM
+"Sore throat with swollen tonsils and white patches visible on inspection",MEDIUM
+"Fever of 102F and persistent shivering since yesterday night",MEDIUM
+"Recurrent dizzy spells when turning head or rolling over in bed for 3 days",MEDIUM
+"Persistent vomiting 4 times today after eating at a restaurant",MEDIUM
+"Moderate wrist pain and swelling after falling on an outstretched hand",MEDIUM
+"Red swollen eye with crusty yellow discharge sticking eyelids shut in morning",MEDIUM
+"Persistent cough lasting more than 2 weeks that wakes me up at night",MEDIUM
+"Moderate abdominal pain in lower right side that started 12 hours ago",MEDIUM
+"Painful blister clusters forming on one side of my ribcage suspected shingles",MEDIUM
+"Persistent high blood pressure reading of 150 over 95 on home monitor for 3 days",MEDIUM
+"Moderate burns on forearm with blistering from hot cooking oil spill",MEDIUM
+"Frequent urination and unquenchable excessive thirst for the last week",MEDIUM
+"Infected ingrown toenail with redness, swelling, and pus oozing",MEDIUM
+"Moderate pain when swallowing and difficulty speaking due to sore throat",MEDIUM
+"Worsening joint pain in both wrists and morning stiffness lasting over an hour",MEDIUM
+"Dog bite on forearm that broke the skin and is red and painful",MEDIUM
+"Persistent daily headaches for the past 10 days that are not responding to paracetamol",MEDIUM
+"Moderate pelvic pain and abnormal spotting between menstrual periods",MEDIUM
+"Unintentional weight loss of 10 pounds over 4 weeks with fatigue and night sweats",MEDIUM
+"Persistent itchy hives covering arms and legs for more than 48 hours",MEDIUM
+"Swollen lymph node in neck that is tender to touch and hasn't shrunk in 2 weeks",MEDIUM
+"Moderate pain and clicking in jaw making it difficult to chew food",MEDIUM
+"Persistent dizziness and off balance feeling lasting several days",MEDIUM
+"Deep puncture wound from a rusty nail on the sole of foot",MEDIUM
+"Moderate abdominal bloating and pain alternating between constipation and diarrhea for 2 weeks",MEDIUM
+"Recurring sharp flank pain on left side radiating to lower abdomen",MEDIUM
+"Worsening skin abscess that is red, hot, swollen, and increasingly tender",MEDIUM
+"Persistent low grade fever 100.4F with night sweats and fatigue for 10 days",MEDIUM
+"Moderate shoulder pain that prevents lifting arm above head for past week",MEDIUM
+"Blood tinged urine and moderate lower back ache since yesterday",MEDIUM
+"Moderate wheezing and tight chest when exposed to cold air or pollen",MEDIUM
+"Persistent painful mouth ulcers that have not healed in over two weeks",MEDIUM
+"Moderate vertigo causing nausea and room spinning sensation for past 24 hours",MEDIUM
+"Fever of 101.5F with severe body aches and exhaustion since 2 days",MEDIUM
+"Moderate testicular pain and swelling that developed over the past day",MEDIUM
+"Persistent pain in Achilles tendon that hurts when walking or standing",MEDIUM
+"Moderate burn on palm from touching hot oven rack with fluid filled blisters",MEDIUM
+"Persistent watery diarrhea more than 6 times a day for two consecutive days",MEDIUM
+"Moderate pain in right upper abdomen after eating greasy or fatty foods",MEDIUM
+"Persistent dry hacking cough with pleuritic chest tightness for 4 days",MEDIUM
+"Moderate facial swelling around cheek and jaw following a dental extraction",MEDIUM
+"Fever over 103.5F with uncontrollable shaking chills and extreme weakness",HIGH
+"Coughing up noticeable streaks of bright red blood with persistent cough",HIGH
+"Severe acute abdominal pain that hurts intensely upon touch or release",HIGH
+"Sudden onset of partial vision loss or black spots in left eye",HIGH
+"Persistent projectile vomiting for 24 hours unable to retain any liquids",HIGH
+"Dark black tarry foul smelling stools noticed over the last two bowel movements",HIGH
+"Severe acute asthma exacerbation not responding to rescue inhaler nebulizer",HIGH
+"High fever of 104F in adult with stiff neck and painful light sensitivity",HIGH
+"Rapidly spreading bright red skin infection with red streaks travelling up the arm",HIGH
+"Severe agonizing flank and back pain accompanied by bloody urine and vomiting",HIGH
+"Sudden severe testicular pain with swelling that started abruptly 1 hour ago",HIGH
+"High fever 103F with severe confusion, disorientation, and slurred responses",HIGH
+"Severe anaphylactic swelling of lips, tongue, and eyelids after eating shellfish",HIGH
+"Persistent bleeding from wound that saturates through thick compression towels",HIGH
+"Severe burn covering large area of leg with charred white skin and blistering",HIGH
+"Acute severe headache described as the worst headache of my entire life",HIGH
+"Severe unrelenting right lower quadrant abdominal pain with fever and vomiting",HIGH
+"Sudden onset of double vision and inability to coordinate walking in straight line",HIGH
+"Vomiting dark brown material resembling coffee grounds after severe stomach pain",HIGH
+"High fever of 103F with purple pinpoint rash spreading across legs and trunk",HIGH
+"Severe eye pain with cloudy cornea, halos around lights, and extreme nausea",HIGH
+"Acute sudden inability to urinate for 14 hours with painful distended bladder",HIGH
+"Severe diabetic ketoacidosis symptoms with sweet fruity breath and extreme lethargy",HIGH
+"Severe deep laceration on forearm with exposed fat or muscle tissue",HIGH
+"High fever 104F with intense rigors and hypotension feeling faint",HIGH
+"Sudden acute weakness in right arm and leg making it difficult to stand up",HIGH
+"Severe respiratory infection with oxygen saturation dropping to 90 percent on pulse oximeter",HIGH
+"Acute severe allergic reaction with full body hives, facial swelling, and dizziness",HIGH
+"Severe relentless upper abdominal pain radiating through to the back with vomiting",HIGH
+"Sudden onset of slurred speech and facial drooping noticed by family member",HIGH
+"Severe penetrating puncture wound to the abdomen from metal shard",HIGH
+"High fever 103.8F in pregnant woman with shivering and severe backache",HIGH
+"Severe uncontrollable nosebleed lasting longer than 45 minutes despite direct pressure",HIGH
+"Severe jaundice with yellow eyes, dark tea colored urine, and severe right upper pain",HIGH
+"Acute sudden hearing loss in right ear accompanied by severe spinning vertigo",HIGH
+"Severe pain, pale cold foot, and absence of pulse in foot after leg injury",HIGH
+"High fever 103F with productive rust colored sputum and rapid breathing",HIGH
+"Severe head trauma with loss of memory and repeated vomiting after cycling crash",HIGH
+"Acute severe pelvic pain with positive pregnancy test and dizziness",HIGH
+"Severe heat stroke with core temperature 104F, hot dry skin, and delirium",HIGH
+"Severe crushing headache with altered mental state and high blood pressure 200 over 110",HIGH
+"Acute severe swelling of throat and difficulty swallowing saliva after bee sting",HIGH
+"Severe bloody diarrhea with 10 or more episodes today, dehydration, and fever 102F",HIGH
+"Acute severe joint infection with knee swollen to twice normal size and fever 103F",HIGH
+"Severe sudden numbness and loss of sensation across one entire half of the body",HIGH
+"Acute severe alcohol withdrawal with uncontrolled tremors, hallucinations, and fever",HIGH
+"Severe persistent vomiting with sunken eyes, dry tongue, and inability to stand",HIGH
+"High fever 104F following recent overseas travel with severe muscle and bone pain",HIGH
+"Severe deep animal bite to face with tearing of tissue and active bleeding",HIGH
+"Acute severe asthma attack with inability to speak more than two words between breaths",HIGH
+"Severe chemical burn to eyes after splash accident in workshop",HIGH
+"High fever 103F with severe pain over gallbladder and visible jaundice",HIGH
+"Severe back pain after fall from ladder with tingling and loss of bowel control",HIGH
+"Sudden onset of severe confusion and hallucinations in elderly patient with fever",HIGH
+"Severe acute pancreatitis pain that is unbearable without bending forward",HIGH
+"Acute carbon monoxide poisoning symptoms with cherry red lips, severe headache, and nausea",HIGH
+"Severe frostbite on fingers with blackened tissue and complete numbness",HIGH
+"High fever 103.5F with severe flank pain, rigors, and vomiting in diabetic patient",HIGH
+"Severe acute allergic reaction with swelling around throat and rapid heartbeat",HIGH
+"Severe uncontrollable bleeding from surgical incision site that soaked 4 dressings",HIGH

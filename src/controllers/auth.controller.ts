@@ -1,12 +1,9 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
-<<<<<<< Updated upstream
 import { auditService, AuditAction } from '../services/audit.service';
-import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator';
-import { profileSchema } from '../validators/profile.validator';
-=======
 import { registerSchema, loginSchema, googleLoginSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator';
->>>>>>> Stashed changes
+import { profileSchema } from '../validators/profile.validator';
 import { UnauthorizedError } from '../utils/errors';
 import { setAuthCookies, clearAuthCookies } from '../utils/cookie';
 import { z } from 'zod';
@@ -58,15 +55,16 @@ export class AuthController {
 
   async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { token } = req.body;
+      const { token, role } = req.body;
       if (!token || typeof token !== "string") {
         throw new UnauthorizedError("Google access token is required");
       }
 
-      const { user, accessToken, refreshToken } = await authService.googleLogin(token);
+      const requestedRole = (typeof role === 'string' && role.toUpperCase() === 'DOCTOR') ? 'DOCTOR' : 'PATIENT';
+      const { user, accessToken, refreshToken } = await authService.googleLogin(token, requestedRole);
       
       setAuthCookies(res, accessToken, refreshToken);
-      await auditService.logAction(AuditAction.LOGIN, user.id, 'User', user.id, req.ip, req.headers['user-agent'], { method: 'google' });
+      await auditService.logAction(AuditAction.LOGIN, user.id, 'User', user.id, req.ip, req.headers['user-agent'], { method: 'google', role: user.role });
 
       res.status(200).json({
         success: true,
@@ -78,7 +76,6 @@ export class AuthController {
     }
   }
 
-<<<<<<< Updated upstream
   googleMobileLogin(req: Request, res: Response): void {
     const clientId = process.env.GOOGLE_CLIENT_ID || '498397902593-9h36l23od7sngoejesi3h84m7enrhm0c.apps.googleusercontent.com';
     const host = req.headers.host || 'localhost:5000';
@@ -86,12 +83,20 @@ export class AuthController {
     const defaultCallback = `${protocol}://${host}/api/auth/google/callback`;
     const callbackUrl = process.env.GOOGLE_OAUTH_CALLBACK_URL || defaultCallback;
 
+    // Securely encode requested role and CSRF token into OAuth state parameter
+    const queryRole = String(req.query.role || '').toUpperCase();
+    const selectedRole = queryRole === 'DOCTOR' ? 'DOCTOR' : 'PATIENT';
+    const csrfToken = crypto.randomBytes(16).toString('hex');
+    const statePayload = JSON.stringify({ csrf: csrfToken, role: selectedRole, ts: Date.now() });
+    const state = Buffer.from(statePayload).toString('base64url');
+
     const googleAuthUrl =
       `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
       `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
       `&response_type=code` +
-      `&scope=${encodeURIComponent('openid profile email')}`;
+      `&scope=${encodeURIComponent('openid profile email')}` +
+      `&state=${encodeURIComponent(state)}`;
 
     res.redirect(googleAuthUrl);
   }
@@ -100,10 +105,26 @@ export class AuthController {
     try {
       const code = req.query.code as string;
       const errorParam = req.query.error as string;
+      const stateParam = req.query.state as string;
 
       if (errorParam || !code) {
         res.redirect(`curalink://oauthredirect?error=${encodeURIComponent(errorParam || 'Google login cancelled')}`);
         return;
+      }
+
+      // Decode role from OAuth state parameter
+      let requestedRole = 'PATIENT';
+      if (stateParam) {
+        try {
+          const decoded = JSON.parse(Buffer.from(stateParam, 'base64url').toString('utf8'));
+          if (decoded.role === 'DOCTOR' || decoded.role === 'PATIENT') {
+            requestedRole = decoded.role;
+          }
+        } catch {
+          if (stateParam === 'DOCTOR' || stateParam === 'PATIENT') {
+            requestedRole = stateParam;
+          }
+        }
       }
 
       const host = req.headers.host || 'localhost:5000';
@@ -111,10 +132,10 @@ export class AuthController {
       const defaultCallback = `${protocol}://${host}/api/auth/google/callback`;
       const callbackUrl = process.env.GOOGLE_OAUTH_CALLBACK_URL || defaultCallback;
 
-      const { user, accessToken, refreshToken } = await authService.googleLoginWithCode(code, callbackUrl);
+      const { user, accessToken, refreshToken } = await authService.googleLoginWithCode(code, callbackUrl, requestedRole);
 
       setAuthCookies(res, accessToken, refreshToken);
-      await auditService.logAction(AuditAction.LOGIN, user.id, 'User', user.id, req.ip, req.headers['user-agent'], { method: 'google_mobile' });
+      await auditService.logAction(AuditAction.LOGIN, user.id, 'User', user.id, req.ip, req.headers['user-agent'], { method: 'google_mobile', role: user.role });
 
       const redirectUrl = `curalink://oauthredirect?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
       res.redirect(redirectUrl);
@@ -142,19 +163,6 @@ export class AuthController {
     } catch (error) {
       // Clear cookies if refresh fails (likely expired or revoked)
       clearAuthCookies(res);
-=======
-  async googleLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const validatedInput = googleLoginSchema.parse(req.body);
-      const result = await authService.loginWithGoogle(validatedInput.credential);
-
-      res.status(200).json({
-        success: true,
-        message: 'Google login successful',
-        data: result,
-      });
-    } catch (error) {
->>>>>>> Stashed changes
       next(error);
     }
   }

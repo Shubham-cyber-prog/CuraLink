@@ -31,12 +31,11 @@ export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
     return () => window.removeEventListener("curalink-location-changed", handleLoc);
   }, [userCity]);
 
-  // Mock location matching logic
+  // Real doctor location matching logic
   const isLocalInPersonAvailable =
+    Boolean(doctor.city && doctor.city.toLowerCase() === activeLocation.toLowerCase()) ||
     doctor.specialty.includes("General") ||
-    doctor.specialty.includes("Pediatrics") ||
-    activeLocation === "Hisar" ||
-    activeLocation === "New Delhi";
+    doctor.specialty.includes("Pediatrics");
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-5 shadow-xs dark:shadow-black/20 transition-all hover:shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -75,10 +74,13 @@ export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-[#1C2338] px-2.5 py-0.5 text-[11px] font-medium text-[#0F172A] dark:text-[#F1F5F9]">
               <MapPin className="h-3 w-3 text-[#0F9D8C] dark:text-[#14B8A6]" />
-              {isLocalInPersonAvailable
+              {doctor.city
+                ? `Clinic in ${doctor.city}`
+                : isLocalInPersonAvailable
                 ? `In-person near ${activeLocation}`
-                : `Not available in ${activeLocation} for in-person`}
+                : `Telehealth consultation`}
             </span>
+
 
             {doctor.videoConsultation && (
               <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 dark:bg-teal-950/60 px-2.5 py-0.5 text-[11px] font-medium text-teal-800 dark:text-teal-300">

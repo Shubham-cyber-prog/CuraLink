@@ -1,19 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
-import { Send } from 'lucide-react-native';
+import { Send, ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
-const MOCK_MESSAGES = [
-  { id: '1', text: 'Hello, how can I help you today?', sender: 'doctor', time: '10:00 AM' },
-  { id: '2', text: 'I have been experiencing a mild headache since yesterday.', sender: 'patient', time: '10:02 AM' },
-  { id: '3', text: 'I see. Are there any other symptoms like fever or nausea?', sender: 'doctor', time: '10:03 AM' },
-];
+const MOCK_MESSAGES: { id: string; text: string; sender: string; time: string }[] = [];
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { doctorName } = useLocalSearchParams<{ doctorName?: string; doctorId?: string }>();
   const [messages, setMessages] = useState(MOCK_MESSAGES);
   const [inputText, setInputText] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
+
+  const displayName = doctorName || 'Doctor Consultation';
+  const initials = displayName
+    .replace('Dr. ', '')
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'DR';
 
   const handleSend = () => {
     if (!inputText.trim()) return;
@@ -40,19 +48,25 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* Chat Header */}
-      <View 
-        style={{ 
+      <View
+        style={{
           paddingTop: Math.max(insets.top, 16),
           borderBottomWidth: 1,
           borderBottomColor: '#E2E8F0',
         }}
-        className="flex-row items-center bg-white px-5 pb-4"
+        className="flex-row items-center bg-white px-4 pb-4"
       >
+        <Pressable
+          onPress={() => router.back()}
+          className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-slate-100 active:bg-slate-200"
+        >
+          <ArrowLeft size={20} color="#334155" />
+        </Pressable>
         <View className="mr-3 h-11 w-11 items-center justify-center rounded-full bg-teal-50 border border-teal-100">
-          <Text className="font-inter-semibold text-base text-teal-600">SJ</Text>
+          <Text className="font-inter-semibold text-base text-teal-600">{initials}</Text>
         </View>
         <View className="flex-1">
-          <Text className="font-inter-bold text-base text-charcoal">Dr. Sarah Jenkins</Text>
+          <Text className="font-inter-bold text-base text-charcoal">{displayName}</Text>
           <View className="flex-row items-center gap-1.5 mt-0.5">
             <View className="h-2 w-2 rounded-full bg-emerald-500" />
             <Text className="font-inter text-xs text-muted">Online</Text>

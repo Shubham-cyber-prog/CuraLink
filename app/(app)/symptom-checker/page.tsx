@@ -3,30 +3,200 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Send,
-  User,
-  Sparkles,
   AlertTriangle,
   Bot,
   ArrowLeft,
   ShieldCheck,
+  Siren,
+  Phone,
+  CalendarPlus,
+  HeartPulse,
+  Activity,
+  Leaf,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 
-interface Message {
+/** Structured analysis response from the API */
+interface SymptomAnalysis {
+  urgencyLevel: "LOW" | "MEDIUM" | "HIGH" | "EMERGENCY";
+  triageCategory: "GREEN" | "YELLOW" | "RED";
+  summary: string;
+  possibleCauses: string[];
+  recommendedAction: string;
+  suggestBooking: boolean;
+  disclaimer: string;
+  isEmergency: boolean;
+  responseTimeMs?: number;
+  error?: string;
+  mlPrediction?: {
+    urgencyLevel: string;
+    confidence: number;
+    confidencePercentage?: number;
+    modelType?: string;
+  } | null;
+}
+
+interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  analysis?: SymptomAnalysis;
+}
+
+/** Urgency config for visual treatment */
+const URGENCY_CONFIG = {
+  EMERGENCY: {
+    icon: Siren,
+    label: "EMERGENCY",
+    bgClass:
+      "bg-red-50 dark:bg-red-950/50 border-red-300 dark:border-red-800",
+    textClass: "text-red-900 dark:text-red-100",
+    badgeClass: "bg-red-600 text-white animate-pulse",
+    iconColor: "text-red-600 dark:text-red-400",
+    avatarBg: "bg-red-100 dark:bg-red-900/60",
+  },
+  HIGH: {
+    icon: HeartPulse,
+    label: "HIGH URGENCY",
+    bgClass:
+      "bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800",
+    textClass: "text-orange-900 dark:text-orange-100",
+    badgeClass: "bg-orange-600 text-white",
+    iconColor: "text-orange-600 dark:text-orange-400",
+    avatarBg: "bg-orange-100 dark:bg-orange-900/60",
+  },
+  MEDIUM: {
+    icon: Activity,
+    label: "MODERATE",
+    bgClass:
+      "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800",
+    textClass: "text-amber-900 dark:text-amber-100",
+    badgeClass: "bg-amber-600 text-white",
+    iconColor: "text-amber-600 dark:text-amber-400",
+    avatarBg: "bg-amber-100 dark:bg-amber-900/60",
+  },
+  LOW: {
+    icon: Leaf,
+    label: "LOW",
+    bgClass:
+      "bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800",
+    textClass: "text-teal-900 dark:text-teal-100",
+    badgeClass: "bg-teal-600 text-white",
+    iconColor: "text-teal-600 dark:text-teal-400",
+    avatarBg: "bg-teal-100 dark:bg-teal-900/60",
+  },
+} as const;
+
+/** Renders a structured analysis card */
+function AnalysisCard({ analysis }: { analysis: SymptomAnalysis }) {
+  const config =
+    URGENCY_CONFIG[analysis.urgencyLevel] || URGENCY_CONFIG.LOW;
+  const UrgencyIcon = config.icon;
+
+  return (
+    <div
+      className={`rounded-2xl border-2 ${config.bgClass} overflow-hidden shadow-sm`}
+    >
+      {/* Urgency Header */}
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <UrgencyIcon className={`h-5 w-5 ${config.iconColor} shrink-0`} />
+        <span
+          className={`text-xs font-bold px-2 py-0.5 rounded-full ${config.badgeClass}`}
+        >
+          {config.label}
+        </span>
+        {analysis.mlPrediction && (
+          <span
+            className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700/60"
+            title={`Clinical ML Text Classifier: ${analysis.mlPrediction.modelType || 'TF-IDF Logistic Regression'}`}
+          >
+            ML Classifier: {analysis.mlPrediction.urgencyLevel} (
+            {analysis.mlPrediction.confidencePercentage
+              ? `${analysis.mlPrediction.confidencePercentage}%`
+              : `${Math.round(analysis.mlPrediction.confidence * 100)}%`}
+            )
+          </span>
+        )}
+        {analysis.responseTimeMs != null && (
+          <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+            {analysis.responseTimeMs}ms
+          </span>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className={`px-4 pb-4 space-y-3 ${config.textClass}`}>
+        {/* Summary */}
+        <p className="text-sm font-medium leading-relaxed">
+          {analysis.summary}
+        </p>
+
+        {/* Possible Causes */}
+        {analysis.possibleCauses.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">
+              Possible Causes
+            </p>
+            <ul className="list-disc list-inside text-sm space-y-0.5 opacity-90">
+              {analysis.possibleCauses.map((c, i) => (
+                <li key={i}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Recommended Action */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">
+            Recommended Action
+          </p>
+          <p className="text-sm leading-relaxed">{analysis.recommendedAction}</p>
+        </div>
+
+        {/* Emergency: Call Now CTA */}
+        {analysis.isEmergency && (
+          <a
+            href="tel:112"
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg transition-all active:scale-[0.97] animate-pulse"
+          >
+            <Phone className="h-5 w-5" />
+            Call Emergency Services (112)
+          </a>
+        )}
+
+        {/* Book a Doctor CTA */}
+        {analysis.suggestBooking && !analysis.isEmergency && (
+          <Link
+            href="/find-doctor"
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] dark:bg-[#14B8A6] dark:hover:bg-teal-500 text-white font-semibold text-sm shadow-sm transition-all active:scale-[0.97]"
+          >
+            <CalendarPlus className="h-4 w-4" />
+            Book a Doctor on CuraLink
+          </Link>
+        )}
+
+        {/* Disclaimer — present on EVERY response */}
+        <div className="flex items-start gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-50" />
+          <p className="text-[11px] leading-snug opacity-60 italic">
+            {analysis.disclaimer}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function SymptomCheckerPage() {
   const shouldReduceMotion = useReducedMotion();
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "assistant",
       content:
-        "Hello Subham 👋 I am CuraLink's AI Symptom Checker. Please describe what symptoms you are experiencing, when they started, and how severe they feel.",
+        "Welcome to CuraLink's Clinical Symptom Checker. Please describe what symptoms you are experiencing, when they started, and their severity.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -41,7 +211,7 @@ export default function SymptomCheckerPage() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMsg: Message = {
+    const userMsg: ChatMessage = {
       id: `usr_${Date.now()}`,
       role: "user",
       content: input.trim(),
@@ -65,28 +235,46 @@ export default function SymptomCheckerPage() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to contact AI symptom service");
+        let errorDetail = `Server responded with status ${res.status}`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) errorDetail = errBody.error;
+        } catch {
+          try {
+            const errText = await res.text();
+            if (errText) errorDetail = errText;
+          } catch {
+            // Ignore parse failures
+          }
+        }
+        console.error(
+          "[Symptom Checker UI] API error:",
+          res.status,
+          errorDetail
+        );
+        throw new Error(errorDetail);
       }
 
-      const text = await res.text();
+      const data: SymptomAnalysis = await res.json();
+
       setMessages((prev) => [
         ...prev,
         {
           id: `ai_${Date.now()}`,
           role: "assistant",
-          content:
-            text ||
-            "Based on your symptoms, we recommend staying hydrated, monitoring your temperature, and consulting a primary care doctor if symptoms persist.",
+          content: data.summary || "Assessment complete.",
+          analysis: data,
         },
       ]);
-    } catch (err) {
-      // Fallback empathetic response if API key is not configured locally
+    } catch (err: any) {
+      console.error("[Symptom Checker UI] Error:", err);
+      const errorMessage = err?.message || "An unexpected error occurred";
       setMessages((prev) => [
         ...prev,
         {
-          id: `ai_${Date.now()}`,
+          id: `err_${Date.now()}`,
           role: "assistant",
-          content: `Thank you for sharing your symptoms regarding "${currentInput}". \n\n**Assessment Summary:**\n- **Primary Observations**: Common symptoms that warrant rest and proper hydration.\n- **Recommended Action**: Monitor for 24-48 hours. If fever exceeds 101°F or severe discomfort develops, book a consultation with a General Practitioner.\n\n*Disclaimer: I am an AI assistant, not a licensed doctor. Please consult a medical professional for official diagnostic advice.*`,
+          content: `⚠️ **Unable to process your symptoms right now.**\n\n**Error:** ${errorMessage}\n\n**What you can do:**\n- Try sending your message again in a few seconds.\n- If the problem persists, please book a consultation with a CuraLink doctor directly.\n\n*If you are experiencing a medical emergency, please call 112 (India) or 911 immediately.*`,
         },
       ]);
     } finally {
@@ -111,7 +299,8 @@ export default function SymptomCheckerPage() {
               AI Symptom Checker
             </h1>
             <p className="text-sm text-[#64748B] dark:text-[#94A3B8]">
-              Evaluate your health symptoms & receive preliminary medical guidance.
+              Evaluate your health symptoms & receive preliminary medical
+              guidance.
             </p>
           </div>
         </div>
@@ -137,19 +326,37 @@ export default function SymptomCheckerPage() {
               }`}
             >
               {m.role === "assistant" && (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6] font-bold">
-                  <Bot className="h-5 w-5" />
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold ${
+                    m.analysis?.isEmergency
+                      ? "bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400"
+                      : m.analysis?.urgencyLevel === "HIGH"
+                        ? "bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-400"
+                        : "bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6]"
+                  }`}
+                >
+                  {m.analysis?.isEmergency ? (
+                    <Siren className="h-5 w-5" />
+                  ) : (
+                    <Bot className="h-5 w-5" />
+                  )}
                 </div>
               )}
 
               <div
-                className={`max-w-xl rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                className={`max-w-xl rounded-2xl text-sm leading-relaxed ${
                   m.role === "user"
-                    ? "bg-[#0F9D8C] dark:bg-[#14B8A6] text-white rounded-br-none shadow-xs"
-                    : "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs rounded-bl-none"
+                    ? "bg-[#0F9D8C] dark:bg-[#14B8A6] text-white rounded-br-none shadow-xs px-4 py-3"
+                    : m.analysis
+                      ? "w-full max-w-xl"
+                      : "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs rounded-bl-none px-4 py-3"
                 }`}
               >
-                <p className="whitespace-pre-line">{m.content}</p>
+                {m.analysis ? (
+                  <AnalysisCard analysis={m.analysis} />
+                ) : (
+                  <p className="whitespace-pre-line">{m.content}</p>
+                )}
               </div>
 
               {m.role === "user" && (
@@ -188,7 +395,8 @@ export default function SymptomCheckerPage() {
         <div className="flex items-center gap-2 border-t border-[#E2E8F0] dark:border-[#263049] bg-amber-50/70 dark:bg-amber-950/30 px-4 py-2 text-xs font-medium text-amber-800 dark:text-amber-300">
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <span>
-            This AI tool provides informational guidance only. For medical emergencies, call 911/112 or visit an emergency room immediately.
+            This AI tool provides informational guidance only. For medical
+            emergencies, call 911/112 or visit an emergency room immediately.
           </span>
         </div>
 

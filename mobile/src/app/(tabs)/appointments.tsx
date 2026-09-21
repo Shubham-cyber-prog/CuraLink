@@ -17,36 +17,9 @@ export interface MobileAppointment {
   meetingUrl?: string;
 }
 
-const FALLBACK_UPCOMING: MobileAppointment[] = [
-  {
-    id: 'appt_101',
-    doctorName: 'Dr. Sarah Jenkins',
-    specialty: 'Cardiology Specialist',
-    date: 'Today, Oct 24, 2026',
-    time: '10:00 AM - 10:30 AM',
-    status: 'CONFIRMED',
-    meetingUrl: 'https://curalink.daily.co/consultation-101',
-  },
-];
+const FALLBACK_UPCOMING: MobileAppointment[] = [];
 
-const FALLBACK_PAST: MobileAppointment[] = [
-  {
-    id: 'appt_100',
-    doctorName: 'Dr. Michael Chen',
-    specialty: 'General Practice Physician',
-    date: 'Oct 12, 2026',
-    time: '02:00 PM',
-    status: 'COMPLETED',
-  },
-  {
-    id: 'appt_99',
-    doctorName: 'Dr. Priya Sharma',
-    specialty: 'General Practice',
-    date: 'Sep 28, 2026',
-    time: '11:15 AM',
-    status: 'COMPLETED',
-  },
-];
+const FALLBACK_PAST: MobileAppointment[] = [];
 
 export default function AppointmentsScreen() {
   const router = useRouter();
@@ -57,7 +30,7 @@ export default function AppointmentsScreen() {
   const [past, setPast] = useState<MobileAppointment[]>(FALLBACK_PAST);
   const [filterTab, setFilterTab] = useState<'upcoming' | 'past'>('upcoming');
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = React.useCallback(async () => {
     try {
       const response = await api.get<any>('/appointments/my-appointments').catch(() => null);
       if (response && response.data && Array.isArray(response.data)) {
@@ -65,8 +38,8 @@ export default function AppointmentsScreen() {
           id: item.id || `appt_${Math.random()}`,
           doctorName: item.doctor?.name || item.doctorName || 'Dr. Health Specialist',
           specialty: item.doctor?.specialty || item.specialty || 'General Practice',
-          date: item.scheduledAt ? new Date(item.scheduledAt).toLocaleDateString() : 'Upcoming Date',
-          time: item.scheduledAt ? new Date(item.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00 AM',
+          date: item.date || (item.scheduledAt ? new Date(item.scheduledAt).toLocaleDateString() : 'Upcoming Date'),
+          time: item.time || (item.scheduledAt ? new Date(item.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '10:00 AM'),
           status: item.status || 'CONFIRMED',
           meetingUrl: item.meetingUrl,
         }));
@@ -80,11 +53,11 @@ export default function AppointmentsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [fetchAppointments]);
 
   const onRefresh = () => {
     setRefreshing(true);

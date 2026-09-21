@@ -11,15 +11,9 @@ model User {
   id           String   @id @default(uuid())
   name         String
   email        String   @unique
-<<<<<<< Updated upstream
   passwordHash String?
   googleId     String?  @unique
   role         String   @default("PATIENT")
-=======
-  passwordHash String
-  googleId     String?  @unique
-  role         Role     @default(PATIENT)
->>>>>>> Stashed changes
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -46,10 +40,12 @@ model DoctorProfile {
   verificationStatus   String   @default("PENDING") // PENDING, APPROVED, REJECTED
   verifiedAt           DateTime?
   bio                  String?
+  city                 String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
 
   @@map("doctor_profiles")
 }
@@ -67,6 +63,7 @@ model Appointment {
   updatedAt DateTime @updatedAt
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor       DoctorProfile @relation(fields: [doctorId], references: [userId], onDelete: Cascade)
   payment      Payment?
   prescription Prescription?
   review       Review?

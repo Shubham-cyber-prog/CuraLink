@@ -25,6 +25,10 @@ export const metadata: Metadata = {
   description:
     "Connect with licensed doctors instantly. Describe your symptoms, get AI-powered guidance, and book a real-time consultation from anywhere.",
   keywords: ["telehealth", "online doctor", "AI health", "virtual consultation", "CuraLink"],
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   openGraph: {
     title: "CuraLink — AI-Powered Telehealth Platform",
     description:

@@ -9,14 +9,15 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import * as SplashScreen from 'expo-splash-screen';
+import splashIcon from '../../assets/images/splash-icon.png';
 
 const SPLASH_BG = '#F0FDFA';
 const LOGO_SIZE = 88;
 
 /** In-JS sequence only (native splash is hidden as soon as this view is on screen). */
-export const SPLASH_ENTER_MS = 320;
-export const SPLASH_HOLD_MS = 650;
-export const SPLASH_EXIT_MS = 300;
+export const SPLASH_ENTER_MS = 360;
+export const SPLASH_HOLD_MS = 850;
+export const SPLASH_EXIT_MS = 320;
 export const SPLASH_ANIMATED_TOTAL_MS =
   SPLASH_ENTER_MS + SPLASH_HOLD_MS + SPLASH_EXIT_MS;
 
@@ -54,10 +55,6 @@ export function AnimatedSplash({ onAnimationComplete }: AnimatedSplashProps) {
     const enter = reduceMotion ? 150 : SPLASH_ENTER_MS;
     const hold = reduceMotion ? 200 : SPLASH_HOLD_MS;
     const exit = reduceMotion ? 150 : SPLASH_EXIT_MS;
-    const startScale = reduceMotion ? 1 : 0.8;
-
-    opacity.value = 0;
-    scale.value = startScale;
 
     const finish = (finished?: boolean) => {
       if (finished) runOnJS(onAnimationComplete)();
@@ -91,13 +88,17 @@ export function AnimatedSplash({ onAnimationComplete }: AnimatedSplashProps) {
     >
       <Animated.View style={[styles.mark, markStyle]}>
         <Image
-          source={require('../../assets/images/splash-icon.png')}
+          source={splashIcon}
           style={styles.logo}
           resizeMode="contain"
+          alt="CuraLink"
           accessibilityIgnoresInvertColors
         />
         <Text style={styles.wordmark}>
           Cura<Text style={styles.wordmarkAccent}>Link</Text>
+        </Text>
+        <Text style={styles.tagline}>
+          AI-Powered Telehealth Care
         </Text>
       </Animated.View>
     </View>
@@ -133,5 +134,12 @@ const styles = StyleSheet.create({
   },
   wordmarkAccent: {
     color: '#0d9488',
+  },
+  tagline: {
+    marginTop: 6,
+    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    letterSpacing: 0.2,
+    color: '#64748B',
   },
 });

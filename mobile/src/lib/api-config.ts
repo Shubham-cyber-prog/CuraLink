@@ -18,15 +18,18 @@ const DEFAULT_PROD_URL = 'https://api.curalink.com/api';
 
 function extractHostIp(): string | null {
   try {
-    const hostUri =
+    const rawHost =
       Constants.expoConfig?.hostUri ||
+      (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
       (Constants as any).manifest?.debuggerHost ||
-      (Constants as any).experienceUrl;
+      (Constants as any).experienceUrl ||
+      Constants.linkingUri;
 
-    if (typeof hostUri === 'string' && hostUri.length > 0) {
-      // Clean scheme if present (e.g. exp://10.221.198.237:8081)
-      const cleanHost = hostUri.replace(/^[a-z]+:\/\//i, '');
-      const ip = cleanHost.split(':')[0]?.trim();
+    if (typeof rawHost === 'string' && rawHost.length > 0) {
+      // Clean scheme and paths (e.g. exp://10.222.60.237:8081/--/...)
+      const withoutScheme = rawHost.replace(/^[a-z]+:\/\//i, '');
+      const hostOnly = withoutScheme.split('/')[0]?.trim();
+      const ip = hostOnly?.split(':')[0]?.trim();
       if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
         return ip;
       }
@@ -38,21 +41,21 @@ function extractHostIp(): string | null {
 }
 
 export function getApiBaseUrl(): string {
-  // 1. Production Mode
+  // 1. Production Mode: Always uses EXPO_PUBLIC_API_URL or production domain
   if (!__DEV__) {
     return process.env.EXPO_PUBLIC_API_URL || DEFAULT_PROD_URL;
   }
 
-  // 2. Explicit environment variable check (if set and not localhost/127.0.0.1)
-  const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
-    return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/$/, '')}/api`;
-  }
-
-  // 3. Dynamic runtime LAN IP Auto-detection from Expo
+  // 2. Dynamic runtime LAN IP Auto-detection from Expo (phone connects to laptop Metro bundler)
   const detectedIp = extractHostIp();
   if (detectedIp) {
     return `http://${detectedIp}:${DEFAULT_PORT}/api`;
+  }
+
+  // 3. Explicit environment variable check (if set and not localhost/127.0.0.1)
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/$/, '')}/api`;
   }
 
   // 4. Android Emulator loopback fallback

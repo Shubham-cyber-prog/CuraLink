@@ -6,12 +6,16 @@ import { Role } from '../types/role';
 
 const router = Router();
 
-// Public route to view verified doctors
+// Public routes to view verified doctors (supports ?city=... and ?specialty=...)
+router.get('/', (req, res, next) => doctorController.getVerifiedDoctors(req, res, next));
 router.get('/verified', (req, res, next) => doctorController.getVerifiedDoctors(req, res, next));
 
 // Authenticated doctor profile (must be defined before /:id)
 router.get('/me', authenticate, authorize(Role.DOCTOR), (req, res, next) =>
   doctorController.getMyProfile(req, res, next)
+);
+router.patch('/me/profile', authenticate, authorize(Role.DOCTOR), (req, res, next) =>
+  doctorController.updateMyProfile(req, res, next)
 );
 
 // Public route to view a single verified doctor by ID
@@ -23,6 +27,7 @@ router.use(authenticate);
 router.post('/verify-submit', authorize(Role.DOCTOR), (req, res, next) =>
   doctorController.submitVerification(req, res, next)
 );
+
 
 // Admin-only route to approve/reject verification status
 router.put('/:doctorId/verify-status', authorize(Role.ADMIN), (req, res, next) =>

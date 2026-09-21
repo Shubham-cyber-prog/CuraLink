@@ -2,54 +2,82 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Search,
   Bell,
-  User,
   LogOut,
-  ShieldCheck,
   Menu,
   X,
   Calendar,
   FileText,
   ChevronDown,
-  Sparkles,
+  Home,
+  Stethoscope,
+  Bot,
+  MessageSquare,
+  HelpCircle,
+  Settings,
+  ArrowRight,
+  User,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { LocationSelector } from "@/components/layout/LocationSelector";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
-interface TopNavbarProps {
-  onMobileMenuToggle?: () => void;
+export interface NavLink {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
-export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
+const NAV_ITEMS: NavLink[] = [
+  { label: "Dashboard", href: "/dashboard", icon: Home },
+  { label: "Doctors", href: "/find-doctor", icon: Stethoscope },
+  { label: "Appointments", href: "/appointments", icon: Calendar },
+  { label: "Records", href: "/records", icon: FileText },
+];
+
+const DOCTOR_NAV_ITEMS: NavLink[] = [
+  { label: "Dashboard", href: "/doctor-dashboard", icon: Home },
+  { label: "Patients", href: "/doctor-dashboard#patients", icon: User },
+  { label: "Appointments", href: "/doctor-dashboard#appointments", icon: Calendar },
+];
+
+const AI_HEALTH_ITEM: NavLink = {
+  label: "AI Health",
+  href: "/symptom-checker",
+  icon: Bot,
+};
+
+export function TopNavbar({ customNavItems }: { customNavItems?: NavLink[] } = {}) {
   const router = useRouter();
-  const [userName, setUserName] = useState("Subham Nayak");
-  const [userEmail, setUserEmail] = useState("sn343555@gmail.com");
+  const pathname = usePathname();
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Fetch real user info
+  const [userRole, setUserRole] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`,
-          {
-            credentials: "include",
-          }
+          { credentials: "include" }
         );
         const data = await res.json();
         if (data.success && data.data) {
-          setUserName(data.data.name || "Subham Nayak");
-          setUserEmail(data.data.email || "sn343555@gmail.com");
+          const user = data.data.user || data.data;
+          setUserName(user.name || "");
+          setUserEmail(user.email || "");
+          if (user.role) setUserRole(user.role);
         }
       } catch (err) {
         console.error("Failed to fetch top navbar user profile:", err);
@@ -58,19 +86,12 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
     fetchUser();
   }, []);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        notifRef.current &&
-        !notifRef.current.contains(e.target as Node)
-      ) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotificationsOpen(false);
       }
-      if (
-        profileRef.current &&
-        !profileRef.current.contains(e.target as Node)
-      ) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
       }
     };
@@ -78,17 +99,25 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileMenuOpen]);
+
   const handleLogout = async () => {
     try {
-      const csrfRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/csrf-token`);
+      const csrfRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/csrf-token`
+      );
       const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.token;
-
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/logout`, {
-        method: "POST",
-        headers: { "X-CSRF-Token": csrfToken },
-        credentials: "include",
-      });
+      await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/logout`,
+        {
+          method: "POST",
+          headers: { "X-CSRF-Token": csrfData.token },
+          credentials: "include",
+        }
+      );
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
@@ -104,205 +133,327 @@ export function TopNavbar({ onMobileMenuToggle }: TopNavbarProps) {
     }
   };
 
+  const isDoctorRoute = pathname?.startsWith("/doctor-dashboard") || userRole === "DOCTOR";
+  const navItems = customNavItems || (isDoctorRoute ? DOCTOR_NAV_ITEMS : NAV_ITEMS);
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    if (href === "/doctor-dashboard") return pathname === "/doctor-dashboard";
+    return pathname.startsWith(href);
+  };
+
+  const allMobileItems = isDoctorRoute
+    ? [...DOCTOR_NAV_ITEMS, { label: "Messages", href: "/messages", icon: MessageSquare }]
+    : [...NAV_ITEMS, AI_HEALTH_ITEM, { label: "Messages", href: "/messages", icon: MessageSquare }];
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-[#E2E8F0] dark:border-[#263049] bg-white/95 dark:bg-[#151B2E]/95 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-xs transition-colors duration-200">
-      {/* ---- Left: Logo & Mobile Drawer Toggle ---- */}
-      <div className="flex items-center gap-3">
-        {onMobileMenuToggle && (
+    <header className="sticky top-0 z-30 w-full bg-white dark:bg-[#0F172A] border-b border-slate-200 dark:border-slate-800 transition-colors duration-200">
+      <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* ── LEFT: Hamburger + Logo + Nav ── */}
+        <div className="flex items-center gap-5">
           <button
-            onClick={onMobileMenuToggle}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1C2338] focus:outline-none md:hidden cursor-pointer"
-            aria-label="Open menu"
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden cursor-pointer"
+            aria-label="Open navigation menu"
             id="top-navbar-mobile-menu-btn"
           >
             <Menu className="h-5 w-5" />
           </button>
-        )}
-        <Logo href="/dashboard" />
-      </div>
 
-      {/* ---- Center: Location & Doctor Search Bar ---- */}
-      <div className="hidden flex-1 max-w-xl mx-4 md:flex items-center gap-3">
-        <LocationSelector />
+          <Logo href={isDoctorRoute ? "/doctor-dashboard" : "/dashboard"} size="sm" />
 
-        <form onSubmit={handleSearchSubmit} className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-          <input
-            type="text"
-            id="doctor-search-input"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search doctors, specialties, or symptoms..."
-            className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] pl-10 pr-4 py-2 text-sm text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] transition-colors focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/20"
-          />
-        </form>
-      </div>
+          {/* Desktop nav links */}
+          <nav className="hidden lg:flex items-center gap-0.5" aria-label="Main navigation">
+            {navItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  target="_self"
+                  id={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  className={`relative px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-150 ${
+                    active
+                      ? "text-[#085041] dark:text-teal-400 bg-teal-50/80 dark:bg-teal-950/40 font-semibold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
 
-      {/* ---- Right: Actions (Location, Trust badge, ThemeToggle, Notifications, Profile) ---- */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Location selector (Mobile screen) */}
-        <div className="md:hidden">
-          <LocationSelector />
+            {!isDoctorRoute && (
+              <Link
+                href={AI_HEALTH_ITEM.href}
+                target="_self"
+                id="nav-ai-health"
+                className={`relative flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-150 ${
+                  isActive(AI_HEALTH_ITEM.href)
+                    ? "text-white bg-[#0F9D8C] dark:bg-teal-600"
+                    : "text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/30 hover:bg-teal-100 dark:hover:bg-teal-900/40"
+                }`}
+              >
+                <Bot className="h-3.5 w-3.5" />
+                AI Health
+              </Link>
+            )}
+          </nav>
         </div>
-        {/* Search Toggle icon (Mobile only) */}
-        <button
-          onClick={() => setSearchOpen(!searchOpen)}
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1C2338] md:hidden cursor-pointer"
-          aria-label="Search"
-        >
-          <Search className="h-5 w-5" />
-        </button>
 
-        {/* HIPAA Trust Signal Badge */}
-        <div className="hidden lg:flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/80 dark:bg-teal-950/40 px-3 py-1 text-xs font-medium text-teal-800 dark:text-teal-300">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C] dark:text-[#14B8A6]" />
-          <span>HIPAA-aligned</span>
-        </div>
-
-        {/* Dark Mode Toggle */}
-        <ThemeToggle />
-
-        {/* Notification Bell Dropdown */}
-        <div className="relative" ref={notifRef}>
+        {/* ── RIGHT: Search, Messages, Notifications, Theme, Profile ── */}
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          {/* Search icon */}
           <button
-            id="navbar-notification-btn"
-            onClick={() => setNotificationsOpen(!notificationsOpen)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-100 dark:hover:bg-[#1C2338] hover:text-slate-900 dark:hover:text-[#F1F5F9] cursor-pointer"
-            aria-label="Notifications"
+            onClick={() => setSearchOpen(!searchOpen)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+            aria-label="Search"
           >
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] ring-2 ring-white dark:ring-[#151B2E]" />
+            <Search className="h-4 w-4" />
           </button>
 
-          {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-4 shadow-xl ring-1 ring-slate-900/5 dark:ring-white/10 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-[#263049] pb-3">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-[#0F172A] dark:text-[#F1F5F9]">
+          {/* Messages icon with badge */}
+          <Link
+            href="/messages"
+            target="_self"
+            className="relative flex h-8 w-8 items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            aria-label="Messages"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#0F172A]" />
+          </Link>
+
+          {/* Notifications dropdown */}
+          <div className="relative" ref={notifRef}>
+            <button
+              id="navbar-notification-btn"
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              className="relative flex h-8 w-8 items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              aria-label="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#0F9D8C] ring-2 ring-white dark:ring-[#0F172A]" />
+            </button>
+
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0F172A] p-4 shadow-lg z-50">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                     Notifications
                   </h3>
-                  <span className="rounded-full bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300">
-                    2 new
-                  </span>
+                  <Link
+                    href="/notifications"
+                    target="_self"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="text-xs font-medium text-[#0F9D8C] hover:underline"
+                  >
+                    View all
+                  </Link>
                 </div>
-                <Link
-                  href="/notifications"
-                  onClick={() => setNotificationsOpen(false)}
-                  className="text-xs font-medium text-[#0F9D8C] dark:text-[#14B8A6] hover:underline"
-                >
-                  View all
-                </Link>
-              </div>
-
-              <div className="mt-3 space-y-2">
-                <div className="flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[#1C2338]">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-[#14B8A6]">
-                    <Calendar className="h-4 w-4" />
+                <div className="mt-3 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-teal-50 dark:bg-teal-950/40 text-[#0F9D8C]">
+                      <Calendar className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                        Upcoming Appointment Today
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Dr. Ananya Sharma • 4:30 PM
+                      </p>
+                      <span className="text-[10px] text-slate-400">10 mins ago</span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9]">
-                      Upcoming Appointment Today
-                    </p>
-                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                      Dr. Ananya Sharma • 4:30 PM
-                    </p>
-                    <span className="mt-1 block text-[10px] text-slate-400 dark:text-slate-500">
-                      10 mins ago
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 rounded-xl p-2.5 transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[#1C2338]">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9]">
-                      New Lab Report Available
-                    </p>
-                    <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                      Complete Blood Count (CBC) analysis uploaded.
-                    </p>
-                    <span className="mt-1 block text-[10px] text-slate-400 dark:text-slate-500">
-                      1 hour ago
-                    </span>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                        New Lab Report Available
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Complete Blood Count (CBC) uploaded.
+                      </p>
+                      <span className="text-[10px] text-slate-400">1 hour ago</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Profile Avatar Dropdown */}
-        <div className="relative" ref={profileRef}>
-          <button
-            id="navbar-profile-avatar-btn"
-            onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center gap-2.5 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-1.5 pr-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-[#1C2338] focus:outline-none cursor-pointer"
-            aria-label="User Profile menu"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/60 font-medium text-[#0F9D8C] dark:text-[#14B8A6]">
-              {userName ? userName.charAt(0).toUpperCase() : "S"}
-            </div>
-            <span className="hidden text-sm font-medium text-[#0F172A] dark:text-[#F1F5F9] sm:inline-block max-w-[120px] truncate">
-              {userName}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 hidden sm:inline-block" />
-          </button>
+          {/* Theme toggle */}
+          <ThemeToggle />
 
-          {profileOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-3 shadow-lg ring-1 ring-slate-900/5 dark:ring-white/10 animate-in fade-in zoom-in-95 duration-150">
-              <div className="border-b border-[#E2E8F0] dark:border-[#263049] px-3 pb-3 pt-1">
-                <p className="text-sm font-semibold text-[#0F172A] dark:text-[#F1F5F9] truncate">
-                  {userName}
-                </p>
-                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] truncate">{userEmail}</p>
+          {/* Profile avatar dropdown */}
+          <div className="relative" ref={profileRef}>
+            <button
+              id="navbar-profile-avatar-btn"
+              onClick={() => setProfileOpen(!profileOpen)}
+              className="flex items-center gap-1.5 rounded-md p-1 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              aria-label="User Profile menu"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F9D8C] text-xs font-semibold text-white">
+                {userName ? userName.charAt(0).toUpperCase() : "U"}
               </div>
+              <ChevronDown className="h-3 w-3 text-slate-400 hidden sm:block" />
+            </button>
 
-              <div className="mt-2 space-y-1">
-                <Link
-                  id="profile-dropdown-settings-link"
-                  href="/profile"
-                  onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-[#0F172A] dark:text-[#F1F5F9] transition-colors hover:bg-[#F8FAFC] dark:hover:bg-[#1C2338]"
-                >
-                  <User className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                  Account Settings
-                </Link>
-                <button
-                  id="profile-dropdown-logout-btn"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Log Out
-                </button>
+            {profileOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0F172A] p-2 shadow-lg z-50">
+                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{userName}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{userEmail}</p>
+                </div>
+                <div className="mt-1 space-y-0.5">
+                  <Link
+                    id="profile-dropdown-settings-link"
+                    href="/settings"
+                    target="_self"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <Settings className="h-4 w-4 text-slate-400" />
+                    Settings
+                  </Link>
+                  <Link
+                    href="/help"
+                    target="_self"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <HelpCircle className="h-4 w-4 text-slate-400" />
+                    Help & Support
+                  </Link>
+                  <button
+                    id="profile-dropdown-logout-btn"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Log Out
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* ---- Mobile Search Expand Drawer ---- */}
+      {/* ── Mobile Search Bar ── */}
       {searchOpen && (
-        <div className="absolute inset-x-0 top-full z-40 border-b border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-3 shadow-md md:hidden">
+        <div className="border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0F172A] px-4 py-3">
           <form onSubmit={handleSearchSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search doctors, specialties..."
-              className="flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 text-sm text-[#0F172A] focus:outline-none"
-              autoFocus
-            />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search doctors, specialties..."
+                className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-9 pr-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#0F9D8C] focus:ring-1 focus:ring-[#0F9D8C]/20"
+                autoFocus
+              />
+            </div>
             <button
               type="submit"
-              className="rounded-xl bg-[#0F9D8C] px-4 py-2 text-sm font-medium text-white"
+              className="rounded-md bg-[#0F9D8C] px-4 py-2 text-sm font-medium text-white hover:bg-[#0E8E7F] transition-colors"
             >
               Search
             </button>
           </form>
         </div>
+      )}
+
+      {/* ── Mobile Drawer ── */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-[#0F172A] shadow-xl flex flex-col lg:hidden">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+              <Logo href="/dashboard" size="sm" />
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Drawer nav */}
+            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+              {allMobileItems.map((item) => {
+                const active = isActive(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    target="_self"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-teal-50 dark:bg-teal-950/30 text-[#0F9D8C] dark:text-teal-400"
+                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+
+              <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                <Link
+                  href="/profile"
+                  target="_self"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+                <Link
+                  href="/help"
+                  target="_self"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  Help & Support
+                </Link>
+              </div>
+            </nav>
+
+            {/* Drawer footer */}
+            <div className="border-t border-slate-100 dark:border-slate-800 p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0F9D8C] text-sm font-semibold text-white">
+                  {userName ? userName.charAt(0).toUpperCase() : "U"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{userName}</p>
+                  <p className="text-xs text-slate-500 truncate">{userEmail}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Log Out
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </header>
   );

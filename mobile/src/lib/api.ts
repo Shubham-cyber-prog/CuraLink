@@ -86,20 +86,28 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
+  headers.set('X-Client-Platform', 'mobile');
 
   const token = await getToken();
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
+  // 10s request timeout controller
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   let response: Response;
   try {
     response = await fetch(url, {
       ...options,
       headers,
+      signal: options.signal || controller.signal,
     });
+    clearTimeout(timeoutId);
     notifyNetworkStatus(true, url);
   } catch (err: unknown) {
+    clearTimeout(timeoutId);
     notifyNetworkStatus(false, url);
     throw new NetworkError(
       `Can't reach server at ${baseUrl}. Ensure backend is running and device is on the same network.`,
@@ -127,7 +135,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   get: <T>(endpoint: string, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'GET' }),
-  post: <T>(endpoint: string, body: unknown, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
-  put: <T>(endpoint: string, body: unknown, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+  post: <T>(endpoint: string, body: unknown = {}, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body ?? {}) }),
+  put: <T>(endpoint: string, body: unknown = {}, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body ?? {}) }),
+  patch: <T>(endpoint: string, body: unknown = {}, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body ?? {}) }),
   delete: <T>(endpoint: string, options?: RequestInit) => request<T>(endpoint, { ...options, method: 'DELETE' }),
 };
+

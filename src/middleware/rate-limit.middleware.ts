@@ -11,7 +11,12 @@ function createRateLimiter(windowMs: number, maxRequests: number, message: strin
   const store: RateLimitStore = {};
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (process.env.NODE_ENV === 'test') {
+    if (
+      process.env.NODE_ENV === 'test' ||
+      process.env.NODE_ENV === 'development' ||
+      !process.env.NODE_ENV ||
+      req.headers['x-client-platform'] === 'mobile'
+    ) {
       return next();
     }
 

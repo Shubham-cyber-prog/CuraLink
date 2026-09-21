@@ -23,6 +23,7 @@ export class DoctorVerificationService {
         specialization: input.specialization,
         experienceYears: input.experienceYears,
         consultationFee: input.consultationFee,
+        city: input.city ? input.city.trim() : null,
         bio: input.bio,
         verificationStatus: 'PENDING',
       },
@@ -31,9 +32,11 @@ export class DoctorVerificationService {
         specialization: input.specialization,
         experienceYears: input.experienceYears,
         consultationFee: input.consultationFee,
+        city: input.city !== undefined ? (input.city ? input.city.trim() : null) : undefined,
         bio: input.bio,
         verificationStatus: 'PENDING',
       },
+
     });
 
     return doctorProfile;
@@ -105,6 +108,8 @@ export class DoctorVerificationService {
       experienceYears: doc.experienceYears,
       experience: `${doc.experienceYears}+ years experience`,
       consultationFee: doc.consultationFee ?? 500,
+      city: doc.city || null,
+      location: doc.city ? `${doc.city}, India` : 'CuraLink Telehealth',
       verificationStatus: doc.verificationStatus,
       bio: doc.bio || 'Dedicated medical specialist providing patient-centered care.',
       rating: avgRating,
@@ -124,9 +129,9 @@ export class DoctorVerificationService {
   }
 
   /**
-   * Get public verified doctors
+   * Get public verified doctors with optional city and specialty filter
    */
-  async getVerifiedDoctors() {
+  async getVerifiedDoctors(filters?: { city?: string; specialty?: string }) {
     const doctors = await prisma.doctorProfile.findMany({
       where: { verificationStatus: 'APPROVED' },
       include: {
@@ -153,8 +158,58 @@ export class DoctorVerificationService {
       orderBy: { experienceYears: 'desc' },
     });
 
-    return doctors.map((doc) => this.formatDoctor(doc));
+    let formatted = doctors.map((doc) => this.formatDoctor(doc));
+
+    // Case-insensitive city filtering when provided
+    if (filters?.city && filters.city.trim() && filters.city.trim().toLowerCase() !== 'all') {
+      const targetCity = filters.city.trim().toLowerCase();
+      formatted = formatted.filter((doc) => {
+        if (!doc.city) return false;
+        const c = doc.city.trim().toLowerCase();
+        return c.includes(targetCity) || targetCity.includes(c);
+      });
+    }
+
+    // Optional specialty filtering when provided
+    if (filters?.specialty && filters.specialty.trim() && filters.specialty.trim().toLowerCase() !== 'all') {
+      const targetSpec = filters.specialty.trim().toLowerCase();
+      formatted = formatted.filter((doc) => {
+        const s1 = (doc.specialty || '').toLowerCase();
+        const s2 = (doc.specialization || '').toLowerCase();
+        return s1.includes(targetSpec) || s2.includes(targetSpec);
+      });
+    }
+
+    return formatted;
   }
+
+  /**
+   * Update doctor's own profile (city, bio, consultationFee, etc.)
+   */
+  async updateDoctorProfile(userId: string, data: { city?: string; bio?: string; consultationFee?: number; specialization?: string }) {
+    const updateData: any = {};
+    if (data.city !== undefined) updateData.city = data.city ? data.city.trim() : null;
+    if (data.bio !== undefined) updateData.bio = data.bio;
+    if (data.consultationFee !== undefined) updateData.consultationFee = Number(data.consultationFee);
+    if (data.specialization !== undefined) updateData.specialization = data.specialization;
+
+    const profile = await prisma.doctorProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        medicalLicenseNumber: 'PENDING',
+        specialization: data.specialization || 'General Practice',
+        consultationFee: data.consultationFee ? Number(data.consultationFee) : 500,
+        city: data.city ? data.city.trim() : null,
+        bio: data.bio || null,
+        verificationStatus: 'APPROVED',
+      },
+      update: updateData,
+    });
+
+    return profile;
+  }
+
 
   /**
    * Get doctor profile by User ID or DoctorProfile ID (public lookup)

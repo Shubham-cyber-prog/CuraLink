@@ -10,6 +10,12 @@ export async function verifyTurnstile(
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  // Skip Turnstile verification in development mode
+  if (process.env.NODE_ENV === 'development') {
+    (req as any).turnstileVerified = true;
+    return next();
+  }
+
   const token =
     req.body?.turnstileToken ||
     req.body?.['cf-turnstile-response'] ||

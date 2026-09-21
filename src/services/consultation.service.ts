@@ -94,7 +94,16 @@ export class ConsultationService {
   ): Promise<ConsultationRoomResponse> {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      include: { user: true },
+      include: {
+        user: true,
+        doctor: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+      },
     });
 
     if (!appointment) {

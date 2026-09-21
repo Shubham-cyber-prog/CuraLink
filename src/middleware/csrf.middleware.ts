@@ -12,9 +12,9 @@ const EXEMPT_PATHS = [
 ];
 
 export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
-  // Generate token on explicit request or if missing
+  // Generate or return token on explicit request
   if (req.path === '/api/auth/csrf-token') {
-    const token = crypto.randomBytes(32).toString('hex');
+    const token = req.cookies?.curalink_csrf || crypto.randomBytes(32).toString('hex');
     res.cookie('curalink_csrf', token, {
       httpOnly: false, // Must be readable by client JS to send in header
       secure: process.env.NODE_ENV === 'production',
@@ -25,9 +25,32 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return;
   }
 
+  // Ensure CSRF cookie is set on safe requests (GET, HEAD, OPTIONS) if missing
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    if (!req.cookies?.curalink_csrf) {
+      const token = crypto.randomBytes(32).toString('hex');
+      res.cookie('curalink_csrf', token, {
+        httpOnly: false, // Must be readable by client JS
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
+    }
+  }
+
   // State-changing requests must have the token
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     if (EXEMPT_PATHS.includes(req.path)) {
+      return next();
+    }
+
+    // Requests authenticated with Bearer tokens or from mobile clients are immune to CSRF
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    if (req.headers['x-client-platform'] === 'mobile') {
       return next();
     }
 

@@ -11,5 +11,7 @@ router.use(authenticate);
 
 router.post('/book', authorize(Role.PATIENT), (req, res, next) => appointmentController.book(req, res, next));
 router.get('/my-appointments', authorize(Role.PATIENT, Role.DOCTOR), (req, res, next) => appointmentController.getMyAppointments(req, res, next));
+router.post('/:id/create-room', (req, res, next) => appointmentController.createRoom(req, res, next));
+router.get('/:id/join', (req, res, next) => appointmentController.join(req, res, next));
 
 export default router;

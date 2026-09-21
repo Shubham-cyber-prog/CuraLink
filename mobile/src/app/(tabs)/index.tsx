@@ -1,52 +1,15 @@
-import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Pressable, ScrollView, Text, View, ActivityIndicator } from 'react-native';
 import { Bell, CalendarCheck, Search, Stethoscope, Bot, FileText, ChevronRight, Shield } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UpcomingAppointmentCard } from '../../components/appointments/UpcomingAppointmentCard';
 import { DoctorRecommendationCard } from '../../components/home/DoctorRecommendationCard';
 import { QuickActionCard } from '../../components/home/QuickActionCard';
+import { Card } from '../../components/UI';
 import { useAuth } from '../../lib/auth-context';
+import { api } from '../../lib/api';
 import type { AppointmentPreview, DoctorPreview } from '../../types/healthcare';
-
-const upcomingAppointment: AppointmentPreview = {
-  id: 'appt_101',
-  doctorName: 'Dr. Sarah Jenkins',
-  specialty: 'Cardiology Specialist',
-  dateLabel: 'Today, October 24',
-  timeLabel: '10:00 AM · Video visit',
-  status: 'confirmed',
-};
-
-const recommendedDoctors: DoctorPreview[] = [
-  {
-    id: 'doc_1',
-    name: 'Dr. Priya Sharma',
-    specialty: 'General Practice',
-    rating: 4.9,
-    reviewCount: 124,
-    nextAvailableLabel: 'Today',
-    photoUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=560&q=80',
-  },
-  {
-    id: 'doc_3',
-    name: 'Dr. Sarah Jenkins',
-    specialty: 'Dermatology',
-    rating: 4.95,
-    reviewCount: 210,
-    nextAvailableLabel: 'Today',
-    photoUrl: 'https://images.unsplash.com/photo-1594824813566-88855ce7890b?auto=format&fit=crop&w=560&q=80',
-  },
-  {
-    id: 'doc_2',
-    name: 'Dr. Marcus Vance',
-    specialty: 'Cardiologist',
-    rating: 4.8,
-    reviewCount: 98,
-    nextAvailableLabel: 'Tomorrow',
-    photoUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=560&q=80',
-  },
-];
 
 function HomeSkeleton() {
   return (
@@ -67,14 +30,64 @@ function HomeSkeleton() {
 
 function greetingForNow(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning 👋';
-  if (hour < 17) return 'Good afternoon 👋';
-  return 'Good evening 👋';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
 }
 
 export default function HomeScreen() {
   const router = useRouter();
   const { isLoading, user } = useAuth();
+  const [upcomingAppointment, setUpcomingAppointment] = useState<AppointmentPreview | null>(null);
+  const [recommendedDoctors, setRecommendedDoctors] = useState<DoctorPreview[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    async function loadHomeData() {
+      try {
+        // 1. Fetch upcoming appointments
+        const apptsRes = await api.get<any[]>('/appointments/my-appointments').catch(() => null);
+        if (apptsRes?.data && Array.isArray(apptsRes.data)) {
+          const upcoming = apptsRes.data.find(
+            (a: any) => a.status === 'CONFIRMED' || a.status === 'PENDING'
+          );
+          if (upcoming) {
+            setUpcomingAppointment({
+              id: upcoming.id,
+              doctorName: upcoming.doctor?.name || 'Dr. Medical Specialist',
+              specialty: upcoming.doctor?.specialty || upcoming.doctor?.specialization || 'General Practice',
+              dateLabel: upcoming.date ? new Date(upcoming.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
+              timeLabel: `${upcoming.time || '10:00 AM'} · Video visit`,
+              status: upcoming.status === 'CONFIRMED' ? 'confirmed' : 'pending',
+            });
+          } else {
+            setUpcomingAppointment(null);
+          }
+        }
+
+        // 2. Fetch recommended verified doctors
+        const docsRes = await api.get<any[]>('/doctors/verified').catch(() => null);
+        if (docsRes?.data && Array.isArray(docsRes.data)) {
+          const mappedDocs: DoctorPreview[] = docsRes.data.map((d: any) => ({
+            id: d.id || d.userId,
+            name: d.name || 'Dr. Specialist',
+            specialty: d.specialization || d.specialty || 'General Practice',
+            rating: typeof d.rating === 'number' ? d.rating : 4.9,
+            reviewCount: typeof d.reviewCount === 'number' ? d.reviewCount : 15,
+            nextAvailableLabel: d.nextAvailableDate || 'Today',
+            photoUrl: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=560&q=80',
+          }));
+          setRecommendedDoctors(mappedDocs);
+        }
+      } catch (err) {
+        console.error('Failed to load home screen data:', err);
+      } finally {
+        setLoadingData(false);
+      }
+    }
+
+    loadHomeData();
+  }, []);
 
   if (isLoading) return <HomeSkeleton />;
 
@@ -125,10 +138,23 @@ export default function HomeScreen() {
               <Text className="font-inter-semibold text-xs text-teal-700 dark:text-teal-400">See all</Text>
             </Pressable>
           </View>
-          <UpcomingAppointmentCard
-            appointment={upcomingAppointment}
-            onPress={() => router.push(`/consultation/${upcomingAppointment.id}` as any)}
-          />
+          {upcomingAppointment ? (
+            <UpcomingAppointmentCard
+              appointment={upcomingAppointment}
+              onPress={() => router.push(`/consultation/${upcomingAppointment.id}` as any)}
+            />
+          ) : (
+            <Card className="p-5 items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E]">
+              <CalendarCheck size={28} color="#0D9488" />
+              <Text className="font-inter-medium text-xs text-charcoal dark:text-slate-200 mt-2">No upcoming visits scheduled</Text>
+              <Pressable
+                onPress={() => router.push('/doctor-booking')}
+                className="mt-3 bg-teal-50 dark:bg-teal-950/60 px-4 py-2 rounded-xl border border-teal-200 dark:border-teal-800"
+              >
+                <Text className="font-inter-semibold text-xs text-teal-700 dark:text-teal-300">Schedule Consultation</Text>
+              </Pressable>
+            </Card>
+          )}
         </View>
 
         {/* Quick Actions Grid */}
@@ -163,11 +189,36 @@ export default function HomeScreen() {
           <Stethoscope color="#0D9488" size={20} />
         </View>
 
-        <ScrollView horizontal contentContainerStyle={{ paddingLeft: 20, paddingRight: 4 }} showsHorizontalScrollIndicator={false}>
-          {recommendedDoctors.map((doctor) => (
-            <DoctorRecommendationCard key={doctor.id} doctor={doctor} onPress={() => router.push('/doctor-booking')} />
-          ))}
-        </ScrollView>
+        {loadingData ? (
+          <View className="py-8 items-center justify-center">
+            <ActivityIndicator size="small" color="#0D9488" />
+          </View>
+        ) : recommendedDoctors.length === 0 ? (
+          <View className="px-5">
+            <Card className="p-4 items-center justify-center border border-slate-100 dark:border-slate-800 bg-white dark:bg-[#151B2E]">
+              <Text className="font-inter text-xs text-muted dark:text-slate-400">No recommended doctors currently available</Text>
+            </Card>
+          </View>
+        ) : (
+          <ScrollView horizontal contentContainerStyle={{ paddingLeft: 20, paddingRight: 4 }} showsHorizontalScrollIndicator={false}>
+            {recommendedDoctors.map((doctor) => (
+              <DoctorRecommendationCard
+                key={doctor.id}
+                doctor={doctor}
+                onPress={() =>
+                  router.push({
+                    pathname: '/doctor-booking',
+                    params: {
+                      doctorId: doctor.id,
+                      name: doctor.name,
+                      specialty: doctor.specialty,
+                    },
+                  })
+                }
+              />
+            ))}
+          </ScrollView>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

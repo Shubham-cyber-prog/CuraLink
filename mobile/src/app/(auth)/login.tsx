@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Shield } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
@@ -9,6 +8,7 @@ import { useAuth } from '../../lib/auth-context';
 import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import logoImg from '../../../assets/images/logo.png';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -34,14 +34,14 @@ export default function LoginScreen() {
     setError('');
     if (!validate()) return;
 
-    if (!turnstileToken) {
+    if (!__DEV__ && !turnstileToken) {
       setError('Please complete the bot security check to continue');
       return;
     }
 
     setIsLoading(true);
     try {
-      await login(email.trim().toLowerCase(), password, turnstileToken);
+      await login(email.trim().toLowerCase(), password, turnstileToken || undefined);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Invalid email or password');
     } finally {
@@ -69,19 +69,15 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CuraLink Logo */}
-          <View className="mb-8 items-center">
-            <View 
-              style={{
-                shadowColor: '#0d9488',
-                shadowOffset: { width: 0, height: 6 },
-                shadowOpacity: 0.1,
-                shadowRadius: 12,
-                elevation: 8,
-              }}
-              className="mb-4 h-16 w-16 items-center justify-center rounded-2xl bg-white border border-teal-100"
-            >
-              <Shield size={32} color="#0d9488" />
+          {/* CuraLink Logo (clean transparent mark) */}
+          <View className="mb-6 items-center">
+            <View className="mb-2 h-16 w-16 items-center justify-center">
+              <Image
+                source={logoImg}
+                style={{ width: 64, height: 64 }}
+                resizeMode="contain"
+                alt="CuraLink Logo"
+              />
             </View>
             <Text className="font-inter-bold text-2xl text-charcoal">
               Cura<Text className="text-teal-600">Link</Text>
@@ -131,22 +127,24 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* Turnstile Bot Protection */}
-            <TurnstileWidget
-              onVerify={(token) => {
-                setTurnstileToken(token);
-                setError('');
-              }}
-              onExpire={() => setTurnstileToken(null)}
-              onError={() => setTurnstileToken(null)}
-            />
+            {/* Turnstile Bot Protection (hidden in dev) */}
+            {!__DEV__ && (
+              <TurnstileWidget
+                onVerify={(token) => {
+                  setTurnstileToken(token);
+                  setError('');
+                }}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+              />
+            )}
 
             <View className="mt-4">
               <Button
                 title={isLoading ? "Signing you in..." : "Log in"}
                 onPress={handleLogin}
                 isLoading={isLoading}
-                disabled={isLoading || !turnstileToken}
+                disabled={isLoading || (!__DEV__ && !turnstileToken)}
                 className="w-full"
               />
             </View>

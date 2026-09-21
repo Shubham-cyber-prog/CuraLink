@@ -83,16 +83,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const firstSegment = (segments[0] as string | undefined);
     const inAuthGroup = firstSegment === '(auth)';
     const inTabsGroup = firstSegment === '(tabs)';
+    const inDoctorTabsGroup = firstSegment === '(doctor-tabs)';
     const inRootOnboarding = !firstSegment || firstSegment === 'index';
 
     if (state.isAuthenticated && (inAuthGroup || inRootOnboarding)) {
-      // Logged in but on auth/onboarding screen → go to dashboard
+      // Logged in but on auth/onboarding screen → go to appropriate dashboard
+      if (state.user?.role === 'DOCTOR') {
+        router.replace('/(doctor-tabs)' as any);
+      } else {
+        router.replace('/(tabs)');
+      }
+    } else if (state.isAuthenticated && state.user?.role === 'DOCTOR' && inTabsGroup) {
+      router.replace('/(doctor-tabs)' as any);
+    } else if (state.isAuthenticated && state.user?.role !== 'DOCTOR' && inDoctorTabsGroup) {
       router.replace('/(tabs)');
-    } else if (!state.isAuthenticated && inTabsGroup) {
+    } else if (!state.isAuthenticated && (inTabsGroup || inDoctorTabsGroup)) {
       // Not logged in but on protected screen → go to onboarding
       router.replace('/');
     }
-  }, [state.isAuthenticated, state.isLoading, segments, router, rootNavigationState?.key]);
+  }, [state.isAuthenticated, state.isLoading, state.user?.role, segments, router, rootNavigationState?.key]);
 
   const login = useCallback(async (email: string, password: string, turnstileToken?: string) => {
     const res = await api.post<{ token: string; user: User }>('/auth/login', { email, password, turnstileToken });

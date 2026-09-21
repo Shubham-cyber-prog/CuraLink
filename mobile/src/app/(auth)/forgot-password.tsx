@@ -21,7 +21,7 @@ export default function ForgotPasswordScreen() {
       setEmailError('Enter a valid email address.');
       return;
     }
-    if (!turnstileToken) {
+    if (!__DEV__ && !turnstileToken) {
       setEmailError('Please complete the bot security check to continue.');
       return;
     }
@@ -30,7 +30,7 @@ export default function ForgotPasswordScreen() {
     try {
       await api.post('/auth/forgot-password', {
         email: email.trim().toLowerCase(),
-        turnstileToken,
+        turnstileToken: turnstileToken || undefined,
       });
       setIsSent(true);
     } catch (err: any) {
@@ -71,22 +71,24 @@ export default function ForgotPasswordScreen() {
                   error={emailError}
                 />
 
-                {/* Cloudflare Turnstile Bot Protection */}
-                <TurnstileWidget
-                  onVerify={(token) => {
-                    setTurnstileToken(token);
-                    setEmailError('');
-                  }}
-                  onExpire={() => setTurnstileToken(null)}
-                  onError={() => setTurnstileToken(null)}
-                />
+                {/* Cloudflare Turnstile Bot Protection (hidden in dev) */}
+                {!__DEV__ && (
+                  <TurnstileWidget
+                    onVerify={(token) => {
+                      setTurnstileToken(token);
+                      setEmailError('');
+                    }}
+                    onExpire={() => setTurnstileToken(null)}
+                    onError={() => setTurnstileToken(null)}
+                  />
+                )}
               </View>
             )}
             <View className="mt-4">
               <Button
                 title={isSent ? 'Back to sign in' : isLoading ? 'Sending link...' : 'Send reset link'}
                 onPress={isSent ? () => router.back() : handleSubmit}
-                disabled={!isSent && (isLoading || !turnstileToken)}
+                disabled={!isSent && (isLoading || (!__DEV__ && !turnstileToken))}
                 isLoading={isLoading}
               />
             </View>

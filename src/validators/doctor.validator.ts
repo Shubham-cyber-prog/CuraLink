@@ -5,8 +5,10 @@ export const submitVerificationSchema = z.object({
   specialization: z.string().trim().min(2, 'Specialization is required'),
   experienceYears: z.number().int().nonnegative().default(0),
   consultationFee: z.number().positive().default(500),
+  city: z.string().trim().max(100).optional(),
   bio: z.string().max(1000).optional(),
 });
+
 
 export const updateVerificationStatusSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED', 'PENDING']),

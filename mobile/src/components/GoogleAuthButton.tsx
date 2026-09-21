@@ -9,10 +9,11 @@ WebBrowser.maybeCompleteAuthSession();
 
 interface GoogleAuthButtonProps {
   label?: string;
+  role?: 'PATIENT' | 'DOCTOR';
   onError?: (err: string) => void;
 }
 
-export function GoogleAuthButton({ label = 'Continue with Google', onError }: GoogleAuthButtonProps) {
+export function GoogleAuthButton({ label = 'Continue with Google', role, onError }: GoogleAuthButtonProps) {
   const { loginWithToken } = useAuth();
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export function GoogleAuthButton({ label = 'Continue with Google', onError }: Go
     try {
       setLoading(true);
       const baseUrl = getApiBaseUrl();
-      const authUrl = `${baseUrl}/auth/google/mobile-login`;
+      const authUrl = `${baseUrl}/auth/google/mobile-login${role ? `?role=${encodeURIComponent(role)}` : ''}`;
       const redirectScheme = 'curalink://oauthredirect';
 
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectScheme);

@@ -10,6 +10,7 @@ import { DoctorCard } from "@/components/doctors/DoctorCard";
 import { DoctorFilters } from "@/components/doctors/DoctorFilters";
 import { LocationInfo } from "@/components/layout/LocationSelector";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { AIDoctorRecommender } from "@/components/ai/AIDoctorRecommender";
 
 export default function FindDoctorPage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function FindDoctorPage() {
   const [availability, setAvailability] = useState<"any-time" | "today" | "this-week">("any-time");
   const [rating, setRating] = useState<"all" | "4.8" | "4.9">("all");
   const [visitType, setVisitType] = useState<"all" | "video" | "in-person">("all");
+  const [filterByCity, setFilterByCity] = useState(true);
   const [userLocation, setUserLocation] = useState<LocationInfo>({
     city: "Hisar",
     state: "Haryana",
@@ -31,55 +33,63 @@ export default function FindDoctorPage() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("curalink_user_location");
-      if (saved) setUserLocation(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setUserLocation(parsed);
+        // If the location was detected and unconfirmed, default filterByCity to false so we don't silently hide doctors
+        if (parsed.isDetected && !parsed.isConfirmed) {
+          setFilterByCity(false);
+        } else {
+          setFilterByCity(true);
+        }
+      }
     } catch (e) {}
 
     const handleLoc = (e: any) => {
-      if (e.detail) setUserLocation(e.detail);
+      if (e.detail) {
+        setUserLocation(e.detail);
+        if (e.detail.isDetected && !e.detail.isConfirmed) {
+          setFilterByCity(false);
+        } else {
+          setFilterByCity(true);
+        }
+      }
     };
     window.addEventListener("curalink-location-changed", handleLoc);
     return () => window.removeEventListener("curalink-location-changed", handleLoc);
   }, []);
 
-  const fetchDoctors = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const res = await fetch(`${apiBase}/doctors/verified`);
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || "Failed to load doctors");
+  const fetchDoctors = useCallback(
+    async (targetCity?: string, shouldFilter = filterByCity) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+        const cityToFilter = shouldFilter ? (targetCity ?? userLocation.city) : undefined;
+        const url =
+          cityToFilter && cityToFilter.toLowerCase() !== "all"
+            ? `${apiBase}/doctors?city=${encodeURIComponent(cityToFilter)}`
+            : `${apiBase}/doctors`;
+
+        const res = await fetch(url);
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.message || "Failed to load doctors");
+        }
+        setDoctors(json.data || []);
+      } catch (err: any) {
+        console.error("Error fetching verified doctors:", err);
+        setError(err.message || "Could not load doctors from server. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
-      setDoctors(json.data || []);
-    } catch (err: any) {
-      console.error("Error fetching verified doctors:", err);
-      setError(err.message || "Could not load doctors from server. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [filterByCity, userLocation.city]
+  );
 
   useEffect(() => {
-    let mounted = true;
-    const checkAuthAndFetch = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/me`, {
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Not auth");
-        if (mounted) {
-          await fetchDoctors();
-        }
-      } catch (err) {
-        if (mounted) router.replace("/login");
-      }
-    };
-    checkAuthAndFetch();
-    return () => {
-      mounted = false;
-    };
-  }, [router, fetchDoctors]);
+    fetchDoctors(userLocation.city, filterByCity);
+  }, [userLocation.city, filterByCity, fetchDoctors]);
 
   const handleClearFilters = () => {
     setSearch("");
@@ -87,13 +97,15 @@ export default function FindDoctorPage() {
     setAvailability("any-time");
     setRating("all");
     setVisitType("all");
+    setFilterByCity(false);
   };
 
   const filteredDoctors = useMemo(() => {
     return doctors.filter((doc) => {
       const matchesSearch =
         doc.name.toLowerCase().includes(search.toLowerCase()) ||
-        doc.specialty.toLowerCase().includes(search.toLowerCase());
+        doc.specialty.toLowerCase().includes(search.toLowerCase()) ||
+        (doc.city && doc.city.toLowerCase().includes(search.toLowerCase()));
       const matchesSpecialty =
         specialty === "All" ||
         doc.specialty.toLowerCase().includes(specialty.toLowerCase()) ||
@@ -110,10 +122,9 @@ export default function FindDoctorPage() {
         matchesVisitMode = doc.videoConsultation;
       } else if (visitType === "in-person") {
         matchesVisitMode =
+          (doc.city && doc.city.toLowerCase() === userLocation.city.toLowerCase()) ||
           doc.specialty.includes("General") ||
-          doc.specialty.includes("Pediatrics") ||
-          userLocation.city === "Hisar" ||
-          userLocation.city === "New Delhi";
+          doc.specialty.includes("Pediatrics");
       }
 
       return (
@@ -124,7 +135,7 @@ export default function FindDoctorPage() {
         matchesVisitMode
       );
     });
-  }, [doctors, search, specialty, availability, rating, visitType, userLocation]);
+  }, [doctors, search, specialty, availability, rating, visitType, userLocation.city]);
 
   return (
     <div className="space-y-6">
@@ -133,7 +144,11 @@ export default function FindDoctorPage() {
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-[#0F9D8C] dark:text-[#14B8A6] mb-1">
             <MapPin className="h-3.5 w-3.5" />
-            <span>Browsing doctors near {userLocation.city}, {userLocation.state}</span>
+            <span>
+              {filterByCity
+                ? `Showing doctors near ${userLocation.city}, ${userLocation.state}`
+                : `Showing all doctors nationwide (Location: ${userLocation.city})`}
+            </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F1F5F9]">
             Find & Book Doctors
@@ -149,18 +164,102 @@ export default function FindDoctorPage() {
         </div>
       </div>
 
-      {/* Location Availability Notice banner */}
-      <div className="rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/60 dark:bg-teal-950/40 p-4 text-xs font-medium text-teal-900 dark:text-teal-200 flex items-start gap-3">
-        <MapPin className="h-4 w-4 text-[#0F9D8C] dark:text-[#14B8A6] shrink-0 mt-0.5" />
-        <div>
-          <p className="font-bold text-[#0F172A] dark:text-[#F1F5F9]">
-            Location-Refined Availability for {userLocation.city}
-          </p>
-          <p className="text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-            Video consultations are available 24/7 nationwide. In-person clinics and home sample pickups are filtered by proximity to {userLocation.city}.
-          </p>
+      {/* Location Notice / Detected Suggestion Banner */}
+      {userLocation.isDetected && !userLocation.isConfirmed ? (
+        <div className="rounded-2xl border border-amber-300 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-amber-100 dark:bg-amber-900/60 p-2 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
+              <MapPin className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-[#0F172A] dark:text-[#F1F5F9] text-sm">
+                  📍 Detected: {userLocation.city}, {userLocation.state}
+                </p>
+                <span className="rounded bg-amber-200/80 dark:bg-amber-900/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 dark:text-amber-200">
+                  IP / Network Estimate
+                </span>
+              </div>
+              <p className="text-amber-800 dark:text-amber-300 mt-1 text-[11.5px]">
+                Desktop browsers estimate location via IP network and may differ from your actual city. Not correct?
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+            <button
+              onClick={() => {
+                const confirmed = { ...userLocation, isConfirmed: true };
+                setUserLocation(confirmed);
+                setFilterByCity(true);
+                try {
+                  localStorage.setItem("curalink_user_location", JSON.stringify(confirmed));
+                } catch (e) {}
+              }}
+              className="rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] text-white px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+            >
+              ✓ Filter by {userLocation.city}
+            </button>
+            <button
+              onClick={() => {
+                const btn = document.getElementById("doctor-filter-location-btn");
+                btn?.click();
+              }}
+              className="rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-[#1C2338] hover:bg-amber-100/50 dark:hover:bg-[#263049] text-amber-900 dark:text-amber-200 px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              ✏️ Change City Manually
+            </button>
+            <button
+              onClick={() => {
+                setFilterByCity(false);
+              }}
+              className="rounded-xl border border-slate-200 dark:border-[#263049] bg-white dark:bg-[#1C2338] hover:bg-slate-50 dark:hover:bg-[#263049] text-slate-700 dark:text-slate-300 px-3 py-2 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Browse All Doctors
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/60 dark:bg-teal-950/40 p-4 text-xs font-medium text-teal-900 dark:text-teal-200 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-4 w-4 text-[#0F9D8C] dark:text-[#14B8A6] shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-[#0F172A] dark:text-[#F1F5F9]">
+                {filterByCity
+                  ? `Location-Refined Doctors in ${userLocation.city}`
+                  : "All Nationwide Doctors"}
+              </p>
+              <p className="text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+                {filterByCity
+                  ? `Displaying licensed clinicians available in or near ${userLocation.city}. Video appointments available 24/7.`
+                  : "Browsing all verified clinicians across all cities and nationwide telehealth."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-center">
+            <button
+              onClick={() => {
+                const btn = document.getElementById("doctor-filter-location-btn");
+                btn?.click();
+              }}
+              className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline cursor-pointer"
+            >
+              Change City
+            </button>
+            <span className="text-slate-300 dark:text-slate-700">|</span>
+            <button
+              onClick={() => setFilterByCity(!filterByCity)}
+              className="shrink-0 text-xs font-semibold text-[#0F9D8C] dark:text-[#14B8A6] hover:underline cursor-pointer"
+            >
+              {filterByCity ? "View all nationwide" : `Filter by ${userLocation.city}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Doctor Recommender */}
+      <AIDoctorRecommender />
 
       {/* Filters */}
       <DoctorFilters
@@ -172,6 +271,13 @@ export default function FindDoctorPage() {
         setRating={setRating}
         visitType={visitType}
         setVisitType={setVisitType}
+        userLocation={userLocation}
+        onLocationChange={(loc) => {
+          setUserLocation(loc);
+          setFilterByCity(true);
+        }}
+        filterByCity={filterByCity}
+        setFilterByCity={setFilterByCity}
       />
 
       {/* Doctor Listings */}
@@ -188,7 +294,7 @@ export default function FindDoctorPage() {
               {error}
             </p>
             <button
-              onClick={fetchDoctors}
+              onClick={() => fetchDoctors(userLocation.city, filterByCity)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.97]"
             >
               <RefreshCw className="h-3.5 w-3.5" /> Retry Connection
@@ -240,23 +346,48 @@ export default function FindDoctorPage() {
         ) : (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-8 text-center space-y-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
-              <AlertCircle className="h-6 w-6" />
+              <MapPin className="h-6 w-6" />
             </div>
             <h3 className="text-base font-bold text-[#0F172A] dark:text-[#F1F5F9]">
-              No doctors found matching your filters
+              {filterByCity
+                ? `No doctors found in ${userLocation.city} yet`
+                : "No doctors found matching your filters"}
             </h3>
             <p className="max-w-md text-xs text-[#64748B] dark:text-[#94A3B8]">
-              No verified doctors match your current search or specialty criteria. Try resetting filters or browsing all medical specialties!
+              {filterByCity
+                ? `We don't have clinicians registered in ${userLocation.city} yet. Try selecting a nearby area or browse all nationwide telehealth doctors!`
+                : "No verified doctors match your current search or specialty criteria. Try resetting filters or browsing all medical specialties!"}
             </p>
-            <button
-              onClick={handleClearFilters}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#1C2338] px-4 py-2 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] transition-colors cursor-pointer active:scale-[0.97]"
-            >
-              <RefreshCw className="h-3.5 w-3.5" /> Clear all filters
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const btn = document.getElementById("doctor-filter-location-btn");
+                  btn?.click();
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-[#263049] bg-white dark:bg-[#1C2338] px-4 py-2 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] transition-colors cursor-pointer"
+              >
+                <MapPin className="h-3.5 w-3.5 text-[#0F9D8C]" /> Change city manually
+              </button>
+              {filterByCity && (
+                <button
+                  onClick={() => setFilterByCity(false)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] text-white px-4 py-2 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.97]"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Show all nationwide doctors
+                </button>
+              )}
+              <button
+                onClick={handleClearFilters}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#1C2338] px-4 py-2 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] transition-colors cursor-pointer active:scale-[0.97]"
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Clear all filters
+              </button>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 }
+

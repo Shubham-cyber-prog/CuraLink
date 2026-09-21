@@ -5,11 +5,11 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   // Content Security Policy
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://gsi.gstatic.com https://apis.google.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com; connect-src 'self' http://localhost:5000 https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://nominatim.openstreetmap.org https://challenges.cloudflare.com;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://gsi.gstatic.com https://apis.google.com https://challenges.cloudflare.com https://meet.jit.si; style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com https://meet.jit.si; connect-src 'self' http://localhost:5000 https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://nominatim.openstreetmap.org https://challenges.cloudflare.com https://meet.jit.si wss://meet.jit.si;"
   );
   
   // Prevent clickjacking
-  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   
   // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -18,7 +18,10 @@ export function securityHeaders(req: Request, res: Response, next: NextFunction)
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
   // Permissions Policy
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(self "https://meet.jit.si"), microphone=(self "https://meet.jit.si"), display-capture=(self "https://meet.jit.si"), geolocation=(self)'
+  );
 
   // Strict Transport Security (HSTS) - only in production
   if (env.NODE_ENV === 'production') {

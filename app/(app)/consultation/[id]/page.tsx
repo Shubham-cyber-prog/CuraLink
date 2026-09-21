@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, use } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,15 +12,27 @@ import {
   ShieldCheck,
   PhoneOff,
   Clock,
-  User,
   AlertTriangle,
   ArrowLeft,
-  CheckCircle2,
-  Settings,
-  Sparkles,
   Loader2,
+  Maximize2,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Client-only dynamic import of JitsiMeeting to prevent any SSR window undefined errors
+const JitsiMeeting = dynamic(
+  () => import("@jitsi/react-sdk").then((mod) => mod.JitsiMeeting),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col items-center justify-center min-h-[580px] h-[calc(100vh-210px)] bg-slate-950 text-slate-400">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0F9D8C] mb-3" />
+        <p className="text-xs font-medium">Initializing encrypted Jitsi Meet video session...</p>
+      </div>
+    ),
+  }
+);
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -37,8 +50,8 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   const [roomError, setRoomError] = useState<string | null>(null);
   const [roomData, setRoomData] = useState<{
     roomUrl: string;
-    token: string;
     roomName: string;
+    userName?: string;
     isDoctor: boolean;
     doctor?: {
       id: string;
@@ -65,24 +78,15 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
-  // 1. Fetch Room & Token from Backend
+  // 1. Fetch Room Name from Backend
   useEffect(() => {
     const fetchRoom = async () => {
       try {
         setIsLoadingRoom(true);
         setRoomError(null);
 
-        // Get CSRF token
-        const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
-        const csrfData = await csrfRes.json();
-        const csrfToken = csrfData.token;
-
-        const res = await fetch(`${API_BASE}/consultations/${appointmentId}/room`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-Token": csrfToken,
-          },
+        const res = await fetch(`${API_BASE}/appointments/${appointmentId}/join`, {
+          method: "GET",
           credentials: "include",
         });
 
@@ -109,7 +113,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
     fetchRoom();
   }, [appointmentId, router]);
 
-  // 2. Local Media Stream for Pre-Call Check
+  // 2. Local Media Stream for Pre-Call Readiness Check
   useEffect(() => {
     if (isLoadingRoom || roomError || hasJoinedCall) return;
 
@@ -133,7 +137,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         console.warn("Media permissions error:", err);
         if (isMounted) {
           setPermissionError(
-            "Camera and/or Microphone permission denied. Please allow access in your browser settings to continue."
+            "Camera and/or Microphone permission denied. Please allow device access in your browser to continue."
           );
         }
       }
@@ -170,7 +174,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   };
 
   const handleEnterCall = () => {
-    // Stop local preview stream before mounting Daily iframe
+    // Release preview stream before entering Jitsi frame
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -178,34 +182,28 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
     setHasJoinedCall(true);
   };
 
-  // End & Complete Consultation
+  // End & Complete Consultation -> Redirect to Dashboard
   const handleEndCall = async () => {
-    if (!confirm("Are you sure you want to end this consultation?")) return;
-
     try {
       setIsEndingCall(true);
 
-      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
-      const csrfData = await csrfRes.json();
-
       await fetch(`${API_BASE}/consultations/${appointmentId}/complete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfData.token,
-        },
         credentials: "include",
-      });
+      }).catch(() => {});
     } catch (err) {
       console.error("Error completing consultation:", err);
     } finally {
-      router.push("/appointments?completed=true");
+      // Redirect to appropriate dashboard
+      router.push(roomData?.isDoctor ? "/doctor-dashboard" : "/dashboard");
     }
   };
 
-  // Real doctor metadata from consultation room API
+  // Real metadata
   const doctorName = roomData?.doctor?.name || "Dr. Consultation";
   const doctorSpecialty = roomData?.doctor?.specialty || "Telehealth Specialist";
+  const callUrl = roomData?.roomUrl || (roomData?.roomName ? `https://meet.jit.si/${roomData.roomName}` : "");
+  const participantName = roomData?.userName || (roomData?.isDoctor ? doctorName : "Patient");
 
   // -------------------------------------------------------------------
   // State: Loading Room
@@ -217,10 +215,10 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
           <Video className="h-8 w-8" />
         </div>
         <h2 className="text-xl font-bold text-[#0F172A] dark:text-[#F1F5F9] mb-2">
-          Connecting to Consultation Server...
+          Connecting to Consultation Room...
         </h2>
         <p className="text-sm text-[#64748B] dark:text-slate-400 max-w-sm">
-          Preparing your secure, HIPAA-aligned video room.
+          Preparing your secure, encrypted Jitsi Meet telehealth session.
         </p>
         <Loader2 className="h-6 w-6 animate-spin text-[#0F9D8C] dark:text-teal-400 mt-6" />
       </div>
@@ -228,9 +226,9 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   }
 
   // -------------------------------------------------------------------
-  // State: Room Error (e.g. Join Window / RBAC error)
+  // State: Room Error
   // -------------------------------------------------------------------
-  if (roomError) {
+  if (roomError || !roomData) {
     return (
       <div className="mx-auto max-w-lg py-12 px-4">
         <div className="rounded-3xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/30 p-6 sm:p-8 text-center shadow-xs">
@@ -241,7 +239,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             Consultation Unavailable
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
-            {roomError}
+            {roomError || "Unable to load consultation details."}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
@@ -256,7 +254,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             </Button>
             <Button
               onClick={() => window.location.reload()}
-              className="w-full sm:w-auto rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] dark:bg-teal-600 dark:hover:bg-teal-500"
+              className="w-full sm:w-auto rounded-xl bg-[#085041] hover:bg-[#06382e] text-white"
             >
               Retry Connection
             </Button>
@@ -267,9 +265,9 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   }
 
   // -------------------------------------------------------------------
-  // State: Pre-Call Check Screen (Camera/Mic Preview)
+  // State: Pre-Call Setup Screen (Device Readiness)
   // -------------------------------------------------------------------
-  if (!hasJoinedCall && roomData) {
+  if (!hasJoinedCall) {
     return (
       <div className="mx-auto max-w-3xl py-6 px-4">
         {/* Top Header */}
@@ -313,7 +311,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             )}
 
             {/* Media Controls Bar */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full bg-slate-900/80 backdrop-blur-md px-4 py-2 border border-slate-700/60 shadow-lg">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full bg-slate-900 px-4 py-2 border border-slate-700/60 shadow-lg">
               <button
                 onClick={toggleMic}
                 className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
@@ -356,7 +354,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
 
             <Button
               onClick={handleEnterCall}
-              className="w-full sm:w-auto h-12 px-8 rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] dark:bg-teal-600 dark:hover:bg-teal-500 text-sm font-semibold shadow-md shadow-[#0F9D8C]/20 transition-transform active:scale-[0.98]"
+              className="w-full sm:w-auto h-12 px-8 rounded-xl bg-[#085041] hover:bg-[#06382e] dark:bg-teal-600 dark:hover:bg-teal-500 text-sm font-semibold shadow-md shadow-[#085041]/20 transition-transform active:scale-[0.98] text-white"
             >
               <Video className="h-4 w-4 mr-2" />
               Enter Consultation Room
@@ -368,7 +366,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   }
 
   // -------------------------------------------------------------------
-  // State: Active Call Room (Daily Prebuilt Embed)
+  // State: Active Call Room (Embedded Jitsi Meet via @jitsi/react-sdk)
   // -------------------------------------------------------------------
   return (
     <div className="space-y-4">
@@ -392,9 +390,20 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
 
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 text-xs font-semibold text-[#0F9D8C] dark:text-teal-400">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <span>HIPAA-Eligible Telehealth</span>
+            <Lock className="h-3.5 w-3.5" />
+            <span>HIPAA Telehealth</span>
           </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(callUrl, "_blank")}
+            className="hidden md:inline-flex rounded-xl text-xs font-semibold border-slate-300 dark:border-slate-700"
+            title="Open consultation in full separate window"
+          >
+            <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
+            Pop Out
+          </Button>
 
           <Button
             onClick={handleEndCall}
@@ -408,17 +417,62 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         </div>
       </div>
 
-      {/* Daily Prebuilt Call Iframe Embed */}
-      {roomData && (
-        <div className="relative overflow-hidden rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-slate-950 shadow-md">
-          <iframe
-            src={`${roomData.roomUrl}?token=${roomData.token}&theme=light&lang=en`}
-            className="w-full h-[calc(100vh-210px)] min-h-[550px] border-none"
-            allow="camera; microphone; fullscreen; display-capture; autoplay"
-            title="Daily.co Video Consultation"
-          />
-        </div>
-      )}
+      {/* Embedded Jitsi Meet Call Frame */}
+      <div className="relative overflow-hidden rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-slate-950 shadow-md min-h-[580px] h-[calc(100vh-210px)]">
+        <JitsiMeeting
+          domain="meet.jit.si"
+          roomName={roomData.roomName}
+          configOverwrite={{
+            startWithAudioMuted: !micOn,
+            startWithVideoMuted: !cameraOn,
+            disableDeepLinking: true,
+            prejoinPageEnabled: false,
+            enableClosePage: false,
+            toolbarButtons: [
+              "camera",
+              "chat",
+              "closedcaptions",
+              "desktop",
+              "filmstrip",
+              "fullscreen",
+              "hangup",
+              "microphone",
+              "participants-pane",
+              "profile",
+              "raisehand",
+              "settings",
+              "tileview",
+              "toggle-camera",
+              "videoquality",
+            ],
+          }}
+          interfaceConfigOverwrite={{
+            DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+            SHOW_JITSI_WATERMARK: false,
+            SHOW_WATERMARK_FOR_GUESTS: false,
+            HIDE_DEEP_LINKING_LOGO: true,
+          }}
+          userInfo={{
+            displayName: participantName,
+            email: "",
+          }}
+          onReadyToClose={handleEndCall}
+          getIFrameRef={(iframeRef) => {
+            if (iframeRef) {
+              iframeRef.style.height = "100%";
+              iframeRef.style.width = "100%";
+              iframeRef.style.minHeight = "580px";
+              iframeRef.style.border = "none";
+            }
+          }}
+          spinner={() => (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-10">
+              <Loader2 className="h-8 w-8 animate-spin text-[#0F9D8C] mb-3" />
+              <p className="text-xs text-slate-400 font-medium">Connecting to Jitsi Meet video stream...</p>
+            </div>
+          )}
+        />
+      </div>
     </div>
   );
 }

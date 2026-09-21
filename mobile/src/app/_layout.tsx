@@ -16,6 +16,9 @@ import { ThemeProvider, useTheme } from '../lib/theme-context';
 import { AnimatedSplash } from '../components/AnimatedSplash';
 import { NetworkAlertBanner } from '../components/NetworkAlertBanner';
 
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SamsungEdgeBackGesture } from '../components/SamsungEdgeBackGesture';
+
 // Suppress harmless Expo HMR dev server connection warnings in LogBox
 LogBox.ignoreLogs([
   'Cannot connect to Expo CLI',
@@ -39,18 +42,60 @@ function MainLayoutContent({
   const { isDark } = useTheme();
 
   return (
-    <AuthProvider>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <NetworkAlertBanner />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="symptom-checker" options={{ presentation: 'card' }} />
-        <Stack.Screen name="doctor-booking" options={{ presentation: 'card' }} />
-      </Stack>
-      {!splashComplete ? <AnimatedSplash onAnimationComplete={onSplashComplete} /> : null}
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <NetworkAlertBanner />
+        <SamsungEdgeBackGesture>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'slide_from_right',
+              gestureEnabled: true,
+              fullScreenGestureEnabled: true,
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(doctor-tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen
+              name="symptom-checker"
+              options={{
+                animation: 'slide_from_right',
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="doctor-booking"
+              options={{
+                animation: 'slide_from_right',
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="chat"
+              options={{
+                animation: 'slide_from_right',
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="consultation/[id]"
+              options={{
+                animation: 'none',
+                gestureEnabled: false,
+                fullScreenGestureEnabled: false,
+              }}
+            />
+          </Stack>
+        </SamsungEdgeBackGesture>
+        {!splashComplete ? <AnimatedSplash onAnimationComplete={onSplashComplete} /> : null}
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

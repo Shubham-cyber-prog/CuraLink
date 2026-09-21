@@ -53,13 +53,12 @@ export class PrescriptionService {
     const prescription = await prisma.prescription.create({
       data: {
         id: prescriptionId,
-        consultationId: data.consultationId,
+        appointmentId: data.consultationId,
         doctorId,
         patientId: data.patientId,
         diagnosis: data.diagnosis,
         medications: JSON.stringify(data.medications),
-        digitalSignature,
-        pdfUrl,
+        notes: data.notes || null,
       },
     });
 
@@ -69,8 +68,8 @@ export class PrescriptionService {
       prescriptionId: prescription.id,
       doctorName: doctorProfile.user.name,
       specialization: doctorProfile.specialization,
-      licenseNumber: doctorProfile.licenseNumber,
-      medicalCouncil: doctorProfile.medicalCouncil,
+      licenseNumber: doctorProfile.medicalLicenseNumber,
+      medicalCouncil: 'National Medical Commission (NMC)',
       patientName: patient.name,
       patientEmail: patient.email,
       date: new Date().toLocaleDateString('en-IN', {
@@ -86,11 +85,13 @@ export class PrescriptionService {
 
     return {
       ...prescription,
+      pdfUrl,
+      digitalSignature,
       parsedMedications: data.medications,
       doctor: {
         name: doctorProfile.user.name,
         specialization: doctorProfile.specialization,
-        licenseNumber: doctorProfile.licenseNumber,
+        licenseNumber: doctorProfile.medicalLicenseNumber,
       },
       patient: {
         name: patient.name,
@@ -103,8 +104,14 @@ export class PrescriptionService {
     const prescription = await prisma.prescription.findUnique({
       where: { id: prescriptionId },
       include: {
-        doctor: {
-          select: { id: true, name: true, email: true, doctorProfile: true },
+        appointment: {
+          include: {
+            doctor: {
+              include: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
         },
         patient: {
           select: { id: true, name: true, email: true },
@@ -116,8 +123,19 @@ export class PrescriptionService {
       throw new NotFoundError('Prescription not found');
     }
 
+    const doctorUser = prescription.appointment?.doctor?.user;
+    const doctorProfile = prescription.appointment?.doctor;
+
     return {
       ...prescription,
+      pdfUrl: `/uploads/prescriptions/${prescription.id}.pdf`,
+      doctor: {
+        id: doctorUser?.id || prescription.doctorId,
+        name: doctorUser?.name || 'Doctor',
+        email: doctorUser?.email || '',
+        specialization: doctorProfile?.specialization || 'General Practice',
+        medicalLicenseNumber: doctorProfile?.medicalLicenseNumber || '',
+      },
       parsedMedications: JSON.parse(prescription.medications),
     };
   }
@@ -126,20 +144,38 @@ export class PrescriptionService {
     const prescriptions = await prisma.prescription.findMany({
       where: { patientId },
       include: {
-        doctor: {
-          select: { id: true, name: true, email: true, doctorProfile: true },
+        appointment: {
+          include: {
+            doctor: {
+              include: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return prescriptions.map((p) => ({
-      ...p,
-      parsedMedications: JSON.parse(p.medications),
-    }));
+    return prescriptions.map((p) => {
+      const doctorUser = p.appointment?.doctor?.user;
+      const doctorProfile = p.appointment?.doctor;
+
+      return {
+        ...p,
+        pdfUrl: `/uploads/prescriptions/${p.id}.pdf`,
+        doctor: {
+          id: doctorUser?.id || p.doctorId,
+          name: doctorUser?.name || 'Doctor',
+          email: doctorUser?.email || '',
+          specialization: doctorProfile?.specialization || 'General Practice',
+        },
+        parsedMedications: JSON.parse(p.medications),
+      };
+    });
   }
 
-  private async generatePDFFile(data: {
+  public async generatePDFFile(data: {
     filePath: string;
     prescriptionId: string;
     doctorName: string;

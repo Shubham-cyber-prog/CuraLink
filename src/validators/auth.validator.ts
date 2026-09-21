@@ -25,7 +25,9 @@ export const loginSchema = z.object({
 });
 
 export const googleLoginSchema = z.object({
-  credential: z.string().min(1, 'Google credential is required'),
+  credential: z.string().optional(),
+  token: z.string().optional(),
+  role: z.enum(['PATIENT', 'DOCTOR']).optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

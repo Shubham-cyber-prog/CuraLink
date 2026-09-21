@@ -42,49 +42,49 @@ export class AppointmentService {
       where: {
         OR: [{ userId }, { doctorId: userId }],
       },
-      orderBy: [
-        { date: 'asc' },
-        { time: 'asc' }
-      ]
-    });
-
-    if (!prisma.doctorProfile?.findMany) {
-      return appointments;
-    }
-
-    // Lookup doctors for all appointments
-    const doctorIds = [...new Set(appointments.map((a) => a.doctorId))];
-    const doctorProfiles = await prisma.doctorProfile.findMany({
-      where: {
-        OR: [
-          { userId: { in: doctorIds } },
-          { id: { in: doctorIds } },
-        ],
-      },
       include: {
         user: {
           select: { id: true, name: true, email: true },
         },
+        doctor: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+        payment: {
+          select: { status: true, amount: true },
+        },
+        prescription: true,
+        review: true,
       },
+      orderBy: [
+        { date: 'asc' },
+        { time: 'asc' },
+      ],
     });
-
-    const doctorMap = new Map<string, any>();
-    for (const dp of doctorProfiles) {
-      const docData = {
-        id: dp.userId,
-        name: dp.user?.name || 'Dr. Medical Specialist',
-        specialty: dp.specialization,
-        specialization: dp.specialization,
-        experienceYears: dp.experienceYears,
-        consultationFee: dp.consultationFee,
-      };
-      doctorMap.set(dp.userId, docData);
-      doctorMap.set(dp.id, docData);
-    }
 
     return appointments.map((apt) => ({
       ...apt,
-      doctor: doctorMap.get(apt.doctorId) || null,
+      doctor: apt.doctor
+        ? {
+            id: apt.doctor.userId,
+            profileId: apt.doctor.id,
+            name: apt.doctor.user?.name || 'Dr. Medical Specialist',
+            specialty: apt.doctor.specialization,
+            specialization: apt.doctor.specialization,
+            experienceYears: apt.doctor.experienceYears,
+            consultationFee: apt.doctor.consultationFee,
+          }
+        : null,
+      patient: apt.user
+        ? {
+            id: apt.user.id,
+            name: apt.user.name,
+            email: apt.user.email,
+          }
+        : null,
     }));
   }
 }

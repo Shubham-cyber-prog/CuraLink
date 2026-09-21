@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Animated, ScrollView } from 'react-native';
+import { View, Text, Animated, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Bot, CalendarCheck, MessageCircle, HeartPulse } from 'lucide-react-native';
+import { Bot, CalendarCheck, MessageCircle } from 'lucide-react-native';
 import { Button } from '../components/Button';
-import { getToken } from '../lib/secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import logoImg from '../../assets/images/logo.png';
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -47,18 +47,14 @@ export default function OnboardingScreen() {
               marginTop: 40 
             }}
           >
-            {/* Animated Logo Icon */}
-            <View 
-              style={{
-                shadowColor: '#0d9488',
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.15,
-                shadowRadius: 16,
-                elevation: 10,
-              }}
-              className="mb-6 h-20 w-20 items-center justify-center rounded-3xl bg-white border border-teal-100"
-            >
-              <HeartPulse size={44} color="#0d9488" />
+            {/* CuraLink Logo (clean transparent mark) */}
+            <View className="mb-4 h-24 w-24 items-center justify-center">
+              <Image
+                source={logoImg}
+                style={{ width: 88, height: 88 }}
+                resizeMode="contain"
+                alt="CuraLink Logo"
+              />
             </View>
 
             <Text className="font-inter-bold text-center text-4xl tracking-tight text-charcoal">

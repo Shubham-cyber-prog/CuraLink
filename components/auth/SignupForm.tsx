@@ -35,6 +35,20 @@ export function SignupForm() {
     });
   };
 
+  const handleTurnstileVerify = useCallback((token: string) => {
+    setTurnstileToken(token);
+    setFieldErrors((prev) => {
+      if (!prev.turnstile) return prev;
+      const copy = { ...prev };
+      delete copy.turnstile;
+      return copy;
+    });
+  }, []);
+
+  const handleTurnstileExpire = useCallback(() => {
+    setTurnstileToken(null);
+  }, []);
+
   const validate = useCallback(() => {
     const errors: Record<string, string> = {};
     if (!name.trim()) errors.name = "Full name is required";
@@ -105,18 +119,52 @@ export function SignupForm() {
     { value: "DOCTOR", label: "Doctor", description: "Manage patients & appointments", icon: <Stethoscope size={20} /> },
   ];
 
+  const handleRoleSelect = (selectedRole: RoleOption) => {
+    setRole(selectedRole);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("curalink_signup_role", selectedRole);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="space-y-3.5">
       {/* Header */}
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <h2 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#F1F5F9]">Create your account</h2>
         <p className="text-sm text-slate-500 dark:text-[#94A3B8] font-normal">Join CuraLink to get started</p>
       </div>
 
       <AuthError message={error} />
 
-      {/* Google Signup */}
-      <GoogleAuthButton label="Sign up with Google" onError={setError} />
+      {/* Role Selector — Compact Segmented Toggle */}
+      <div className="space-y-1">
+        <label className="text-xs font-semibold text-slate-700 dark:text-[#F1F5F9]">I am joining as a:</label>
+        <div className="flex rounded-lg border border-slate-200 dark:border-[#263049] bg-slate-50/50 dark:bg-[#1C2338] p-0.5">
+          {roles.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => handleRoleSelect(r.value)}
+              className={`relative flex flex-1 items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-all duration-150 focus:outline-none cursor-pointer ${
+                role === r.value
+                  ? "bg-white dark:bg-[#0F172A] text-teal-700 dark:text-teal-300 shadow-sm border border-teal-200/60 dark:border-teal-800/60"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              }`}
+            >
+              <span className={role === r.value ? "text-teal-600 dark:text-teal-400" : "text-slate-400 dark:text-slate-500"}>{r.icon}</span>
+              <span>{r.label}</span>
+              {role === r.value && (
+                <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-teal-600 dark:bg-teal-500">
+                  <Check size={10} className="text-white" strokeWidth={3} />
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Google Signup with selected role */}
+      <GoogleAuthButton label="Sign up with Google" role={role} onError={setError} />
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
@@ -127,36 +175,9 @@ export function SignupForm() {
         </div>
       </div>
 
-      {/* Role Selector */}
-      <div className="grid grid-cols-2 gap-3">
-        {roles.map((r) => (
-          <button
-            key={r.value}
-            type="button"
-            onClick={() => setRole(r.value)}
-            className={`relative flex flex-col items-center gap-1.5 rounded-xl border p-3.5 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-teal-500/30 cursor-pointer active:scale-[0.97] ${
-              role === r.value
-                ? "border-teal-500 bg-teal-50/50 dark:bg-teal-950/40 ring-1 ring-teal-500/20"
-                : "border-slate-200 dark:border-[#263049] bg-white dark:bg-[#1C2338] hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-[#263049]"
-            }`}
-          >
-            {role === r.value && (
-              <div className="absolute top-2 right-2 h-4.5 w-4.5 rounded-full bg-teal-600 flex items-center justify-center">
-                <Check size={12} className="text-white" strokeWidth={3} />
-              </div>
-            )}
-            <span className={role === r.value ? "text-teal-600 dark:text-teal-400" : "text-slate-400 dark:text-slate-500"}>{r.icon}</span>
-            <span className={`text-sm font-semibold ${role === r.value ? "text-teal-700 dark:text-teal-300" : "text-slate-700 dark:text-[#F1F5F9]"}`}>
-              {r.label}
-            </span>
-            <span className="text-[11px] text-slate-400 dark:text-[#94A3B8] text-center leading-tight">{r.description}</span>
-          </button>
-        ))}
-      </div>
-
       {/* Full Name */}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="signup-name" className="text-sm font-medium text-slate-700 dark:text-[#F1F5F9]">Full Name</label>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="signup-name" className="text-xs font-semibold text-slate-700 dark:text-[#F1F5F9]">Full Name</label>
         <input
           id="signup-name"
           type="text"
@@ -164,7 +185,7 @@ export function SignupForm() {
           placeholder="Dr. Jane Doe"
           value={name}
           onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
-          className={`w-full rounded-lg border bg-white dark:bg-[#0B1120] px-3.5 py-2.5 text-sm text-slate-900 dark:text-[#F1F5F9] transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-teal-500 dark:focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+          className={`w-full rounded-lg border bg-white dark:bg-[#0B1120] px-3.5 py-2 text-sm text-slate-900 dark:text-[#F1F5F9] transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-teal-500 dark:focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
             fieldErrors.name ? "border-red-300 dark:border-red-500" : "border-slate-200 dark:border-[#263049]"
           }`}
         />
@@ -172,8 +193,8 @@ export function SignupForm() {
       </div>
 
       {/* Email */}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="signup-email" className="text-sm font-medium text-slate-700 dark:text-[#F1F5F9]">Email Address</label>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="signup-email" className="text-xs font-semibold text-slate-700 dark:text-[#F1F5F9]">Email Address</label>
         <input
           id="signup-email"
           type="email"
@@ -181,37 +202,37 @@ export function SignupForm() {
           placeholder="name@example.com"
           value={email}
           onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
-          className={`w-full rounded-lg border bg-white dark:bg-[#0B1120] px-3.5 py-2.5 text-sm text-slate-900 dark:text-[#F1F5F9] transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-teal-500 dark:focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+          className={`w-full rounded-lg border bg-white dark:bg-[#0B1120] px-3.5 py-2 text-sm text-slate-900 dark:text-[#F1F5F9] transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-teal-500 dark:focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
             fieldErrors.email ? "border-red-300 dark:border-red-500" : "border-slate-200 dark:border-[#263049]"
           }`}
         />
         {fieldErrors.email && <span className="text-xs text-red-600 font-medium">{fieldErrors.email}</span>}
       </div>
 
-      {/* Password */}
-      <div>
+      {/* Password + Confirm Password — Side by Side */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <PasswordInput
+            label="Password"
+            id="signup-password"
+            autoComplete="new-password"
+            placeholder="Min. 8 characters"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
+            error={fieldErrors.password}
+          />
+          <PasswordStrength password={password} />
+        </div>
         <PasswordInput
-          label="Password"
-          id="signup-password"
+          label="Confirm Password"
+          id="signup-confirm-password"
           autoComplete="new-password"
-          placeholder="Create a strong password"
-          value={password}
-          onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
-          error={fieldErrors.password}
+          placeholder="Repeat password"
+          value={confirmPassword}
+          onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
+          error={fieldErrors.confirmPassword}
         />
-        <PasswordStrength password={password} />
       </div>
-
-      {/* Confirm Password */}
-      <PasswordInput
-        label="Confirm Password"
-        id="signup-confirm-password"
-        autoComplete="new-password"
-        placeholder="Repeat your password"
-        value={confirmPassword}
-        onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}
-        error={fieldErrors.confirmPassword}
-      />
 
       {/* Terms */}
       <label className="flex items-start gap-2.5 cursor-pointer group select-none">
@@ -223,28 +244,25 @@ export function SignupForm() {
         />
         <span className={`text-xs leading-relaxed ${fieldErrors.terms ? "text-red-600" : "text-slate-500 dark:text-[#94A3B8]"}`}>
           I agree to CuraLink&apos;s{" "}
-          <Link href="/terms-of-service" className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">Terms of Service</Link> and{" "}
-          <Link href="/privacy-policy" className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">Privacy Policy</Link>
+          <Link href="/terms-of-service" target="_self" className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">Terms of Service</Link> and{" "}
+          <Link href="/privacy-policy" target="_self" className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">Privacy Policy</Link>
         </span>
       </label>
-      {fieldErrors.terms && <span className="text-xs text-red-600 font-medium -mt-3 block">{fieldErrors.terms}</span>}
+      {fieldErrors.terms && <span className="text-xs text-red-600 font-medium -mt-2 block">{fieldErrors.terms}</span>}
 
       {/* Cloudflare Turnstile Bot Protection */}
       <TurnstileWidget
         action="signup"
-        onVerify={(token) => {
-          setTurnstileToken(token);
-          clearFieldError("turnstile");
-        }}
-        onExpire={() => setTurnstileToken(null)}
-        onError={() => setTurnstileToken(null)}
+        onVerify={handleTurnstileVerify}
+        onExpire={handleTurnstileExpire}
+        onError={handleTurnstileExpire}
       />
 
       {/* Submit */}
       <button
         type="submit"
-        disabled={isLoading || !turnstileToken}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 dark:bg-teal-600 text-sm font-semibold text-white shadow-sm shadow-teal-700/20 transition-all duration-150 hover:bg-teal-800 dark:hover:bg-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:ring-offset-2 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+        disabled={isLoading}
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#085041] hover:bg-[#06382e] dark:bg-teal-600 dark:hover:bg-teal-500 text-sm font-semibold text-white shadow-sm shadow-[#085041]/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/40 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
       >
         {isLoading ? (
           <>
@@ -262,7 +280,7 @@ export function SignupForm() {
       {/* Login link */}
       <p className="text-center text-sm text-slate-500 dark:text-[#94A3B8]">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">
+        <Link href="/login" target="_self" className="font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors">
           Log in
         </Link>
       </p>

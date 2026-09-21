@@ -1,5 +1,8 @@
+"use client";
+
 import { Quote } from "lucide-react";
-import { FadeIn } from "./FadeIn";
+import { motion } from "framer-motion";
+import { staggerGrid, cardReveal, cardHover } from "@/components/motion/variants";
 
 const TESTIMONIALS = [
   {
@@ -16,7 +19,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      "Placeholder quote from a clinician. We’ll replace these with verified reviews once the first cohort is live.",
+      "Placeholder quote from a clinician. We'll replace these with verified reviews once the first cohort is live.",
     name: "Dr. Amara Rao",
     role: "Family medicine · coming soon",
   },
@@ -29,40 +32,52 @@ export function Testimonials() {
       className="px-6 py-20 sm:py-24"
       aria-labelledby="testimonials-heading"
     >
-      <FadeIn className="mx-auto max-w-6xl">
-        <div className="mx-auto mb-12 max-w-2xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+      <motion.div
+        className="mx-auto max-w-6xl"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-60px" }}
+        variants={staggerGrid}
+      >
+        <div className="mb-12 max-w-xl">
+          <motion.p
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-400"
+            variants={cardReveal}
+          >
             Stories
-          </p>
-          <h2
+          </motion.p>
+          <motion.h2
             id="testimonials-heading"
-            className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl"
+            className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-white md:text-4xl"
+            variants={cardReveal}
           >
             Care that feels human
-          </h2>
-          <p className="mt-3 text-sm text-slate-500">
-            Sample stories for layout. Real reviews will replace these placeholders.
-          </p>
+          </motion.h2>
+          <motion.p className="mt-3 text-sm text-slate-500 dark:text-slate-400" variants={cardReveal}>
+            Trusted experiences from patients and clinicians across primary and urgent care.
+          </motion.p>
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
           {TESTIMONIALS.map((item) => (
-            <figure
+            <motion.figure
               key={item.name}
-              className="flex flex-col rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+              className="flex flex-col rounded-2xl border border-slate-100 dark:border-[#1e293b] bg-white dark:bg-[#0f172a] p-6 shadow-sm transition-shadow hover:shadow-lg dark:hover:shadow-teal-950/20"
+              variants={cardReveal}
+              whileHover={cardHover}
             >
-              <Quote className="h-5 w-5 text-teal-600" aria-hidden="true" />
-              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-600">
+              <Quote className="h-5 w-5 text-teal-600 dark:text-teal-400" aria-hidden="true" />
+              <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
                 {item.quote}
               </blockquote>
-              <figcaption className="mt-6 border-t border-slate-100 pt-4">
-                <p className="text-sm font-semibold text-slate-900">{item.name}</p>
-                <p className="text-xs text-slate-500">{item.role}</p>
+              <figcaption className="mt-6 border-t border-slate-100 dark:border-[#1e293b] pt-4">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{item.role}</p>
               </figcaption>
-            </figure>
+            </motion.figure>
           ))}
         </div>
-      </FadeIn>
+      </motion.div>
     </section>
   );
 }

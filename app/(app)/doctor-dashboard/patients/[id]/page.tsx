@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -20,6 +20,9 @@ import {
   ShieldCheck,
   Download,
   User,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -64,7 +67,97 @@ export default function DoctorPatientDetailPage() {
   const [patient, setPatient] = useState<any>(null);
   const [isLoadingPatient, setIsLoadingPatient] = useState(true);
   const [vitals, setVitals] = useState<VitalsEntry[]>([]);
+  const [aiVitalsInsights, setAiVitalsInsights] = useState<any>(null);
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([]);
+  const [chartMetric, setChartMetric] = useState<"glucose" | "bp">("glucose");
+
+  const chronologicalVitals = useMemo(() => [...vitals].reverse(), [vitals]);
+
+  const chartData = useMemo(() => {
+    if (chronologicalVitals.length === 0) return null;
+
+    const points = chronologicalVitals.map((v: any) => {
+      const val =
+        chartMetric === "glucose"
+          ? (v.rawGlucose ?? parseFloat(v.bloodGlucose) ?? 100)
+          : (v.systolicBp ?? parseInt(v.bloodPressure?.split("/")[0]) ?? 120);
+      return {
+        date: v.date,
+        val,
+        original: v,
+      };
+    });
+
+    const values = points.map((p) => p.val);
+    const minRaw = Math.min(...values);
+    const maxRaw = Math.max(...values);
+
+    let min = Math.floor(minRaw * 0.9);
+    let max = Math.ceil(maxRaw * 1.1);
+
+    if (chartMetric === "glucose") {
+      min = Math.min(min, 70);
+      max = Math.max(max, 150);
+    } else {
+      min = Math.min(min, 90);
+      max = Math.max(max, 160);
+    }
+
+    const range = max - min || 1;
+    const width = 600;
+    const height = 180;
+    const pad = { top: 20, right: 30, bottom: 25, left: 45 };
+    const innerW = width - pad.left - pad.right;
+    const innerH = height - pad.top - pad.bottom;
+
+    const coords = points.map((p, idx) => {
+      const x = pad.left + (idx / (points.length - 1 || 1)) * innerW;
+      const y = pad.top + (1 - (p.val - min) / range) * innerH;
+      return { ...p, x, y };
+    });
+
+    const path = coords.reduce(
+      (acc, curr, idx) => (idx === 0 ? `M ${curr.x} ${curr.y}` : `${acc} L ${curr.x} ${curr.y}`),
+      ""
+    );
+
+    const area = coords.length > 0
+      ? `${path} L ${coords[coords.length - 1].x} ${height - pad.bottom} L ${coords[0].x} ${height - pad.bottom} Z`
+      : "";
+
+    let thresholdY1: number | null = null;
+    let thresholdLabel1 = "";
+    let thresholdY2: number | null = null;
+    let thresholdLabel2 = "";
+
+    if (chartMetric === "glucose") {
+      thresholdY1 = pad.top + (1 - (126 - min) / range) * innerH;
+      thresholdLabel1 = "126 ADA";
+      thresholdY2 = pad.top + (1 - (100 - min) / range) * innerH;
+      thresholdLabel2 = "100 Normal";
+    } else {
+      thresholdY1 = pad.top + (1 - (130 - min) / range) * innerH;
+      thresholdLabel1 = "130 HTN";
+      thresholdY2 = pad.top + (1 - (120 - min) / range) * innerH;
+      thresholdLabel2 = "120 Normal";
+    }
+
+    return {
+      points,
+      coords,
+      path,
+      area,
+      min,
+      max,
+      width,
+      height,
+      pad,
+      thresholdY1,
+      thresholdLabel1,
+      thresholdY2,
+      thresholdLabel2,
+    };
+  }, [chronologicalVitals, chartMetric]);
 
   // Prescription Form State
   const [appointmentId, setAppointmentId] = useState(initialApptId);
@@ -93,6 +186,9 @@ export default function DoctorPatientDetailPage() {
           setPatient(data.data.patient || null);
           if (Array.isArray(data.data.vitalsHistory)) {
             setVitals(data.data.vitalsHistory);
+          }
+          if (data.data.aiVitalsInsights) {
+            setAiVitalsInsights(data.data.aiVitalsInsights);
           }
           if (Array.isArray(data.data.consultations)) {
             setConsultations(data.data.consultations);
@@ -236,7 +332,88 @@ export default function DoctorPatientDetailPage() {
             <p className="text-slate-500 dark:text-slate-400">Primary Condition: <strong className="text-[#085041] dark:text-teal-400">{patient.primaryCondition || "General Health"}</strong></p>
           </div>
         </div>
+
+        {/* ── COMPACT PATIENT TRUST INDICATORS STRIP ── */}
+        {patient.trustCard && (
+          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#085041] dark:text-teal-400" />
+              Verification:
+            </span>
+
+            {/* Phone Verified Pill */}
+            {patient.trustCard.phoneVerified ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 text-[11px]">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                Phone Verified {patient.phone ? `(${patient.phone})` : ""}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60 text-[11px]">
+                <AlertCircle className="h-3 w-3 text-amber-500" />
+                Phone Unverified
+              </span>
+            )}
+
+            {/* Profile Completed Pill */}
+            {patient.trustCard.profileCompleted ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 text-[11px]">
+                <CheckCircle2 className="h-3 w-3 text-[#085041] dark:text-teal-400" />
+                Complete Profile
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[11px]">
+                Incomplete Profile
+              </span>
+            )}
+
+            {/* Member Duration */}
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-[11px]">
+              <Calendar className="h-3 w-3 text-slate-500" />
+              {patient.trustCard.memberSinceMonths > 0
+                ? `Member ${patient.trustCard.memberSinceMonths}mo`
+                : `Joined ${patient.trustCard.accountAgeInDays}d ago`}
+            </span>
+
+            {/* Completed Platform Consultations */}
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 text-[11px]">
+              {patient.trustCard.totalPastAppointments > 0
+                ? `${patient.trustCard.totalPastAppointments} past platform ${
+                    patient.trustCard.totalPastAppointments === 1 ? "visit" : "visits"
+                  }`
+                : "1st booking on platform"}
+            </span>
+
+            {/* No-show count */}
+            {patient.trustCard.noShowCount > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 text-[11px]">
+                <AlertCircle className="h-3 w-3 text-rose-600" />
+                {patient.trustCard.noShowCount} missed
+              </span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* ── AI CLINICAL DETERIORATION ALERT (DOCTOR VIEW) ── */}
+      {aiVitalsInsights?.alerts && aiVitalsInsights.alerts.length > 0 && (
+        <div className="rounded-xl border-2 border-rose-300 dark:border-rose-900 bg-rose-50/90 dark:bg-rose-950/40 p-4 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-rose-800 dark:text-rose-300 font-bold text-sm">
+              <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 animate-pulse" />
+              <span>AI Remote Monitoring Alert: Longitudinal Deterioration Flag</span>
+            </div>
+            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 uppercase">
+              {aiVitalsInsights.overallTrajectory}
+            </span>
+          </div>
+          <p className="text-xs text-rose-800 dark:text-rose-300 font-medium">
+            {aiVitalsInsights.summaryText}
+          </p>
+          <div className="text-[11px] text-slate-700 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-lg border border-rose-200 dark:border-rose-900/60">
+            <strong>Clinical Note:</strong> {aiVitalsInsights.alerts[0]?.clinicalRationale || "Review medication and consider dosage adjustment based on longitudinal trajectory."}
+          </div>
+        </div>
+      )}
 
       {/* ── VITALS CARDS (LATEST CLINICAL METRICS) ── */}
       <section className="space-y-3">
@@ -299,13 +476,214 @@ export default function DoctorPatientDetailPage() {
         )}
       </section>
 
-      {/* ── VITALS CHRONOLOGICAL HISTORY TABLE ── */}
+      {/* ── VITALS CHRONOLOGICAL HISTORY & TRENDLINE CHART ── */}
       <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0f172a]">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-            Vitals Longitudinal Tracking
-          </h3>
+        <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0f172a] flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-[#085041] dark:text-teal-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Vitals Longitudinal Trendline & Tracking
+            </h3>
+          </div>
+
+          {vitals.length > 1 && (
+            <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800 rounded-lg text-xs">
+              <button
+                type="button"
+                onClick={() => setChartMetric("glucose")}
+                className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                  chartMetric === "glucose"
+                    ? "bg-white dark:bg-[#151B2E] text-teal-800 dark:text-teal-300 shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                Glucose Trajectory
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartMetric("bp")}
+                className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                  chartMetric === "bp"
+                    ? "bg-white dark:bg-[#151B2E] text-teal-800 dark:text-teal-300 shadow-xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                Systolic BP Trajectory
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Visual SVG Trendline Chart for Doctor */}
+        {chartData && chartData.coords.length > 1 && (
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-b from-slate-50/50 to-white dark:from-[#111827]/40 dark:to-[#151B2E]">
+            <div className="flex items-center justify-between mb-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {chartMetric === "glucose" ? "Fasting Blood Glucose Drift (mg/dL)" : "Systolic Blood Pressure (mmHg)"}
+                </span>
+                {aiVitalsInsights?.metricInsights?.[chartMetric === "glucose" ? "glucose" : "bloodPressure"] && (
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                      aiVitalsInsights.metricInsights[chartMetric === "glucose" ? "glucose" : "bloodPressure"].trajectory === "DETERIORATING"
+                        ? "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800"
+                        : "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800"
+                    }`}
+                  >
+                    {aiVitalsInsights.metricInsights[chartMetric === "glucose" ? "glucose" : "bloodPressure"].trajectory === "DETERIORATING" ? (
+                      <TrendingUp className="h-3 w-3 text-rose-600" />
+                    ) : (
+                      <TrendingDown className="h-3 w-3 text-emerald-600" />
+                    )}
+                    {aiVitalsInsights.metricInsights[chartMetric === "glucose" ? "glucose" : "bloodPressure"].statusDescription}
+                  </span>
+                )}
+              </div>
+              <span className="text-slate-400 text-[11px] font-medium">
+                {chartData.points.length} consecutive readings
+              </span>
+            </div>
+
+            <div className="w-full overflow-hidden">
+              <svg viewBox={`0 0 ${chartData.width} ${chartData.height}`} className="w-full h-44 overflow-visible">
+                <defs>
+                  <linearGradient id="doctorChartGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor={chartMetric === "glucose" ? "#0D9488" : "#3B82F6"}
+                      stopOpacity="0.25"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={chartMetric === "glucose" ? "#0D9488" : "#3B82F6"}
+                      stopOpacity="0.0"
+                    />
+                  </linearGradient>
+                </defs>
+
+                {/* Threshold 1 (Red / Warning) */}
+                {chartData.thresholdY1 != null && chartData.thresholdY1 >= chartData.pad.top && chartData.thresholdY1 <= chartData.height - chartData.pad.bottom && (
+                  <g>
+                    <line
+                      x1={chartData.pad.left}
+                      y1={chartData.thresholdY1}
+                      x2={chartData.width - chartData.pad.right}
+                      y2={chartData.thresholdY1}
+                      stroke="#EF4444"
+                      strokeWidth="1"
+                      strokeDasharray="4 4"
+                      strokeOpacity="0.8"
+                    />
+                    <text
+                      x={chartData.width - chartData.pad.right - 2}
+                      y={chartData.thresholdY1 - 4}
+                      textAnchor="end"
+                      fill="#EF4444"
+                      fontSize="9"
+                      fontWeight="bold"
+                    >
+                      {chartData.thresholdLabel1}
+                    </text>
+                  </g>
+                )}
+
+                {/* Threshold 2 (Green / Normal) */}
+                {chartData.thresholdY2 != null && chartData.thresholdY2 >= chartData.pad.top && chartData.thresholdY2 <= chartData.height - chartData.pad.bottom && (
+                  <g>
+                    <line
+                      x1={chartData.pad.left}
+                      y1={chartData.thresholdY2}
+                      x2={chartData.width - chartData.pad.right}
+                      y2={chartData.thresholdY2}
+                      stroke="#10B981"
+                      strokeWidth="1"
+                      strokeDasharray="4 4"
+                      strokeOpacity="0.8"
+                    />
+                    <text
+                      x={chartData.width - chartData.pad.right - 2}
+                      y={chartData.thresholdY2 - 4}
+                      textAnchor="end"
+                      fill="#10B981"
+                      fontSize="9"
+                      fontWeight="bold"
+                    >
+                      {chartData.thresholdLabel2}
+                    </text>
+                  </g>
+                )}
+
+                {/* Area under curve */}
+                {chartData.area && (
+                  <path d={chartData.area} fill="url(#doctorChartGrad)" />
+                )}
+
+                {/* Trajectory Line */}
+                <path
+                  d={chartData.path}
+                  fill="none"
+                  stroke={chartMetric === "glucose" ? "#0D9488" : "#3B82F6"}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                {/* Data Points */}
+                {chartData.coords.map((c, i) => (
+                  <g key={i}>
+                    <circle
+                      cx={c.x}
+                      cy={c.y}
+                      r={i === chartData.coords.length - 1 ? "4.5" : "3"}
+                      fill={i === chartData.coords.length - 1 ? "#EF4444" : "#0D9488"}
+                      stroke="#ffffff"
+                      strokeWidth="1.5"
+                      className="transition-all hover:scale-125 cursor-pointer"
+                    >
+                      <title>{`${c.date}: ${c.val} ${chartMetric === "glucose" ? "mg/dL" : "mmHg"}`}</title>
+                    </circle>
+                  </g>
+                ))}
+
+                {/* X-axis date labels */}
+                {chartData.coords.length > 0 && (
+                  <g fill="#94A3B8" fontSize="10">
+                    <text x={chartData.coords[0].x} y={chartData.height - 8} textAnchor="start">
+                      {chartData.coords[0].date}
+                    </text>
+                    {chartData.coords.length > 4 && (
+                      <text
+                        x={chartData.coords[Math.floor(chartData.coords.length / 2)].x}
+                        y={chartData.height - 8}
+                        textAnchor="middle"
+                      >
+                        {chartData.coords[Math.floor(chartData.coords.length / 2)].date}
+                      </text>
+                    )}
+                    <text
+                      x={chartData.coords[chartData.coords.length - 1].x}
+                      y={chartData.height - 8}
+                      textAnchor="end"
+                    >
+                      {chartData.coords[chartData.coords.length - 1].date}
+                    </text>
+                  </g>
+                )}
+
+                {/* Y-axis labels */}
+                <g fill="#94A3B8" fontSize="9" textAnchor="end">
+                  <text x={chartData.pad.left - 6} y={chartData.pad.top + 10}>
+                    {chartData.max}
+                  </text>
+                  <text x={chartData.pad.left - 6} y={chartData.height - chartData.pad.bottom}>
+                    {chartData.min}
+                  </text>
+                </g>
+              </svg>
+            </div>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold">

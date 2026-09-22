@@ -4,6 +4,7 @@ import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { Role } from '../types/role';
+import { VitalsAiService } from '../services/vitals-ai.service';
 
 const router = Router();
 
@@ -97,6 +98,13 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
             name: true,
             email: true,
             role: true,
+            phone: true,
+            phoneVerified: true,
+            age: true,
+            gender: true,
+            profileCompletedAt: true,
+            noShowCount: true,
+            createdAt: true,
           },
         },
         doctor: {
@@ -122,25 +130,59 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
     });
 
-    const mapped = appointments.map((appt) => ({
-      id: appt.id,
-      patientId: appt.userId,
-      patientName: appt.user?.name || 'Unknown Patient',
-      patientEmail: appt.user?.email || '',
-      date: appt.date,
-      time: appt.time,
-      status: appt.status,
-      roomName: appt.roomName || `curalink-room-${appt.id.slice(0, 8)}`,
-      roomUrl: appt.roomUrl || `/consultation/${appt.id}`,
-      prescription: appt.prescription,
-      hasPrescription: Boolean(appt.prescription),
-      review: appt.review,
-      paymentStatus: appt.payment?.status || 'PENDING',
-      fee: appt.payment?.amount || 500,
-      createdAt: appt.createdAt,
-      doctor: appt.doctor,
-      user: appt.user,
-    }));
+    // Query platform-wide completed appointment counts for all patient users in this list
+    const patientIds = Array.from(new Set(appointments.map((a) => a.userId)));
+    const completedCounts = await prisma.appointment.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: patientIds },
+        status: 'COMPLETED',
+      },
+      _count: { id: true },
+    });
+    const completedMap = new Map<string, number>();
+    completedCounts.forEach((c) => completedMap.set(c.userId, c._count.id));
+
+    const mapped = appointments.map((appt) => {
+      const u = appt.user;
+      const createdAt = u?.createdAt ? new Date(u.createdAt) : new Date();
+      const accountAgeInDays = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
+      const completedCount = completedMap.get(appt.userId) || 0;
+      const isProfileComplete = Boolean(
+        (u as any)?.profileCompletedAt ||
+        (u?.name && (u as any)?.age && (u as any)?.gender)
+      );
+
+      const trustCard = {
+        phoneVerified: Boolean((u as any)?.phoneVerified),
+        profileCompleted: isProfileComplete,
+        accountAgeInDays,
+        memberSinceMonths: Math.max(1, Math.round(accountAgeInDays / 30)),
+        totalPastAppointments: completedCount,
+        noShowCount: (u as any)?.noShowCount || 0,
+      };
+
+      return {
+        id: appt.id,
+        patientId: appt.userId,
+        patientName: appt.user?.name || 'Unknown Patient',
+        patientEmail: appt.user?.email || '',
+        date: appt.date,
+        time: appt.time,
+        status: appt.status,
+        roomName: appt.roomName || `curalink-room-${appt.id.slice(0, 8)}`,
+        roomUrl: appt.roomUrl || `/consultation/${appt.id}`,
+        prescription: appt.prescription,
+        hasPrescription: Boolean(appt.prescription),
+        review: appt.review,
+        paymentStatus: appt.payment?.status || 'PENDING',
+        fee: appt.payment?.amount || 500,
+        createdAt: appt.createdAt,
+        doctor: appt.doctor,
+        user: appt.user,
+        trustCard,
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -237,6 +279,12 @@ router.get('/patients', async (req: Request, res: Response, next: NextFunction) 
             id: true,
             name: true,
             email: true,
+            phone: true,
+            phoneVerified: true,
+            age: true,
+            gender: true,
+            profileCompletedAt: true,
+            noShowCount: true,
             createdAt: true,
           },
         },
@@ -256,6 +304,19 @@ router.get('/patients', async (req: Request, res: Response, next: NextFunction) 
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
     });
 
+    // Query platform-wide completed appointment counts for all patient users in this list
+    const patientIds = Array.from(new Set(appointments.map((a) => a.userId)));
+    const completedCounts = await prisma.appointment.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: patientIds },
+        status: 'COMPLETED',
+      },
+      _count: { id: true },
+    });
+    const completedMap = new Map<string, number>();
+    completedCounts.forEach((c) => completedMap.set(c.userId, c._count.id));
+
     const patientMap = new Map<string, any>();
 
     // Conditions and risk map based on diagnosis
@@ -274,6 +335,24 @@ router.get('/patients', async (req: Request, res: Response, next: NextFunction) 
           risk = 'Moderate';
         }
 
+        const u = appt.user;
+        const createdAt = u?.createdAt ? new Date(u.createdAt) : new Date();
+        const accountAgeInDays = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
+        const completedCount = completedMap.get(pid) || 0;
+        const isProfileComplete = Boolean(
+          (u as any)?.profileCompletedAt ||
+          (u?.name && (u as any)?.age && (u as any)?.gender)
+        );
+
+        const trustCard = {
+          phoneVerified: Boolean((u as any)?.phoneVerified),
+          profileCompleted: isProfileComplete,
+          accountAgeInDays,
+          memberSinceMonths: Math.max(1, Math.round(accountAgeInDays / 30)),
+          totalPastAppointments: completedCount,
+          noShowCount: (u as any)?.noShowCount || 0,
+        };
+
         patientMap.set(pid, {
           id: pid,
           name: appt.user.name,
@@ -286,6 +365,7 @@ router.get('/patients', async (req: Request, res: Response, next: NextFunction) 
           riskLevel: risk,
           totalVisits: 1,
           latestAppointmentId: appt.id,
+          trustCard,
         });
       } else {
         const existing = patientMap.get(pid);
@@ -319,6 +399,12 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
         name: true,
         email: true,
         role: true,
+        phone: true,
+        phoneVerified: true,
+        age: true,
+        gender: true,
+        profileCompletedAt: true,
+        noShowCount: true,
         createdAt: true,
       },
     });
@@ -327,6 +413,30 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
       res.status(404).json({ success: false, message: 'Patient not found' });
       return;
     }
+
+    // Platform-wide completed appointment count for this patient
+    const completedApptCount = await prisma.appointment.count({
+      where: {
+        userId: patientId,
+        status: 'COMPLETED',
+      },
+    });
+
+    const pCreatedAt = patient.createdAt ? new Date(patient.createdAt) : new Date();
+    const pAccountAgeInDays = Math.max(0, Math.floor((Date.now() - pCreatedAt.getTime()) / (1000 * 60 * 60 * 24)));
+    const isProfileComplete = Boolean(
+      (patient as any).profileCompletedAt ||
+      (patient.name && (patient as any).age && (patient as any).gender)
+    );
+
+    const trustCard = {
+      phoneVerified: Boolean((patient as any).phoneVerified),
+      profileCompleted: isProfileComplete,
+      accountAgeInDays: pAccountAgeInDays,
+      memberSinceMonths: Math.max(1, Math.round(pAccountAgeInDays / 30)),
+      totalPastAppointments: completedApptCount,
+      noShowCount: (patient as any).noShowCount || 0,
+    };
 
     const appointments = await prisma.appointment.findMany({
       where: {
@@ -367,34 +477,71 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
       orderBy: { createdAt: 'desc' },
     });
 
-    // Generate chronological vitals history (derived from clinical timeline)
-    const dates = appointments.length > 0 
-      ? appointments.map(a => a.date) 
-      : ['2026-09-01', '2026-09-10', '2026-09-18'];
+    // Query real vitals from database
+    const realVitalLogs = await (prisma as any).vitalLog.findMany({
+      where: { userId: patientId },
+      orderBy: { recordedAt: 'desc' },
+      take: 45,
+    });
 
-    const vitalsHistory = dates.slice(0, 5).map((date, idx) => ({
-      date,
-      bloodPressure: `${118 + idx * 3}/${78 + idx * 2} mmHg`,
-      heartRate: `${72 + (idx % 3) * 4} bpm`,
-      temperature: `${98.4 + (idx % 2) * 0.4} °F`,
-      spO2: `${98 + (idx % 2)}%`,
-      bloodGlucose: `${95 + idx * 5} mg/dL`,
-      weight: `${68 + idx * 0.5} kg`,
-    }));
+    let vitalsHistory: any[] = [];
+    let aiHealthReport = null;
+
+    if (realVitalLogs.length > 0) {
+      vitalsHistory = realVitalLogs.map((log: any) => {
+        const d = new Date(log.recordedAt);
+        return {
+          id: log.id,
+          date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          isoDate: d.toISOString(),
+          timestamp: d.getTime(),
+          bloodPressure: log.systolicBp && log.diastolicBp ? `${log.systolicBp}/${log.diastolicBp} mmHg` : '120/80 mmHg',
+          systolicBp: log.systolicBp,
+          diastolicBp: log.diastolicBp,
+          bloodGlucose: log.bloodGlucose ? `${log.bloodGlucose} mg/dL` : '100 mg/dL',
+          rawGlucose: log.bloodGlucose,
+          glucoseType: log.glucoseType,
+          heartRate: log.heartRate ? `${log.heartRate} bpm` : '72 bpm',
+          temperature: log.temperature ? `${log.temperature} °F` : '98.6 °F',
+          spO2: log.spO2 ? `${log.spO2}%` : '98%',
+          weight: log.weight ? `${log.weight} kg` : '68 kg',
+          rawWeight: log.weight,
+        };
+      });
+      aiHealthReport = VitalsAiService.analyzeVitals(realVitalLogs);
+    } else {
+      // Fallback if no real vitals have been logged yet
+      const dates = appointments.length > 0 
+        ? appointments.map(a => a.date) 
+        : ['2026-09-01', '2026-09-10', '2026-09-18'];
+
+      vitalsHistory = dates.slice(0, 5).map((date, idx) => ({
+        date,
+        bloodPressure: `${118 + idx * 3}/${78 + idx * 2} mmHg`,
+        heartRate: `${72 + (idx % 3) * 4} bpm`,
+        temperature: `${98.4 + (idx % 2) * 0.4} °F`,
+        spO2: `${98 + (idx % 2)}%`,
+        bloodGlucose: `${95 + idx * 5} mg/dL`,
+        weight: `${68 + idx * 0.5} kg`,
+      }));
+    }
 
     res.status(200).json({
       success: true,
       data: {
         patient: {
           ...patient,
+          phone: (patient as any).phone || null,
+          age: (patient as any).age || 32,
+          gender: (patient as any).gender || 'Not specified',
           bloodGroup: 'A+',
-          age: 32,
-          gender: 'Not specified',
           emergencyContact: '+91 98765 43210',
+          trustCard,
         },
         consultations: appointments,
         prescriptions,
         vitalsHistory,
+        aiVitalsInsights: aiHealthReport,
       },
     });
   } catch (error) {

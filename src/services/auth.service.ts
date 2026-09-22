@@ -16,6 +16,13 @@ export interface SafeUser {
   name: string;
   email: string;
   role: Role;
+  phone?: string | null;
+  phoneVerified?: boolean;
+  age?: number | null;
+  gender?: string | null;
+  profileCompletedAt?: Date | null;
+  noShowCount?: number;
+  profileCompleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -372,43 +379,72 @@ export class AuthService {
     return this.toSafeUser(user);
   }
 
-  private toSafeUser(user: {
-    id: string;
-    name: string;
-    email: string;
-    role: Role | string;
-    createdAt: Date;
-    updatedAt: Date;
-  }): SafeUser {
+  private toSafeUser(user: any): SafeUser {
+    const isProfileComplete = Boolean(
+      user.profileCompletedAt ||
+      (user.name && user.age && user.gender)
+    );
+
     return {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role as Role,
+      phone: user.phone || null,
+      phoneVerified: Boolean(user.phoneVerified),
+      age: user.age || null,
+      gender: user.gender || null,
+      profileCompletedAt: user.profileCompletedAt || null,
+      noShowCount: user.noShowCount || 0,
+      profileCompleted: isProfileComplete,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
   }
 
-  async updateProfile(userId: string, name: string, email: string): Promise<SafeUser> {
+  async updateProfile(
+    userId: string,
+    input: { name: string; email: string; phone?: string; age?: number; gender?: string; phoneVerified?: boolean } | string,
+    optionalEmail?: string
+  ): Promise<SafeUser> {
+    const name = typeof input === 'string' ? input : input.name;
+    const email = typeof input === 'string' ? (optionalEmail || '') : input.email;
+    const phone = typeof input === 'object' ? input.phone : undefined;
+    const age = typeof input === 'object' ? input.age : undefined;
+    const gender = typeof input === 'object' ? input.gender : undefined;
+    const phoneVerified = typeof input === 'object' ? input.phoneVerified : undefined;
+
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser && existingUser.id !== userId) {
       throw new ConflictError('Email is already in use by another account');
     }
 
+    const currentUser: any = await prisma.user.findUnique({ where: { id: userId } });
+    const finalName = name ?? currentUser?.name;
+    const finalAge = age !== undefined ? age : currentUser?.age;
+    const finalGender = gender !== undefined ? gender : currentUser?.gender;
+
+    const isComplete = Boolean(finalName && finalAge && finalGender);
+    const profileCompletedAt = isComplete
+      ? (currentUser?.profileCompletedAt || new Date())
+      : null;
+
+    const updateData: any = {
+      name,
+      email,
+    };
+    if (phone !== undefined) updateData.phone = phone;
+    if (age !== undefined) updateData.age = age;
+    if (gender !== undefined) updateData.gender = gender;
+    if (phoneVerified !== undefined) updateData.phoneVerified = phoneVerified;
+    if (profileCompletedAt !== undefined) updateData.profileCompletedAt = profileCompletedAt;
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { name, email },
+      data: updateData,
     });
 
-    return {
-      id: updatedUser.id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      role: updatedUser.role as Role,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
-    };
+    return this.toSafeUser(updatedUser);
   }
 
   async forgotPassword(email: string): Promise<string | null> {

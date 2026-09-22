@@ -1,4 +1,5 @@
-import { isGeminiConfigured, streamGeminiChat } from "@/lib/gemini";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { isGeminiConfigured } from "@/lib/gemini";
 import {
   detectEmergency,
   DISCLAIMER,
@@ -10,30 +11,47 @@ export const maxDuration = 30;
 // Simple in-memory rate limiter for the symptom checker
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
-const SYMPTOM_CHECKER_SYSTEM_PROMPT = `You are CuraLink's advanced AI Symptom Checker. You are a highly professional, empathetic, and knowledgeable virtual health assistant.
-Your goal is to help users understand their symptoms and provide general medical information, while strictly maintaining that you are an AI and NOT providing professional medical advice, diagnosis, or treatment.
+const SYMPTOM_CHECKER_SYSTEM_PROMPT = `You are CuraLink's advanced AI Symptom Checker. You are a highly professional, empathetic, and knowledgeable virtual clinical assistant.
+Your goal is to help users understand their symptoms and provide general clinical guidance, while strictly maintaining that you are an AI and NEVER providing definitive medical diagnosis, prescription, or treatment.
 
-You MUST return a valid JSON object (no markdown, no backticks, no extra text) matching this EXACT structure:
+You MUST return a valid JSON object matching this EXACT structure:
 {
   "urgencyLevel": "LOW" | "MEDIUM" | "HIGH",
   "triageCategory": "GREEN" | "YELLOW" | "RED",
-  "summary": "Brief empathetic summary of the assessment",
-  "possibleCauses": ["Cause 1", "Cause 2", "Cause 3"],
-  "recommendedAction": "What the patient should do next",
-  "suggestBooking": true or false (true if they should see a doctor)
+  "summary": "Empathetic, clinically accurate summary tailored specifically to the patient's inputs",
+  "possibleCauses": ["Specific Cause 1", "Specific Cause 2", "Specific Cause 3"],
+  "recommendedAction": "Actionable next steps for the user",
+  "suggestBooking": true or false
 }
 
-Classification rules:
-- LOW (GREEN): Mild symptoms, self-care appropriate. suggestBooking = false.
-- MEDIUM (YELLOW): Moderate symptoms needing monitoring. suggestBooking = true.
-- HIGH (RED): Serious symptoms needing prompt medical attention. suggestBooking = true.
+Clinical classification & behavior rules:
+1. VAGUE, AMBIGUOUS, OR NON-SYMPTOM MESSAGES (e.g., "I am ill, can you give me some medicine to feel relief", "I am ill", "give me medicine", "help me feel better", "I feel sick"):
+   - When the user does NOT provide specific symptoms (body location, duration, characteristics, or nature of illness):
+   - You MUST NOT guess or hallucinate generic conditions like "Common Cold", "Seasonal Allergies", or "Mild Tension".
+   - In "summary": Empathize warmly, ask clarifying questions (e.g. asking what specific symptoms they are experiencing like fever, headache, body aches, cough, or stomach pain, when they started, and how severe they are), and explicitly state: "As an AI clinical assistant, I cannot prescribe, recommend, or dispense medications."
+   - In "possibleCauses": Return exactly ["Insufficient symptom details provided to identify possible causes"].
+   - In "recommendedAction": State: "Please describe your specific symptoms (e.g., location, duration, severity). If you require prescription medication or medical evaluation, please book a consultation with a licensed CuraLink doctor."
+   - urgencyLevel: "LOW", triageCategory: "GREEN", suggestBooking: false.
+
+2. CHRONIC OR PROLONGED SYMPTOMS (e.g., lasting > 6 weeks, multiple months, persistent progressive pain, like "back pain around 2 months"):
+   - Symptoms lasting 2 months or more are CHRONIC, not acute. Chronic conditions require formal clinical investigation (e.g., physical assessment, imaging, ergonomic review).
+   - ALWAYS classify symptoms lasting 2 months or more as at least 'MEDIUM' (YELLOW) urgency, with suggestBooking = true.
+   - For back pain: Provide specific causes such as Musculoskeletal lumbar strain, Posture or ergonomic strain, Herniated or bulging intervertebral disc, or Degenerative disc changes. Never return respiratory or allergy causes for musculoskeletal pain.
+   - recommendedAction: Recommend consulting a healthcare professional or physical therapist on CuraLink for formal clinical evaluation and imaging. Advise gentle activity, avoiding heavy lifting, and proper posture.
+
+3. ACUTE MODERATE SYMPTOMS (fever >101°F, persistent cough >3 days, moderate rash, vomiting, migraines):
+   - urgencyLevel: "MEDIUM" (YELLOW), suggestBooking = true.
+
+4. SEVERE OR HIGH RISK SYMPTOMS (high fever 104°F with lethargy/drowsiness, severe acute pain, signs of systemic infection):
+   - urgencyLevel: "HIGH" (RED), suggestBooking = true.
+
+5. MILD TRANSIENT SYMPTOMS (mild tension after screen time, minor temporary itch for <2 days, slight fatigue):
+   - urgencyLevel: "LOW" (GREEN), suggestBooking = false.
 
 Guidelines:
-1. Always be empathetic and professional in your summary.
-2. List 2-4 possible causes (common and less common) — never diagnose.
-3. For MEDIUM/HIGH, recommend booking a CuraLink consultation.
-4. For LOW, recommend self-care with monitoring.
-5. Return ONLY the JSON object, nothing else.`;
+- NEVER prescribe or recommend specific medications.
+- Always provide symptom-specific possible causes directly matching the body area and duration. Never return generic respiratory causes for non-respiratory complaints.
+- Return ONLY the valid JSON object.`;
 
 /**
  * Extracts the latest user message text from the messages array.
@@ -111,11 +129,101 @@ async function fetchMLUrgency(symptomText: string) {
   return null;
 }
 
+/**
+ * Calls Gemini with automatic retries and exponential backoff.
+ * Fallbacks across candidate models if 503 (high demand) or 404 is encountered.
+ */
+async function callGeminiWithRetry(
+  prompt: string,
+  systemInstruction: string,
+  maxRetries = 2
+): Promise<{ text: string; modelUsed: string; attempts: number }> {
+  const apiKey = process.env.GEMINI_API_KEY!.trim();
+  const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
+  const genAI = new GoogleGenerativeAI(apiKey);
+
+  // Verified available model chain: configured model -> flash-latest -> 3.5-flash-lite -> 3.6-flash
+  const modelChain = [configuredModel, "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-3.6-flash"];
+
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    const currentModelName = modelChain[Math.min(attempt - 1, modelChain.length - 1)];
+    const timeoutMs = 18000; // 18 seconds timeout per attempt
+
+    console.log(
+      `\n======================================================`
+    );
+    console.log(
+      `[Symptom Checker API] [Attempt ${attempt}/${maxRetries + 1}] Calling Gemini model: ${currentModelName}`
+    );
+    console.log(`[Symptom Checker API] [Attempt ${attempt}] EXACT PROMPT SENT TO GEMINI:`);
+    console.log(`"""\n${prompt}\n"""`);
+
+    const callStartTime = Date.now();
+
+    try {
+      const model = genAI.getGenerativeModel({
+        model: currentModelName,
+        systemInstruction,
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      });
+
+      const result: any = await Promise.race([
+        model.generateContent(prompt),
+        new Promise((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `Gemini call to ${currentModelName} timed out after ${timeoutMs / 1000}s`
+                )
+              ),
+            timeoutMs
+          )
+        ),
+      ]);
+
+      const responseText = result.response.text();
+      const callDuration = Date.now() - callStartTime;
+
+      console.log(
+        `[Symptom Checker API] [Attempt ${attempt}] Gemini responded in ${callDuration}ms`
+      );
+      console.log(`[Symptom Checker API] [Attempt ${attempt}] EXACT RAW RESPONSE RECEIVED:`);
+      console.log(responseText);
+
+      return { text: responseText, modelUsed: currentModelName, attempts: attempt };
+    } catch (err: any) {
+      lastError = err;
+      const callDuration = Date.now() - callStartTime;
+      const status = err?.status || err?.code || "UNKNOWN";
+      console.error(
+        `[Symptom Checker API] [Attempt ${attempt}] ❌ Gemini call failed after ${callDuration}ms (Status: ${status}):`,
+        err?.message || err
+      );
+
+      if (attempt <= maxRetries) {
+        const backoffDelay = attempt * 1000;
+        console.log(
+          `[Symptom Checker API] Retrying in ${backoffDelay}ms with backoff...`
+        );
+        await new Promise((r) => setTimeout(r, backoffDelay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 export async function POST(req: Request) {
   const startTime = Date.now();
 
   try {
-    // Rate Limiting Logic (20 requests per hour per IP)
+    // Rate Limiting Logic (30 requests per hour per IP)
     const ip = req.headers.get("x-forwarded-for") || "unknown";
     const now = Date.now();
     const windowMs = 60 * 60 * 1000; // 1 hour
@@ -126,7 +234,7 @@ export async function POST(req: Request) {
       rateLimitStore.set(ip, rateLimit);
     } else {
       rateLimit.count++;
-      if (rateLimit.count > 20) {
+      if (rateLimit.count > 30) {
         return new Response(
           JSON.stringify({
             error:
@@ -148,15 +256,17 @@ export async function POST(req: Request) {
 
     const latestMessage = getLatestUserMessage(messages);
 
+    console.log(`\n[Symptom Checker API] Incoming request for symptom: "${latestMessage}"`);
+
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1: EMERGENCY DETECTION — runs SYNCHRONOUSLY before any API call
-    // This is the core safety mechanism. No network latency.
+    // This is the core safety mechanism. Zero network latency.
     // ═══════════════════════════════════════════════════════════════════
     const emergencyResult = detectEmergency(latestMessage);
     if (emergencyResult) {
       const elapsed = Date.now() - startTime;
       console.log(
-        `[Symptom Checker] 🚨 EMERGENCY short-circuit in ${elapsed}ms (no Gemini call made)`
+        `[Symptom Checker API] 🚨 EMERGENCY short-circuit in ${elapsed}ms: ${emergencyResult.summary}`
       );
       return new Response(
         JSON.stringify({
@@ -171,218 +281,91 @@ export async function POST(req: Request) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 2: AI-powered analysis via Gemini (only for non-emergency)
+    // STEP 2: AI-powered analysis via Gemini with Retries and Backoff
     // ═══════════════════════════════════════════════════════════════════
-    const geminiReady = isGeminiConfigured();
-    console.log(
-      `[Symptom Checker] Gemini configured: ${geminiReady} | Model: ${process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash"}`
-    );
-
-    if (geminiReady) {
-      try {
-        // Use non-streaming generateContent for structured JSON response
-        const { GoogleGenerativeAI } = await import(
-          "@google/generative-ai"
-        );
-        const apiKey = process.env.GEMINI_API_KEY!.trim();
-        const modelName =
-          process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: SYMPTOM_CHECKER_SYSTEM_PROMPT,
-          generationConfig: {
-            temperature: 0.3,
-          },
-        });
-
-        const result = await model.generateContent(latestMessage);
-        const responseText = result.response.text();
-        const parsed = parseGeminiJson(responseText);
-
-        if (parsed && parsed.urgencyLevel) {
-          const elapsed = Date.now() - startTime;
-          console.log(
-            `[Symptom Checker] Gemini response in ${elapsed}ms | urgency: ${parsed.urgencyLevel}`
-          );
-
-          const mlPrediction = await fetchMLUrgency(latestMessage);
-
-          const analysis: SymptomAnalysis = {
-            urgencyLevel: (parsed.urgencyLevel as SymptomAnalysis["urgencyLevel"]) || "LOW",
-            triageCategory: (parsed.triageCategory as SymptomAnalysis["triageCategory"]) || "GREEN",
-            summary: parsed.summary || "Assessment complete.",
-            possibleCauses: parsed.possibleCauses || [],
-            recommendedAction:
-              parsed.recommendedAction || "Monitor your symptoms.",
-            suggestBooking: parsed.suggestBooking ?? false,
-            disclaimer: DISCLAIMER,
-            isEmergency: false,
-            responseTimeMs: elapsed,
-            mlPrediction,
-          };
-
-          return new Response(JSON.stringify(analysis), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-      } catch (geminiErr: any) {
-        console.error(
-          "[Symptom Checker] Gemini error, falling back to rule engine:",
-          geminiErr?.message || geminiErr
-        );
-        // Fall through to rule-based engine
-      }
+    if (!isGeminiConfigured()) {
+      console.error("[Symptom Checker API] ❌ GEMINI_API_KEY is not configured in .env");
+      return new Response(
+        JSON.stringify({
+          error:
+            "Clinical AI engine is not configured. Please ensure GEMINI_API_KEY is set in your environment.",
+        }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // STEP 3: Rule-based fallback (if Gemini is unavailable or fails)
-    // ═══════════════════════════════════════════════════════════════════
-    const fallbackResult = runRuleBasedTriage(latestMessage);
-    const mlPrediction = await fetchMLUrgency(latestMessage);
-    const elapsed = Date.now() - startTime;
-    console.log(
-      `[Symptom Checker] Rule-based fallback in ${elapsed}ms | urgency: ${fallbackResult.urgencyLevel}`
-    );
+    try {
+      const { text: responseText, modelUsed, attempts } = await callGeminiWithRetry(
+        latestMessage,
+        SYMPTOM_CHECKER_SYSTEM_PROMPT,
+        2
+      );
 
-    return new Response(
-      JSON.stringify({ ...fallbackResult, mlPrediction, responseTimeMs: elapsed }),
-      {
+      const parsed = parseGeminiJson(responseText);
+
+      if (!parsed || !parsed.urgencyLevel) {
+        console.error(
+          "[Symptom Checker API] ❌ Failed to parse Gemini response as valid SymptomAnalysis JSON:",
+          responseText
+        );
+        throw new Error("Invalid JSON structure returned by clinical AI engine.");
+      }
+
+      const elapsed = Date.now() - startTime;
+      console.log(
+        `[Symptom Checker API] ✅ Analysis complete in ${elapsed}ms | Model: ${modelUsed} (${attempts} attempts) | Urgency: ${parsed.urgencyLevel} (${parsed.triageCategory})`
+      );
+
+      const mlPrediction = await fetchMLUrgency(latestMessage);
+
+      const analysis: SymptomAnalysis = {
+        urgencyLevel: (parsed.urgencyLevel as SymptomAnalysis["urgencyLevel"]) || "LOW",
+        triageCategory: (parsed.triageCategory as SymptomAnalysis["triageCategory"]) || "GREEN",
+        summary: parsed.summary || "Assessment complete.",
+        possibleCauses: parsed.possibleCauses || [],
+        recommendedAction:
+          parsed.recommendedAction || "Monitor your symptoms.",
+        suggestBooking: parsed.suggestBooking ?? false,
+        disclaimer: DISCLAIMER,
+        isEmergency: false,
+        responseTimeMs: elapsed,
+        mlPrediction,
+        mlUrgency: mlPrediction?.urgencyLevel ?? null,
+        mlConfidence: mlPrediction?.confidence ?? null,
+        mlConfidencePercentage: mlPrediction?.confidencePercentage ?? null,
+      };
+
+      return new Response(JSON.stringify(analysis), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
-    );
+      });
+    } catch (geminiError: any) {
+      const elapsed = Date.now() - startTime;
+      console.error(
+        `[Symptom Checker API] ❌ All Gemini retry attempts failed after ${elapsed}ms:`,
+        geminiError?.message || geminiError
+      );
+
+      // Return an honest error message — NEVER return a generic fake medical response disguised as real guidance
+      return new Response(
+        JSON.stringify({
+          error:
+            "Our AI clinical analysis service is temporarily unavailable. Please try again in a few moments, or consult a licensed doctor on CuraLink directly.",
+          details: geminiError?.message || "Service timeout or upstream error",
+        }),
+        {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
   } catch (error: any) {
-    console.error("Symptom checker error:", error);
+    console.error("[Symptom Checker API] ❌ Unhandled symptom checker error:", error);
     return new Response(
       JSON.stringify({
-        error: error.message || "An error occurred during symptom analysis.",
+        error: error?.message || "An unexpected error occurred during symptom analysis.",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
-}
-
-/**
- * Rule-based triage engine for when AI is unavailable.
- * Classifies into LOW/MEDIUM/HIGH with appropriate recommendations.
- */
-function runRuleBasedTriage(symptoms: string): SymptomAnalysis {
-  const text = symptoms.toLowerCase();
-
-  // HIGH — serious symptoms
-  if (
-    text.includes("high fever") ||
-    text.includes("104") ||
-    text.includes("103") ||
-    text.includes("blood in") ||
-    text.includes("severe pain") ||
-    text.includes("persistent vomiting") ||
-    text.includes("blurred vision") ||
-    text.includes("swelling") ||
-    text.includes("lump")
-  ) {
-    return {
-      urgencyLevel: "HIGH",
-      triageCategory: "RED",
-      summary: `Potentially serious symptoms detected. We strongly recommend seeing a doctor promptly.`,
-      possibleCauses: [
-        "Serious Infection",
-        "Acute Inflammatory Condition",
-        "Condition requiring medical evaluation",
-      ],
-      recommendedAction:
-        "Please book a doctor consultation on CuraLink as soon as possible. If symptoms worsen rapidly, consider visiting an emergency room.",
-      suggestBooking: true,
-      disclaimer: DISCLAIMER,
-      isEmergency: false,
-    };
-  }
-
-  // Check if mild symptom (e.g. mild headache, slight fatigue)
-  const isExplicitlyMild =
-    (text.includes("mild") || text.includes("slight") || text.includes("minor")) &&
-    !text.includes("fever") &&
-    !text.includes("severe") &&
-    !text.includes("high") &&
-    !text.includes("3 days") &&
-    !text.includes("persistent");
-
-  if (isExplicitlyMild) {
-    return {
-      urgencyLevel: "LOW",
-      triageCategory: "GREEN",
-      summary: `Your symptoms appear mild and are commonly manageable with self-care. Monitor for any changes.`,
-      possibleCauses: [
-        "Mild Tension or Fatigue",
-        "Common Cold / Upper Respiratory Irritation",
-        "Mild Seasonal Allergies",
-        "Dehydration or Physical Strain",
-      ],
-      recommendedAction:
-        "Rest, stay hydrated, and take over-the-counter pain relief if needed. If symptoms persist beyond 48 hours or worsen, consider booking a CuraLink consultation.",
-      suggestBooking: false,
-      disclaimer: DISCLAIMER,
-      isEmergency: false,
-    };
-  }
-
-  // MEDIUM — moderate symptoms
-  if (
-    text.includes("fever") ||
-    text.includes("101") ||
-    text.includes("102") ||
-    text.includes("headache") ||
-    text.includes("migraine") ||
-    text.includes("stomach") ||
-    text.includes("abdomen") ||
-    text.includes("rash") ||
-    text.includes("infection") ||
-    text.includes("vomit") ||
-    text.includes("nausea") ||
-    text.includes("dizziness") ||
-    text.includes("joint pain") ||
-    text.includes("burn") ||
-    text.includes("3 days") ||
-    text.includes("persistent") ||
-    text.includes("getting worse") ||
-    text.includes("not improving")
-  ) {
-    return {
-      urgencyLevel: "MEDIUM",
-      triageCategory: "YELLOW",
-      summary: `Your symptoms suggest a moderate concern that may benefit from professional evaluation. Monitoring is recommended.`,
-      possibleCauses: [
-        "Viral or Bacterial Infection",
-        "Inflammatory Response",
-        "Tension or Migraine Headache",
-        "Gastrointestinal Issue",
-      ],
-      recommendedAction:
-        "We recommend booking a consultation with a CuraLink doctor within the next 24-48 hours. In the meantime, stay hydrated, rest, and monitor your temperature.",
-      suggestBooking: true,
-      disclaimer: DISCLAIMER,
-      isEmergency: false,
-    };
-  }
-
-  // LOW — mild symptoms
-  return {
-    urgencyLevel: "LOW",
-    triageCategory: "GREEN",
-    summary: `Your symptoms appear mild and are commonly manageable with self-care. Monitor for any changes.`,
-    possibleCauses: [
-      "Mild Tension or Fatigue",
-      "Common Cold / Upper Respiratory Irritation",
-      "Mild Seasonal Allergies",
-      "Dehydration or Physical Strain",
-    ],
-    recommendedAction:
-      "Rest, stay hydrated, and take over-the-counter pain relief if needed. If symptoms persist beyond 48 hours or worsen, consider booking a CuraLink consultation.",
-    suggestBooking: false,
-    disclaimer: DISCLAIMER,
-    isEmergency: false,
-  };
 }

@@ -36,11 +36,21 @@ interface DoctorStats {
   verificationStatus: string;
 }
 
+interface TrustCardData {
+  phoneVerified: boolean;
+  profileCompleted: boolean;
+  accountAgeInDays: number;
+  memberSinceMonths: number;
+  totalPastAppointments: number;
+  noShowCount: number;
+}
+
 interface AppointmentItem {
   id: string;
   patientId: string;
   patientName: string;
   patientEmail: string;
+  patientPhone?: string;
   date: string;
   time: string;
   status: string;
@@ -49,18 +59,21 @@ interface AppointmentItem {
   fee: number;
   paymentStatus: string;
   hasPrescription: boolean;
+  trustCard?: TrustCardData;
 }
 
 interface PatientItem {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   lastVisit: string;
   lastVisitDate: string;
   lastStatus: string;
   primaryCondition: string;
   riskLevel: "Low" | "Moderate" | "High";
   totalVisits: number;
+  trustCard?: TrustCardData;
 }
 
 // Clean clinical initial state
@@ -340,17 +353,94 @@ export default function DoctorDashboardPage() {
                       <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                         {/* Patient info */}
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center">
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center shrink-0 mt-0.5">
                               {appt.patientName.charAt(0)}
                             </div>
-                            <div>
-                              <p className="font-semibold text-slate-900 dark:text-white">
-                                {appt.patientName}
-                              </p>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                                {appt.patientEmail}
-                              </p>
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Link
+                                  href={`/doctor-dashboard/patients/${appt.patientId}`}
+                                  className="font-semibold text-slate-900 dark:text-white hover:text-[#085041] dark:hover:text-teal-400 transition-colors"
+                                >
+                                  {appt.patientName}
+                                </Link>
+                                <span className="text-[11px] text-slate-400 dark:text-slate-500">·</span>
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[150px]">
+                                  {appt.patientEmail}
+                                </span>
+                              </div>
+
+                              {/* Compact Patient Trust Card / Verification Indicators */}
+                              {appt.trustCard && (
+                                <div className="flex items-center gap-1 flex-wrap text-[10px]">
+                                  {/* Phone Verification Pill */}
+                                  {appt.trustCard.phoneVerified ? (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
+                                      title="Phone verified via OTP"
+                                    >
+                                      <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
+                                      Phone Verified
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60"
+                                      title="Patient has not verified phone number"
+                                    >
+                                      <AlertCircle className="h-2.5 w-2.5 text-amber-500" />
+                                      Unverified
+                                    </span>
+                                  )}
+
+                                  {/* Profile Completed Pill */}
+                                  {appt.trustCard.profileCompleted ? (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60"
+                                      title="Profile Complete (Name, Age, Gender)"
+                                    >
+                                      <ShieldCheck className="h-2.5 w-2.5 text-[#085041] dark:text-teal-400" />
+                                      Complete
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                                      title="Incomplete demographic profile"
+                                    >
+                                      Incomplete
+                                    </span>
+                                  )}
+
+                                  {/* Member Duration */}
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80">
+                                    {appt.trustCard.memberSinceMonths > 0
+                                      ? `Member ${appt.trustCard.memberSinceMonths}mo`
+                                      : appt.trustCard.accountAgeInDays > 0
+                                      ? `New (${appt.trustCard.accountAgeInDays}d)`
+                                      : "New patient"}
+                                  </span>
+
+                                  {/* Past platform appointments */}
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
+                                    {appt.trustCard.totalPastAppointments > 0
+                                      ? `${appt.trustCard.totalPastAppointments} past ${
+                                          appt.trustCard.totalPastAppointments === 1 ? "visit" : "visits"
+                                        }`
+                                      : "1st visit"}
+                                  </span>
+
+                                  {/* No show warning */}
+                                  {appt.trustCard.noShowCount > 0 && (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60"
+                                      title="Patient missed scheduled appointments without prior cancellation"
+                                    >
+                                      <AlertCircle className="h-2.5 w-2.5 text-rose-600" />
+                                      {appt.trustCard.noShowCount} missed
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -511,6 +601,25 @@ export default function DoctorDashboardPage() {
                         <td className="px-5 py-3.5">
                           <p className="font-semibold text-slate-900 dark:text-white">{patient.name}</p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">{patient.email}</p>
+                          {patient.trustCard && (
+                            <div className="flex items-center gap-1 mt-1 flex-wrap text-[10px]">
+                              {patient.trustCard.phoneVerified ? (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />
+                                  Phone Verified
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60">
+                                  Unverified
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                {patient.trustCard.memberSinceMonths > 0
+                                  ? `${patient.trustCard.memberSinceMonths}mo`
+                                  : `${patient.trustCard.accountAgeInDays}d`}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3.5 text-slate-700 dark:text-slate-300">
                           <p className="font-medium">{patient.lastVisit}</p>

@@ -244,7 +244,7 @@ export class AuthController {
 
       const validatedInput = profileSchema.parse(req.body);
 
-      const updatedUser = await authService.updateProfile(req.user.id, validatedInput.name, validatedInput.email);
+      const updatedUser = await authService.updateProfile(req.user.id, validatedInput);
 
       await auditService.logAction(AuditAction.PROFILE_UPDATE, req.user.id, 'User', req.user.id, req.ip, req.headers['user-agent']);
 

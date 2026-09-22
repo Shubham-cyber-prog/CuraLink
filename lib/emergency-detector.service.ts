@@ -59,6 +59,9 @@ export interface SymptomAnalysis {
     confidencePercentage?: number;
     modelType?: string;
   } | null;
+  mlUrgency?: string | null;
+  mlConfidence?: number | null;
+  mlConfidencePercentage?: number | null;
 }
 
 const DISCLAIMER =

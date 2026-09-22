@@ -20,6 +20,7 @@ import {
   Settings,
   ArrowRight,
   User,
+  Activity,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -32,6 +33,7 @@ export interface NavLink {
 
 const NAV_ITEMS: NavLink[] = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
+  { label: "Vitals & Trends", href: "/vitals", icon: Activity },
   { label: "Doctors", href: "/find-doctor", icon: Stethoscope },
   { label: "Appointments", href: "/appointments", icon: Calendar },
   { label: "Records", href: "/records", icon: FileText },

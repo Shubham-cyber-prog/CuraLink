@@ -36,6 +36,9 @@ interface SymptomAnalysis {
     confidencePercentage?: number;
     modelType?: string;
   } | null;
+  mlUrgency?: string | null;
+  mlConfidence?: number | null;
+  mlConfidencePercentage?: number | null;
 }
 
 interface ChatMessage {
@@ -94,29 +97,36 @@ function AnalysisCard({ analysis }: { analysis: SymptomAnalysis }) {
   const config =
     URGENCY_CONFIG[analysis.urgencyLevel] || URGENCY_CONFIG.LOW;
   const UrgencyIcon = config.icon;
+  const mlUrgency = analysis.mlUrgency || analysis.mlPrediction?.urgencyLevel;
+  const mlConfidencePct =
+    analysis.mlConfidencePercentage ??
+    (analysis.mlConfidence != null
+      ? Math.round(analysis.mlConfidence * 100)
+      : analysis.mlPrediction?.confidencePercentage ??
+        (analysis.mlPrediction?.confidence
+          ? Math.round(analysis.mlPrediction.confidence * 100)
+          : null));
 
   return (
     <div
       className={`rounded-2xl border-2 ${config.bgClass} overflow-hidden shadow-sm`}
     >
       {/* Urgency Header */}
-      <div className="flex items-center gap-2 px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-black/5 dark:border-white/5">
         <UrgencyIcon className={`h-5 w-5 ${config.iconColor} shrink-0`} />
         <span
           className={`text-xs font-bold px-2 py-0.5 rounded-full ${config.badgeClass}`}
         >
           {config.label}
         </span>
-        {analysis.mlPrediction && (
+        {mlUrgency && (
           <span
-            className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700/60"
-            title={`Clinical ML Text Classifier: ${analysis.mlPrediction.modelType || 'TF-IDF Logistic Regression'}`}
+            className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-slate-200 border border-slate-300/60 dark:border-slate-700/60 flex items-center gap-1"
+            title={`Clinical ML Text Classifier: ${analysis.mlPrediction?.modelType || 'TF-IDF Logistic Regression'}`}
           >
-            ML Classifier: {analysis.mlPrediction.urgencyLevel} (
-            {analysis.mlPrediction.confidencePercentage
-              ? `${analysis.mlPrediction.confidencePercentage}%`
-              : `${Math.round(analysis.mlPrediction.confidence * 100)}%`}
-            )
+            <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6]" />
+            ML Classifier: {mlUrgency}
+            {mlConfidencePct != null && ` (${mlConfidencePct}%)`}
           </span>
         )}
         {analysis.responseTimeMs != null && (
@@ -127,7 +137,32 @@ function AnalysisCard({ analysis }: { analysis: SymptomAnalysis }) {
       </div>
 
       {/* Body */}
-      <div className={`px-4 pb-4 space-y-3 ${config.textClass}`}>
+      <div className={`px-4 py-3.5 space-y-3 ${config.textClass}`}>
+        {/* Dual-Signal Consensus Indicator */}
+        {mlUrgency && (
+          <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-2.5 text-xs shadow-xs">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-[11px]">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Dual-Engine Clinical Verification
+              </span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">2 independent models</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">1. Conversational AI (Gemini)</p>
+                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{analysis.urgencyLevel} Urgency</p>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">2. Custom Clinical ML Classifier</p>
+                <p className="font-bold text-slate-900 dark:text-white mt-0.5">
+                  {mlUrgency} {mlConfidencePct != null && `(${mlConfidencePct}% confidence)`}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Summary */}
         <p className="text-sm font-medium leading-relaxed">
           {analysis.summary}

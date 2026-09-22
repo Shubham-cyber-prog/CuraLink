@@ -14,6 +14,12 @@ model User {
   passwordHash String?
   googleId     String?  @unique
   role         String   @default("PATIENT")
+  phone        String?
+  phoneVerified Boolean  @default(false)
+  age          Int?
+  gender       String?
+  profileCompletedAt DateTime?
+  noShowCount  Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -26,6 +32,7 @@ model User {
   reviewsReceived Review[]        @relation("DoctorReviews")
   prescriptions   Prescription[]  @relation("PatientPrescriptions")
   dataErasures    DataErasureRequest[]
+  vitalLogs       VitalLog[]
 
   @@map("users")
 }
@@ -162,3 +169,26 @@ model DataErasureRequest {
 
   @@map("data_erasure_requests")
 }
+
+model VitalLog {
+  id              String   @id @default(uuid())
+  userId          String
+  systolicBp      Int?     // mmHg (e.g. 120)
+  diastolicBp     Int?     // mmHg (e.g. 80)
+  bloodGlucose    Float?   // mg/dL (e.g. 110.5)
+  glucoseType     String?  @default("FASTING") // FASTING, POST_PRANDIAL, RANDOM
+  weight          Float?   // kg (e.g. 72.5)
+  heartRate       Int?     // bpm (e.g. 72)
+  spO2            Int?     // % (e.g. 98)
+  temperature     Float?   // °F (e.g. 98.6)
+  notes           String?
+  recordedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+  @@map("vital_logs")
+}
+

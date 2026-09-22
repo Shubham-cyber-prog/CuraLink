@@ -43,32 +43,32 @@ export default function HealthRiskPage() {
   const [result, setResult] = useState<RiskResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Diabetes Form State
+  // Diabetes Form State (pre-filled with clinical test values)
   const [diabetesForm, setDiabetesForm] = useState({
-    pregnancies: 0,
-    glucose: 110,
-    bloodPressure: 72,
-    skinThickness: 20,
-    insulin: 85,
-    bmi: 26.5,
-    diabetesPedigreeFunction: 0.45,
-    age: 38,
+    pregnancies: 2,
+    glucose: 140,
+    bloodPressure: 80,
+    skinThickness: 25,
+    insulin: 100,
+    bmi: 32,
+    diabetesPedigreeFunction: 0.5,
+    age: 45,
   });
 
-  // Heart Form State
+  // Heart Form State (pre-filled with clinical test values featuring ca & thal)
   const [heartForm, setHeartForm] = useState({
-    age: 52,
+    age: 58,
     sex: 1,
-    cp: 0,
-    trestbps: 128,
-    chol: 220,
+    cp: 1,
+    trestbps: 135,
+    chol: 245,
     fbs: 0,
     restecg: 0,
-    thalach: 152,
-    exang: 0,
-    oldpeak: 0.8,
+    thalach: 140,
+    exang: 1,
+    oldpeak: 1.5,
     slope: 1,
-    ca: 0,
+    ca: 1,
     thal: 2,
   });
 
@@ -317,6 +317,26 @@ export default function HealthRiskPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Skin Fold Thickness (mm)
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      max="99"
+                      value={diabetesForm.skinThickness}
+                      onChange={(e) =>
+                        setDiabetesForm({
+                          ...diabetesForm,
+                          skinThickness: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                    <span className="text-[11px] text-slate-400">Triceps fold (avg ~20 mm)</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Serum Insulin (mu U/ml)
                     </label>
                     <input
@@ -332,6 +352,28 @@ export default function HealthRiskPage() {
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
                     />
+                    <span className="text-[11px] text-slate-400">Normal: 16–166 mu U/ml</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Diabetes Pedigree Function
+                    </label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="0.05"
+                      max="2.5"
+                      value={diabetesForm.diabetesPedigreeFunction}
+                      onChange={(e) =>
+                        setDiabetesForm({
+                          ...diabetesForm,
+                          diabetesPedigreeFunction: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                    />
+                    <span className="text-[11px] text-slate-400">Family genetic score (0.1–2.0)</span>
                   </div>
 
                   <div>
@@ -357,7 +399,7 @@ export default function HealthRiskPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
                   {isLoading ? (
                     <>
@@ -416,6 +458,24 @@ export default function HealthRiskPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Chest Pain Type (cp)
+                    </label>
+                    <select
+                      value={heartForm.cp}
+                      onChange={(e) =>
+                        setHeartForm({ ...heartForm, cp: parseInt(e.target.value) })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    >
+                      <option value={0}>Typical Angina (0)</option>
+                      <option value={1}>Atypical Angina (1)</option>
+                      <option value={2}>Non-Anginal Pain (2)</option>
+                      <option value={3}>Asymptomatic (3)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Resting Blood Pressure (mm Hg)
                     </label>
                     <input
@@ -458,7 +518,7 @@ export default function HealthRiskPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Maximum Heart Rate Achieved
+                      Max Heart Rate Achieved (thalach)
                     </label>
                     <input
                       type="number"
@@ -478,7 +538,7 @@ export default function HealthRiskPage() {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Exercise-Induced Angina
+                      Exercise-Induced Angina (exang)
                     </label>
                     <select
                       value={heartForm.exang}
@@ -491,12 +551,109 @@ export default function HealthRiskPage() {
                       <option value={1}>Yes (Chest discomfort during exercise)</option>
                     </select>
                   </div>
+
+                  {/* Top contributor: ca */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Major Fluoroscopy Vessels (ca: 0–3)
+                    </label>
+                    <select
+                      value={heartForm.ca}
+                      onChange={(e) =>
+                        setHeartForm({ ...heartForm, ca: parseInt(e.target.value) })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    >
+                      <option value={0}>0 vessels colored (clear flow)</option>
+                      <option value={1}>1 vessel colored</option>
+                      <option value={2}>2 vessels colored</option>
+                      <option value={3}>3 vessels colored (significant)</option>
+                    </select>
+                    <span className="text-[11px] text-slate-400 font-medium text-rose-600 dark:text-rose-400">
+                      ★ Top Model Predictor (+1.11 weight)
+                    </span>
+                  </div>
+
+                  {/* Top contributor: thal */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Thalassemia Flow Status (thal)
+                    </label>
+                    <select
+                      value={heartForm.thal}
+                      onChange={(e) =>
+                        setHeartForm({ ...heartForm, thal: parseInt(e.target.value) })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    >
+                      <option value={1}>1 = Normal Blood Flow</option>
+                      <option value={2}>2 = Fixed Perfusion Defect</option>
+                      <option value={3}>3 = Reversible Perfusion Defect</option>
+                    </select>
+                    <span className="text-[11px] text-slate-400 font-medium text-rose-600 dark:text-rose-400">
+                      ★ Top Model Predictor (+0.68 weight)
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Exercise ST Depression (oldpeak)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="6.5"
+                      value={heartForm.oldpeak}
+                      onChange={(e) =>
+                        setHeartForm({
+                          ...heartForm,
+                          oldpeak: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    />
+                    <span className="text-[11px] text-slate-400">ST depression in mm (0.0–6.0)</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Peak Exercise ST Slope
+                    </label>
+                    <select
+                      value={heartForm.slope}
+                      onChange={(e) =>
+                        setHeartForm({ ...heartForm, slope: parseInt(e.target.value) })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    >
+                      <option value={0}>0 = Upsloping</option>
+                      <option value={1}>1 = Flat</option>
+                      <option value={2}>2 = Downsloping</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Fasting Blood Sugar &gt; 120 mg/dL
+                    </label>
+                    <select
+                      value={heartForm.fbs}
+                      onChange={(e) =>
+                        setHeartForm({ ...heartForm, fbs: parseInt(e.target.value) })
+                      }
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                    >
+                      <option value={0}>No (Normal FBS &le; 120)</option>
+                      <option value={1}>Yes (Elevated FBS &gt; 120)</option>
+                    </select>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="w-full mt-4 flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
                   {isLoading ? (
                     <>

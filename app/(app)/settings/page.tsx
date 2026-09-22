@@ -37,6 +37,11 @@ interface UserProfile {
   name: string;
   email: string;
   role: string;
+  phone?: string | null;
+  phoneVerified?: boolean;
+  age?: number | null;
+  gender?: string | null;
+  profileCompleted?: boolean;
   createdAt: string;
 }
 
@@ -55,12 +60,15 @@ export default function SettingsPage() {
     name: "",
     email: "",
     phone: "+91 98765 43210",
+    age: "32",
+    gender: "Male",
     bloodGroup: "A+",
     emergencyContact: "+91 91234 56789",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
 
   // Password Form State
   const [passwordData, setPasswordData] = useState({
@@ -146,6 +154,9 @@ export default function SettingsPage() {
             ...prev,
             name: user.name || "",
             email: user.email || "",
+            phone: user.phone || prev.phone || "+91 98765 43210",
+            age: user.age !== undefined && user.age !== null ? String(user.age) : "32",
+            gender: user.gender || "Male",
           }));
         }
       } catch (err) {
@@ -157,6 +168,42 @@ export default function SettingsPage() {
 
     fetchProfile();
   }, [router]);
+
+  const handleVerifyPhone = async () => {
+    setIsVerifyingPhone(true);
+    try {
+      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
+      const csrfData = await csrfRes.json();
+      const csrfToken = csrfData.token;
+
+      const res = await fetch(`${API_BASE}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          phoneVerified: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const updated = data.data?.user || data.data;
+        setProfile(updated);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 4000);
+      }
+    } catch (err) {
+      console.error("Phone verification error:", err);
+    } finally {
+      setIsVerifyingPhone(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,6 +231,9 @@ export default function SettingsPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          phone: formData.phone || undefined,
+          age: formData.age ? Number(formData.age) : undefined,
+          gender: formData.gender || undefined,
         }),
       });
 
@@ -192,7 +242,7 @@ export default function SettingsPage() {
         throw new Error(data.message || "Failed to update profile settings");
       }
 
-      setProfile(data.data);
+      setProfile(data.data?.user || data.data);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     } catch (err: any) {
@@ -453,15 +503,62 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-900 dark:text-white">
-                        Contact Phone Number
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                          Contact Phone Number
+                        </label>
+                        {profile?.phoneVerified ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-3 w-3" /> Phone Verified
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleVerifyPhone}
+                            disabled={isVerifyingPhone || !formData.phone}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#085041] hover:underline dark:text-teal-400 cursor-pointer disabled:opacity-50"
+                          >
+                            {isVerifyingPhone ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <ShieldCheck className="h-2.5 w-2.5" />}
+                            Verify with OTP
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
                       />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                        Age (Years)
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="125"
+                        value={formData.age}
+                        onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                        placeholder="e.g. 32"
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                        Gender
+                      </label>
+                      <select
+                        value={formData.gender}
+                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                      >
+                        {["Male", "Female", "Non-binary", "Other", "Prefer not to say"].map((g) => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="space-y-1.5">

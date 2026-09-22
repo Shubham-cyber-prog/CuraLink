@@ -104,30 +104,30 @@ class UrgencyInput(BaseModel):
 
 # Friendly display names for explainability
 DIABETES_FEATURE_LABELS = {
-    "pregnancies": "Pregnancies History",
     "glucose": "Blood Glucose Level",
-    "blood_pressure": "Diastolic Blood Pressure",
-    "skin_thickness": "Skin Fold Thickness",
-    "insulin": "Serum Insulin Level",
     "bmi": "Body Mass Index (BMI)",
+    "pregnancies": "Pregnancies History",
     "diabetes_pedigree_function": "Family Genetic Predisposition",
     "age": "Patient Age",
+    "skin_thickness": "Skin Fold Thickness",
+    "blood_pressure": "Diastolic Blood Pressure",
+    "insulin": "Serum Insulin Level",
 }
 
 HEART_FEATURE_LABELS = {
-    "age": "Patient Age",
+    "ca": "Major Vessels (ca)",
+    "thal": "Thalassemia (thal)",
     "sex": "Biological Sex",
-    "cp": "Chest Pain Pattern",
+    "cp": "Chest Pain Pattern (cp)",
+    "exang": "Exercise-Induced Angina",
+    "slope": "Peak ST Slope",
+    "thalach": "Max Heart Rate Capacity (thalach)",
     "trestbps": "Resting Blood Pressure",
     "chol": "Serum Cholesterol",
-    "fbs": "Fasting Blood Sugar",
     "restecg": "Resting Electrocardiogram",
-    "thalach": "Max Heart Rate Capacity",
-    "exang": "Exercise-Induced Angina",
     "oldpeak": "Exercise ST Depression",
-    "slope": "Peak ST Slope",
-    "ca": "Major Fluoroscopy Vessels",
-    "thal": "Thalassemia Flow Status",
+    "fbs": "Fasting Blood Sugar",
+    "age": "Patient Age",
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -189,22 +189,24 @@ def predict_diabetes_risk(data: DiabetesInput):
         risk_level = "LOW"
         recommendation = "Low estimated risk. Continue maintaining balanced nutrition, regular exercise, and healthy weight."
 
-    # Compute Feature Contributions (w_i * z_i) for explainability
+    # Compute Feature Importance using trained model coefficients w_i
     coefs = clf.coef_[0]
     scaled_vals = x_scaled[0]
     contributions = []
 
     for name, raw, z, w in zip(feature_names, raw_vals, scaled_vals, coefs):
-        contrib = float(w * z)
+        w_val = float(w)
         contributions.append({
             "feature": name,
             "displayName": DIABETES_FEATURE_LABELS.get(name, name),
             "rawValue": round(raw, 2),
-            "contribution": round(contrib, 3),
-            "direction": "increases_risk" if contrib > 0 else "protective",
+            "contribution": round(w_val, 2),
+            "direction": "increases_risk" if w_val > 0 else "protective",
+            "coefficient": round(w_val, 3),
+            "patientImpact": round(float(w * z), 3),
         })
 
-    # Sort by absolute impact descending
+    # Sort by absolute model coefficient impact descending
     contributions.sort(key=lambda item: abs(item["contribution"]), reverse=True)
 
     return {
@@ -263,13 +265,15 @@ def predict_heart_risk(data: HeartInput):
     contributions = []
 
     for name, raw, z, w in zip(feature_names, raw_vals, scaled_vals, coefs):
-        contrib = float(w * z)
+        w_val = float(w)
         contributions.append({
             "feature": name,
             "displayName": HEART_FEATURE_LABELS.get(name, name),
             "rawValue": round(raw, 2),
-            "contribution": round(contrib, 3),
-            "direction": "increases_risk" if contrib > 0 else "protective",
+            "contribution": round(w_val, 2),
+            "direction": "increases_risk" if w_val > 0 else "protective",
+            "coefficient": round(w_val, 3),
+            "patientImpact": round(float(w * z), 3),
         })
 
     contributions.sort(key=lambda item: abs(item["contribution"]), reverse=True)

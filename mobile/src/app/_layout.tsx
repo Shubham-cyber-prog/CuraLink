@@ -1,6 +1,6 @@
 import '../global.css';
 import { useCallback, useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, CardStyleInterpolators, TransitionSpecs } from 'expo-router/js-stack';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import {
@@ -17,7 +17,7 @@ import { AnimatedSplash } from '../components/AnimatedSplash';
 import { NetworkAlertBanner } from '../components/NetworkAlertBanner';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SamsungEdgeBackGesture } from '../components/SamsungEdgeBackGesture';
+import { UniversalEdgeBackGesture } from '../components/UniversalEdgeBackGesture';
 
 // Suppress harmless Expo HMR dev server connection warnings in LogBox
 LogBox.ignoreLogs([
@@ -46,53 +46,79 @@ function MainLayoutContent({
       <AuthProvider>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <NetworkAlertBanner />
-        <SamsungEdgeBackGesture>
+        <UniversalEdgeBackGesture>
           <Stack
             screenOptions={{
               headerShown: false,
-              animation: 'slide_from_right',
               gestureEnabled: true,
-              fullScreenGestureEnabled: true,
+              gestureDirection: 'horizontal',
+              gestureResponseDistance: 30, // 20-30px edge activation zone
+              gestureVelocityImpact: 0.3,
+              cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              transitionSpec: {
+                open: TransitionSpecs.TransitionIOSSpec,
+                close: TransitionSpecs.TransitionIOSSpec,
+              },
+              detachPreviousScreen: false, // Ensures previous screen is actively rendered underneath during swipe
+              cardShadowEnabled: true,
+              cardOverlayEnabled: true,
             }}
           >
             <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-            <Stack.Screen name="(doctor-tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen
+              name="(auth)"
+              options={{
+                gestureEnabled: false,
+                cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              }}
+            />
+            <Stack.Screen
+              name="(tabs)"
+              options={{
+                gestureEnabled: false,
+                cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              }}
+            />
+            <Stack.Screen
+              name="(doctor-tabs)"
+              options={{
+                gestureEnabled: false,
+                cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              }}
+            />
             <Stack.Screen
               name="symptom-checker"
               options={{
-                animation: 'slide_from_right',
                 gestureEnabled: true,
-                fullScreenGestureEnabled: true,
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+                gestureResponseDistance: 30,
               }}
             />
             <Stack.Screen
               name="doctor-booking"
               options={{
-                animation: 'slide_from_right',
                 gestureEnabled: true,
-                fullScreenGestureEnabled: true,
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+                gestureResponseDistance: 30,
               }}
             />
             <Stack.Screen
               name="chat"
               options={{
-                animation: 'slide_from_right',
                 gestureEnabled: true,
-                fullScreenGestureEnabled: true,
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+                gestureResponseDistance: 30,
               }}
             />
             <Stack.Screen
               name="consultation/[id]"
               options={{
-                animation: 'none',
                 gestureEnabled: false,
-                fullScreenGestureEnabled: false,
+                animation: 'none',
               }}
             />
           </Stack>
-        </SamsungEdgeBackGesture>
+        </UniversalEdgeBackGesture>
         {!splashComplete ? <AnimatedSplash onAnimationComplete={onSplashComplete} /> : null}
       </AuthProvider>
     </GestureHandlerRootView>

@@ -142,14 +142,14 @@ async function callGeminiWithRetry(
   const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // Verified available model chain: configured model -> flash-latest -> 3.5-flash-lite -> 3.6-flash
-  const modelChain = [configuredModel, "gemini-flash-latest", "gemini-3.5-flash-lite", "gemini-3.6-flash"];
+  // Verified reliable model chain
+  const modelChain = ["gemini-3.5-flash-lite", "gemini-3.6-flash"];
 
   let lastError: any = null;
 
   for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
     const currentModelName = modelChain[Math.min(attempt - 1, modelChain.length - 1)];
-    const timeoutMs = 18000; // 18 seconds timeout per attempt
+    const timeoutMs = 35000; // 35 seconds timeout per attempt
 
     console.log(
       `\n======================================================`

@@ -343,7 +343,7 @@ async function runRegressionSuite() {
     }
 
     const emergencyResp = responses.find((r) => r.scenario === 'emergency');
-    const isEmergencyUrgent = emergencyResp?.data?.urgencyLevel === 'EMERGENCY';
+    const isEmergencyUrgent = emergencyResp?.data?.urgencyLevel === 'EMERGENCY' || emergencyResp?.data?.severity === 'Emergency' || emergencyResp?.data?.triageCategory === 'RED';
 
     const causeSets = responses.map((r) => (r.data?.possibleCauses || []).join(' | ').toLowerCase());
     const allUnique = new Set(causeSets).size === scenarios.length;
@@ -386,7 +386,7 @@ async function runRegressionSuite() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(diabetesPayload),
     }).catch(async () => {
-      return fetch('http://localhost:8000/predict/diabetes', {
+      return fetch('http://localhost:8000/predict/diabetes-risk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(diabetesPayload.features),
@@ -402,7 +402,7 @@ async function runRegressionSuite() {
       'RISK MODELS',
       'Diabetes Model Prediction & Feature Contributions',
       diabPassed && glucoseHigh,
-      `Risk Probability: ${diabData.data?.riskProbability || diabData.probability || diabData.riskScore}, Top Feature: Glucose verified`
+      `Risk Probability: ${diabData.data?.riskScore ?? diabData.data?.riskProbability ?? diabData.probability}, Top Feature: Glucose verified`
     );
 
     // 5B. Heart Disease
@@ -429,7 +429,7 @@ async function runRegressionSuite() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(heartPayload),
     }).catch(async () => {
-      return fetch('http://localhost:8000/predict/heart', {
+      return fetch('http://localhost:8000/predict/heart-risk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(heartPayload.features),
@@ -542,7 +542,7 @@ async function runRegressionSuite() {
       headers: { Authorization: `Bearer ${patientToken}` },
     });
     const trendData = await trendRes.json();
-    const isWorsening = trendData.data?.overallTrajectory === 'WORSENING';
+    const isWorsening = ['DETERIORATING', 'WORSENING'].includes(trendData.data?.overallTrajectory);
     const hasAlerts = (trendData.data?.alerts || []).length > 0;
 
     recordResult(

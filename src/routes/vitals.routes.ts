@@ -278,6 +278,9 @@ router.get('/trends', optionalAuthenticate, async (req: Request, res: Response, 
       data: {
         timeSeries: trendPoints,
         insights: aiReport,
+        overallTrajectory: aiReport.overallTrajectory,
+        alerts: aiReport.alerts,
+        summaryText: aiReport.summaryText,
       },
     });
   } catch (error) {

@@ -52,6 +52,27 @@ router.post('/heart', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/predict', async (req: Request, res: Response) => {
+  try {
+    const { modelType, features } = req.body;
+    const type = (modelType || req.body.type || '').toLowerCase();
+    const data = features || req.body.data || req.body;
+    if (type === 'diabetes') {
+      const result = await mlServiceClient.predictDiabetesRisk(data);
+      res.status(200).json({ success: true, data: result });
+      return;
+    }
+    if (type === 'heart') {
+      const result = await mlServiceClient.predictHeartRisk(data);
+      res.status(200).json({ success: true, data: result });
+      return;
+    }
+    res.status(400).json({ success: false, error: 'Invalid modelType: must be diabetes or heart' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Error running risk prediction' });
+  }
+});
+
 /**
  * POST /api/risk/urgency
  * Predict clinical symptom urgency using the custom-trained text classifier.

@@ -92,7 +92,7 @@ function checkEmergencyKeywords(text: string): AnalysisResult | null {
   return null;
 }
 
-router.post('/', async (req: Request, res: Response) => {
+const handleSymptomAnalysis = async (req: Request, res: Response) => {
   const startTime = Date.now();
 
   try {
@@ -123,6 +123,7 @@ router.post('/', async (req: Request, res: Response) => {
         success: true,
         data: {
           ...emergency,
+          urgencyLevel: 'EMERGENCY',
           mlPrediction: mlPrediction ? {
             urgencyLevel: mlPrediction.urgencyLevel,
             confidence: mlPrediction.confidence,
@@ -145,8 +146,7 @@ router.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    const configuredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest';
-    const modelChain = [configuredModel, 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+    const modelChain = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
     const genAI = new GoogleGenerativeAI(geminiKey);
 
     let parsedResult: AnalysisResult | null = null;
@@ -172,7 +172,7 @@ router.post('/', async (req: Request, res: Response) => {
         const result = await Promise.race([
           model.generateContent(symptoms),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Gemini call timed out after 18s`)), 18000)
+            setTimeout(() => reject(new Error(`Gemini call timed out after 35s`)), 35000)
           ),
         ]) as any;
 
@@ -181,7 +181,11 @@ router.post('/', async (req: Request, res: Response) => {
         console.log(`[Express Symptom Route] [Attempt ${attempt}] Response in ${callDuration}ms:`);
         console.log(text);
 
-        parsedResult = JSON.parse(text) as AnalysisResult;
+        let cleanText = text.trim();
+        if (cleanText.startsWith('```')) {
+          cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+        }
+        parsedResult = JSON.parse(cleanText) as AnalysisResult;
         break; // Success!
       } catch (err: any) {
         lastError = err;
@@ -214,6 +218,11 @@ router.post('/', async (req: Request, res: Response) => {
       success: true,
       data: {
         ...parsedResult,
+        urgencyLevel: (parsedResult.severity?.toUpperCase() === 'EMERGENCY' || parsedResult.triageCategory === 'RED')
+          ? 'EMERGENCY'
+          : (parsedResult.severity?.toUpperCase() === 'MODERATE' || parsedResult.triageCategory === 'YELLOW')
+          ? 'MODERATE'
+          : 'LOW',
         mlPrediction: mlPrediction ? {
           urgencyLevel: mlPrediction.urgencyLevel,
           confidence: mlPrediction.confidence,
@@ -229,6 +238,9 @@ router.post('/', async (req: Request, res: Response) => {
       message: error?.message || 'Error evaluating symptoms',
     });
   }
-});
+};
+
+router.post('/', handleSymptomAnalysis);
+router.post('/analyze', handleSymptomAnalysis);
 
 export default router;

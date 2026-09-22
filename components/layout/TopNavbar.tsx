@@ -108,22 +108,28 @@ export function TopNavbar({ customNavItems }: { customNavItems?: NavLink[] } = {
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem("curalink_token");
+      sessionStorage.removeItem("curalink_token");
+
       const csrfRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/csrf-token`
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/csrf-token`,
+        { credentials: "include" }
       );
-      const csrfData = await csrfRes.json();
+      const csrfData = await csrfRes.json().catch(() => ({ token: "" }));
       await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/logout`,
         {
           method: "POST",
-          headers: { "X-CSRF-Token": csrfData.token },
+          headers: { "X-CSRF-Token": csrfData?.token || "" },
           credentials: "include",
         }
       );
     } catch (err) {
       console.error("Logout failed:", err);
     } finally {
-      router.push("/login");
+      localStorage.removeItem("curalink_token");
+      sessionStorage.removeItem("curalink_token");
+      window.location.href = "/login";
     }
   };
 

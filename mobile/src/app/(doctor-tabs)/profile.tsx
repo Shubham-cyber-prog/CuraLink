@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Pressable, Switch, Alert, TouchableOpacity, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Stethoscope,
@@ -33,17 +33,15 @@ export default function DoctorProfileScreen() {
   const [telehealthActive, setTelehealthActive] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const handleLogout = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out of your doctor portal?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-        },
-      },
-    ]);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
+    await logout();
   };
 
   const doctorName = user?.name ? (user.name.startsWith('Dr.') ? user.name : `Dr. ${user.name}`) : 'Dr. Physician';
@@ -216,6 +214,32 @@ export default function DoctorProfileScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={showLogoutModal} animationType="fade" transparent onRequestClose={() => setShowLogoutModal(false)}>
+        <View className="flex-1 bg-black/60 justify-center px-6">
+          <Card className="bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049] p-6 rounded-3xl space-y-4">
+            <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">
+              Sign Out of Doctor Portal?
+            </Text>
+            <Text className="font-inter text-sm text-slate-500 dark:text-slate-400">
+              You will need to sign in again to access patient records, appointments, and consultations.
+            </Text>
+            <View className="flex-row gap-3 pt-2">
+              <View className="flex-1">
+                <Button
+                  title="Cancel"
+                  variant="outline"
+                  onPress={() => setShowLogoutModal(false)}
+                />
+              </View>
+              <View className="flex-1">
+                <Button title="Sign Out" onPress={confirmLogout} />
+              </View>
+            </View>
+          </Card>
+        </View>
+      </Modal>
     </View>
   );
 }

@@ -70,9 +70,9 @@ export async function streamGeminiChat({
     );
   }
 
-  // Default to gemini-3.6-flash which is the current recommended model
-  const modelName = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
-  console.log(`[Gemini] Using model: ${modelName} | API key present: true`);
+  const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
+  const modelChain = Array.from(new Set([configuredModel, "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"]));
+  console.log(`[Gemini] Model chain: ${modelChain.join(", ")} | API key present: true`);
 
   const formattedContents = formatMessagesForGemini(messages);
 
@@ -83,21 +83,37 @@ export async function streamGeminiChat({
     );
   }
 
+  const genAI = new GoogleGenerativeAI(apiKey);
+  let result: any = null;
+  let lastErr: any = null;
+  let usedModel = configuredModel;
+
+  for (const candidate of modelChain) {
+    try {
+      usedModel = candidate;
+      const model = genAI.getGenerativeModel({
+        model: candidate,
+        systemInstruction,
+        generationConfig: {
+          temperature,
+        },
+      });
+
+      result = await model.generateContentStream({
+        contents: formattedContents,
+      });
+      break; // Successfully started stream
+    } catch (mErr: any) {
+      lastErr = mErr;
+      console.warn(`[Gemini] Candidate model ${candidate} failed (${mErr?.status || mErr?.message}). Trying next...`);
+    }
+  }
+
+  if (!result) {
+    throw lastErr || new Error("All Gemini models in chain failed.");
+  }
+
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction,
-      generationConfig: {
-        temperature,
-      },
-    });
-
-    const result = await model.generateContentStream({
-      contents: formattedContents,
-    });
-
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -146,7 +162,7 @@ export async function streamGeminiChat({
     // Provide actionable error messages based on status codes
     let userFacingError = errorMessage;
     if (status === 404) {
-      userFacingError = `Model "${modelName}" is not available. It may have been deprecated. Please update GEMINI_MODEL in your .env file. Details: ${errorMessage}`;
+      userFacingError = `Model "${usedModel}" is not available. It may have been deprecated. Please update GEMINI_MODEL in your .env file. Details: ${errorMessage}`;
     } else if (status === 403) {
       userFacingError = `API key is not authorized for this model. Please check your GEMINI_API_KEY. Details: ${errorMessage}`;
     } else if (status === 429) {

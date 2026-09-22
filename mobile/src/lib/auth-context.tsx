@@ -98,7 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else if (state.isAuthenticated && state.user?.role !== 'DOCTOR' && inDoctorTabsGroup) {
       router.replace('/(tabs)');
     } else if (!state.isAuthenticated && (inTabsGroup || inDoctorTabsGroup)) {
-      // Not logged in but on protected screen → go to onboarding
+      // Not logged in but on protected screen → dismiss nested tabs and go to onboarding
+      try {
+        if (router.canGoBack()) {
+          router.dismissAll();
+        }
+      } catch {}
       router.replace('/');
     }
   }, [state.isAuthenticated, state.isLoading, state.user?.role, segments, router, rootNavigationState?.key]);
@@ -166,13 +171,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await removeToken();
+    try {
+      await removeToken();
+    } catch (e) {
+      console.error('Failed to remove token during logout:', e);
+    }
     setState({
       user: null,
       token: null,
       isLoading: false,
       isAuthenticated: false,
     });
+    try {
+      if (router.canGoBack()) {
+        router.dismissAll();
+      }
+    } catch {}
     router.replace('/');
   }, [router]);
 

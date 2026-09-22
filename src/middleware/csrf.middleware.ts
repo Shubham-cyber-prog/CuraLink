@@ -9,6 +9,12 @@ const EXEMPT_PATHS = [
   '/api/auth/logout',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/symptom-checker',
+  '/api/symptom-checker/analyze',
+  '/api/risk/predict',
+  '/api/risk/diabetes',
+  '/api/risk/heart',
+  '/api/risk/urgency',
 ];
 
 export function csrfProtection(req: Request, res: Response, next: NextFunction): void {

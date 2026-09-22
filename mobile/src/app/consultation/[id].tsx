@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
@@ -19,7 +20,11 @@ import {
   ArrowLeft,
   RefreshCw,
   Video,
+  VideoOff,
+  Mic,
+  MicOff,
   Lock,
+  CameraOff,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
@@ -48,17 +53,27 @@ export default function MobileConsultationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const webViewRef = useRef<WebView>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const [inCall, setInCall] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [callData, setCallData] = useState<JoinResponse | null>(null);
 
-  const fetchJoinData = async () => {
+  // In-Call Media & Session State
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [remoteConnected, setRemoteConnected] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+
+  // 1. Fetch Room Data from Backend
+  const fetchJoinData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
+    setPermissionDenied(false);
 
     try {
       const res = await api.get<JoinResponse>(`/appointments/${id}/join`);
@@ -73,24 +88,87 @@ export default function MobileConsultationScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchJoinData();
-  }, [id]);
+  }, [fetchJoinData]);
 
-  const userName = callData?.userName || (callData?.isDoctor ? 'Dr. Physician' : 'Patient');
-  const safeName = encodeURIComponent(userName);
+  // 2. Call Duration Timer
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    if (inCall) {
+      timer = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [inCall]);
 
-  // Configure URL with disableDeepLinking=true and prejoinPageEnabled=false
-  // to suppress Jitsi's app-download interstitial prompt in embedded context
-  const callUrl = callData?.roomName
-    ? `https://meet.jit.si/${callData.roomName}#config.disableDeepLinking=true&config.prejoinPageEnabled=false&interfaceConfig.SHOW_JITSI_WATERMARK=false&interfaceConfig.SHOW_WATERMARK_FOR_GUESTS=false&interfaceConfig.HIDE_DEEP_LINKING_LOGO=true&interfaceConfig.MOBILE_APP_PROMO=false&userInfo.displayName="${safeName}"`
-    : callData?.roomUrl || '';
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
-  const returnRoute = callData?.isDoctor ? '/(doctor-tabs)/appointments' : '/(tabs)/appointments';
+  // 3. Android Runtime Camera & Microphone Permission Check
+  const requestMediaPermissions = async (): Promise<boolean> => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        ]);
+        const cameraGranted =
+          granted[PermissionsAndroid.PERMISSIONS.CAMERA] === PermissionsAndroid.RESULTS.GRANTED;
+        const audioGranted =
+          granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
 
-  // End active video call
+        if (!cameraGranted || !audioGranted) {
+          setPermissionDenied(true);
+          return false;
+        }
+        setPermissionDenied(false);
+        return true;
+      } catch (err) {
+        console.warn('Error requesting camera/microphone permissions:', err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleStartCall = async () => {
+    const hasPermissions = await requestMediaPermissions();
+    if (!hasPermissions) return;
+    setInCall(true);
+  };
+
+  // 4. In-Call JavaScript Bridge & Controls
+  const sendCommandToMeeting = (type: 'TOGGLE_AUDIO' | 'TOGGLE_VIDEO' | 'HANGUP') => {
+    const payload = JSON.stringify({ type });
+    webViewRef.current?.injectJavaScript(`
+      try {
+        window.postMessage(${JSON.stringify(payload)}, '*');
+      } catch (e) {}
+      true;
+    `);
+  };
+
+  const toggleMic = () => {
+    sendCommandToMeeting('TOGGLE_AUDIO');
+    setIsMicMuted((prev) => !prev);
+  };
+
+  const toggleVideo = () => {
+    sendCommandToMeeting('TOGGLE_VIDEO');
+    setIsVideoMuted((prev) => !prev);
+  };
+
   const handleEndCall = () => {
     Alert.alert(
       'End Consultation',
@@ -101,22 +179,169 @@ export default function MobileConsultationScreen() {
           text: 'End Call',
           style: 'destructive',
           onPress: async () => {
-            setInCall(false);
-            setCompleted(true);
-            if (id) {
-              try {
-                await api.post(`/consultations/${id}/complete`);
-              } catch (err) {
-                console.warn('Could not complete consultation:', err);
-              }
-            }
+            sendCommandToMeeting('HANGUP');
+            finishCall();
           },
         },
       ]
     );
   };
 
-  // 1. Loading State
+  const finishCall = useCallback(async () => {
+    setInCall(false);
+    setCompleted(true);
+    if (id) {
+      try {
+        await api.post(`/consultations/${id}/complete`);
+      } catch (err) {
+        console.warn('Could not complete consultation on server:', err);
+      }
+    }
+  }, [id]);
+
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'CALL_ENDED') {
+        finishCall();
+      } else if (msg.type === 'PARTICIPANT_JOINED') {
+        setRemoteConnected(true);
+      } else if (msg.type === 'PARTICIPANT_LEFT') {
+        setRemoteConnected(false);
+      } else if (msg.type === 'AUDIO_MUTE_CHANGED') {
+        setIsMicMuted(Boolean(msg.muted));
+      } else if (msg.type === 'VIDEO_MUTE_CHANGED') {
+        setIsVideoMuted(Boolean(msg.muted));
+      }
+    } catch {
+      // non-JSON event message
+    }
+  };
+
+  const userName = callData?.userName || (callData?.isDoctor ? 'Dr. Physician' : 'Patient');
+  const returnRoute = callData?.isDoctor ? '/(doctor-tabs)/appointments' : '/(tabs)/appointments';
+
+  // 5. Embedded Jitsi IFrame HTML Document (using external_api.js)
+  // This completely eliminates Jitsi's "Join using the app / Join using the web" landing page
+  // and keeps the audio/video call 100% inside CuraLink without opening Chrome.
+  const meetingHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      <script src="https://meet.jit.si/external_api.js"></script>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          background-color: #090D16;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        #meet { width: 100%; height: 100%; }
+      </style>
+    </head>
+    <body>
+      <div id="meet"></div>
+      <script>
+        try {
+          const domain = "meet.jit.si";
+          const options = {
+            roomName: "${callData?.roomName || 'curalink-room'}",
+            width: "100%",
+            height: "100%",
+            parentNode: document.querySelector('#meet'),
+            userInfo: {
+              displayName: "${userName.replace(/"/g, '\\"')}"
+            },
+            configOverwrite: {
+              disableDeepLinking: true,
+              prejoinPageEnabled: false,
+              prejoinConfig: { enabled: false },
+              startWithAudioMuted: false,
+              startWithVideoMuted: false,
+              enableWelcomePage: false,
+              enableClosePage: false,
+              enableInsecureRoomNameWarning: false,
+              disableInviteFunctions: true,
+              hideConferenceSubject: true,
+              hideConferenceTimer: true,
+              notifications: [],
+              toolbarButtons: [
+                'microphone',
+                'camera',
+                'tileview',
+                'chat',
+                'fodeviceselection'
+              ]
+            },
+            interfaceConfigOverwrite: {
+              SHOW_JITSI_WATERMARK: false,
+              SHOW_WATERMARK_FOR_GUESTS: false,
+              SHOW_BRAND_WATERMARK: false,
+              BRAND_WATERMARK_LINK: "",
+              SHOW_POWERED_BY: false,
+              SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+              MOBILE_APP_PROMO: false,
+              HIDE_DEEP_LINKING_LOGO: true,
+              APP_NAME: "CuraLink Telehealth"
+            }
+          };
+
+          const api = new JitsiMeetExternalAPI(domain, options);
+
+          api.addEventListeners({
+            readyToClose: function() {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CALL_ENDED' }));
+              }
+            },
+            videoMuteStatusChanged: function(e) {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'VIDEO_MUTE_CHANGED', muted: e.muted }));
+              }
+            },
+            audioMuteStatusChanged: function(e) {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'AUDIO_MUTE_CHANGED', muted: e.muted }));
+              }
+            },
+            participantJoined: function(e) {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PARTICIPANT_JOINED', participant: e }));
+              }
+            },
+            participantLeft: function(e) {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PARTICIPANT_LEFT', participant: e }));
+              }
+            }
+          });
+
+          function handleBridgeCommand(event) {
+            try {
+              const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+              if (msg.type === 'TOGGLE_AUDIO') api.executeCommand('toggleAudio');
+              if (msg.type === 'TOGGLE_VIDEO') api.executeCommand('toggleVideo');
+              if (msg.type === 'HANGUP') api.executeCommand('hangup');
+            } catch(e) {}
+          }
+
+          window.addEventListener('message', handleBridgeCommand);
+          document.addEventListener('message', handleBridgeCommand);
+        } catch(err) {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'INIT_ERROR', error: err.message }));
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `;
+
+  // ── State 1: Loading ──
   if (loading) {
     return (
       <View className="flex-1 bg-[#090D16] items-center justify-center px-6">
@@ -134,7 +359,48 @@ export default function MobileConsultationScreen() {
     );
   }
 
-  // 2. Error State
+  // ── State 2: Permission Denied ──
+  if (permissionDenied) {
+    return (
+      <View
+        style={{ paddingTop: Math.max(insets.top, 20), paddingBottom: Math.max(insets.bottom, 20) }}
+        className="flex-1 bg-[#090D16] justify-between p-6"
+      >
+        <StatusBar barStyle="light-content" />
+        <Pressable
+          onPress={() => router.back()}
+          className="h-10 w-10 rounded-full bg-slate-800/80 items-center justify-center border border-slate-700"
+        >
+          <ArrowLeft size={20} color="#CBD5E1" />
+        </Pressable>
+
+        <View className="items-center px-4">
+          <View className="h-16 w-16 rounded-full bg-amber-950/60 border border-amber-600/50 items-center justify-center mb-4">
+            <CameraOff size={28} color="#FBBF24" />
+          </View>
+          <Text className="font-inter-bold text-xl text-white text-center">
+            Camera & Microphone Required
+          </Text>
+          <Text className="font-inter text-sm text-slate-400 text-center mt-2 leading-relaxed">
+            CuraLink requires camera and microphone permissions so your attending specialist can examine and speak with you during the virtual visit.
+          </Text>
+        </View>
+
+        <View className="space-y-3">
+          <Button
+            title="Grant Permissions & Join"
+            onPress={handleStartCall}
+            icon={RefreshCw}
+          />
+          <Pressable onPress={() => router.back()} className="py-3 items-center">
+            <Text className="font-inter-medium text-sm text-slate-400">Return to Appointments</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // ── State 3: Connection / Fetch Error ──
   if (error || !callData) {
     return (
       <View
@@ -167,10 +433,7 @@ export default function MobileConsultationScreen() {
             onPress={fetchJoinData}
             icon={RefreshCw}
           />
-          <Pressable
-            onPress={() => router.back()}
-            className="py-3 items-center"
-          >
+          <Pressable onPress={() => router.back()} className="py-3 items-center">
             <Text className="font-inter-medium text-sm text-slate-400">Return to Appointments</Text>
           </Pressable>
         </View>
@@ -178,7 +441,7 @@ export default function MobileConsultationScreen() {
     );
   }
 
-  // 3. Completed State
+  // ── State 4: Consultation Concluded ──
   if (completed) {
     return (
       <View
@@ -196,7 +459,7 @@ export default function MobileConsultationScreen() {
             Consultation Concluded
           </Text>
           <Text className="font-inter text-sm text-slate-300 text-center mt-3 leading-relaxed">
-            Your video visit with {callData.doctor?.name || 'the specialist'} has ended. Clinical notes and prescription details will be updated in your records.
+            Your virtual visit with {callData.doctor?.name || 'the specialist'} has ended. Clinical notes and prescription details will be updated in your records.
           </Text>
         </View>
 
@@ -210,28 +473,37 @@ export default function MobileConsultationScreen() {
     );
   }
 
-  // 4. In Active Video Call (Embedded Directly Inside CuraLink Screen)
+  // ── State 5: Active In-App Video Consultation (Inside CuraLink) ──
   if (inCall) {
+    const counterPartyName = callData.isDoctor
+      ? (callData.appointment as any)?.patientName || 'Patient Visit'
+      : callData.doctor?.name || 'Dr. Physician';
+
     return (
       <View className="flex-1 bg-[#090D16]">
         <StatusBar barStyle="light-content" hidden={false} />
 
-        {/* Minimal Clinical Floating Header */}
+        {/* Minimal Clinical Header */}
         <View
-          style={{ paddingTop: Math.max(insets.top, 12) }}
-          className="px-4 pb-3 bg-[#0F172A] border-b border-slate-800 flex-row items-center justify-between z-10"
+          style={{ paddingTop: Math.max(insets.top, 10) }}
+          className="px-4 pb-3 bg-[#0F172A] border-b border-slate-800 flex-row items-center justify-between z-20"
         >
-          <View className="flex-row items-center gap-2">
-            <View className="h-2 w-2 rounded-full bg-emerald-400" />
-            <Text className="font-inter-semibold text-xs text-white" numberOfLines={1}>
-              {callData.doctor?.name || 'Clinical Call'}
-            </Text>
+          <View className="flex-row items-center gap-2 flex-1 mr-2">
+            <View className={`h-2.5 w-2.5 rounded-full ${remoteConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+            <View>
+              <Text className="font-inter-semibold text-xs text-white" numberOfLines={1}>
+                {counterPartyName}
+              </Text>
+              <Text className="font-inter text-[10px] text-slate-400">
+                {remoteConnected ? 'Connected' : 'Waiting for specialist...'} • {formatDuration(callDuration)}
+              </Text>
+            </View>
           </View>
 
           <View className="flex-row items-center gap-2">
             <View className="flex-row items-center gap-1 bg-[#085041]/40 border border-[#0F9D8C]/40 px-2 py-0.5 rounded-full">
               <Lock size={10} color="#0F9D8C" />
-              <Text className="font-inter-medium text-[10px] text-[#0F9D8C]">Encrypted</Text>
+              <Text className="font-inter-medium text-[10px] text-[#0F9D8C]">HIPAA Secured</Text>
             </View>
 
             <Pressable
@@ -244,66 +516,93 @@ export default function MobileConsultationScreen() {
           </View>
         </View>
 
-        {/* Embedded WebView Call Frame */}
+        {/* Embedded In-App Video Frame */}
         <View className="flex-1 bg-black">
           <WebView
-            source={{ uri: callUrl }}
+            ref={webViewRef}
+            source={{ html: meetingHtml, baseUrl: 'https://meet.jit.si' }}
             style={styles.webview}
             allowsInlineMediaPlayback={true}
             mediaPlaybackRequiresUserAction={false}
             javaScriptEnabled={true}
             domStorageEnabled={true}
             originWhitelist={['*']}
-            // Desktop user agent prevents Jitsi from showing the "Download the app or join using browser" prompt
+            setSupportMultipleWindows={false}
             userAgent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            // iOS-only permission grant without Fabric enum mismatch
             {...(Platform.OS === 'ios'
               ? { mediaCapturePermissionGrantType: 'grantIfSameHostElsePrompt' as const }
               : {})}
-            androidHardwareAccelerationDisabled={false}
             androidLayerType="hardware"
             startInLoadingState={true}
             renderLoading={() => (
               <View style={styles.webviewLoading}>
                 <ActivityIndicator size="large" color="#0F9D8C" />
-                <Text style={styles.loadingText}>Connecting to secure video room...</Text>
+                <Text style={styles.loadingText}>Connecting to secure clinical session...</Text>
               </View>
             )}
             onShouldStartLoadWithRequest={(request) => {
-              // Allow all HTTP / HTTPS navigation to stay inside this embedded WebView
-              if (request.url.startsWith('http://') || request.url.startsWith('https://')) {
+              // Allow embedded Jitsi external_api and resource scripts
+              if (
+                request.url === 'about:blank' ||
+                request.url.startsWith('https://meet.jit.si') ||
+                request.url.startsWith('https://web-cdn.jitsi.net')
+              ) {
                 return true;
               }
-              // Intercept and suppress external deep-link schemes (intent://, market://, org.jitsi.meet://)
-              // so the external Chrome browser or Play Store NEVER opens
+              // Strictly intercept and suppress any deep-link schemes (intent://, market://, org.jitsi.meet://)
+              // to prevent Android Chrome or external stores from opening
               return false;
             }}
+            onMessage={handleWebViewMessage}
             onError={(syntheticEvent) => {
               const { nativeEvent } = syntheticEvent;
-              console.warn('WebView native error: ', nativeEvent);
-            }}
-            onNavigationStateChange={(navState: any) => {
-              // Auto detect if user clicked "Leave" / hung up inside Jitsi Meet UI
-              if (
-                navState.url.includes('/close') ||
-                navState.url.includes('/left') ||
-                navState.url.includes('/static/close.html') ||
-                navState.url.includes('thankyou')
-              ) {
-                setInCall(false);
-                setCompleted(true);
-                if (id) {
-                  api.post(`/consultations/${id}/complete`).catch(() => {});
-                }
-              }
+              console.warn('WebView native video error: ', nativeEvent);
             }}
           />
+        </View>
+
+        {/* Floating Native Clinical Controls Bar */}
+        <View
+          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+          className="bg-[#0F172A] border-t border-slate-800 px-6 py-3 flex-row items-center justify-around z-20"
+        >
+          {/* Mic Toggle */}
+          <Pressable
+            onPress={toggleMic}
+            className={`h-12 w-12 rounded-full items-center justify-center border ${
+              isMicMuted
+                ? 'bg-red-500/20 border-red-500/40'
+                : 'bg-slate-800 border-slate-700'
+            }`}
+          >
+            {isMicMuted ? <MicOff size={20} color="#EF4444" /> : <Mic size={20} color="#FFFFFF" />}
+          </Pressable>
+
+          {/* End Call Button */}
+          <Pressable
+            onPress={handleEndCall}
+            className="h-14 w-14 rounded-full bg-red-600 active:bg-red-700 items-center justify-center shadow-lg shadow-red-900/50"
+          >
+            <PhoneOff size={24} color="#FFFFFF" />
+          </Pressable>
+
+          {/* Camera Toggle */}
+          <Pressable
+            onPress={toggleVideo}
+            className={`h-12 w-12 rounded-full items-center justify-center border ${
+              isVideoMuted
+                ? 'bg-red-500/20 border-red-500/40'
+                : 'bg-slate-800 border-slate-700'
+            }`}
+          >
+            {isVideoMuted ? <VideoOff size={20} color="#EF4444" /> : <Video size={20} color="#FFFFFF" />}
+          </Pressable>
         </View>
       </View>
     );
   }
 
-  // 5. Pre-Call Ready Screen
+  // ── State 6: Pre-Call Readiness Check Screen ──
   return (
     <View
       style={{ paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 20) }}
@@ -326,7 +625,7 @@ export default function MobileConsultationScreen() {
         </View>
       </View>
 
-      {/* Doctor & Readiness Information */}
+      {/* Specialist & Session Details */}
       <View className="space-y-6">
         <View className="items-center">
           <View className="h-20 w-20 rounded-full bg-[#085041]/30 border-2 border-[#0F9D8C]/50 items-center justify-center mb-4">
@@ -340,7 +639,7 @@ export default function MobileConsultationScreen() {
           </Text>
         </View>
 
-        {/* Pre-flight Technical Checklist */}
+        {/* Pre-flight Technical Readiness Card */}
         <Card className="bg-[#0F172A] border border-slate-800 p-4 space-y-3">
           <Text className="font-inter-bold text-xs uppercase tracking-wider text-slate-400 mb-1">
             Consultation Readiness
@@ -372,11 +671,11 @@ export default function MobileConsultationScreen() {
         </Card>
       </View>
 
-      {/* Join Action CTA */}
+      {/* CTA Join Button */}
       <View className="space-y-3">
         <Button
           title="Join Video Consultation"
-          onPress={() => setInCall(true)}
+          onPress={handleStartCall}
           icon={Video}
         />
 
@@ -410,5 +709,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
 });
+
 
 

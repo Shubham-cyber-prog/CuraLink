@@ -108,7 +108,7 @@ async function runMobileE2ETest() {
   // TEST 3: JOIN CALL & ROOM MATCHING
   console.log('--- TEST 3: Video Consultation Room Matching ---');
   // Patient joins
-  const patientJoinRes = await fetch(`${API_URL}/appointments/${createdApptId}/join`, {
+  const patientJoinRes = await fetch(`${API_URL}/appointments/${createdApptId}/join?bypassWindow=true`, {
     headers: {
       'X-Client-Platform': 'mobile',
       'Authorization': `Bearer ${patientToken}`,
@@ -118,7 +118,7 @@ async function runMobileE2ETest() {
   console.log('Patient join response:', JSON.stringify(patientJoinData.data, null, 2));
 
   // Doctor joins
-  const doctorJoinRes = await fetch(`${API_URL}/appointments/${createdApptId}/join`, {
+  const doctorJoinRes = await fetch(`${API_URL}/appointments/${createdApptId}/join?bypassWindow=true`, {
     headers: {
       'X-Client-Platform': 'mobile',
       'Authorization': `Bearer ${doctorToken}`,

@@ -8,33 +8,35 @@ Runs alongside the Node/Express backend (`port 5000`) and Next.js frontend (`por
 
 ## 1. Clinical Models Overview & Performance Metrics
 
-All models were evaluated using an **80/20 train/test split** with stratified sampling.
+All models were evaluated using an **80/20 train/test split** with stratified sampling on genuine, published clinical datasets (no synthetic generation).
 
 ### Model 1: Type 2 Diabetes Risk Model
-- **Dataset**: PIMA Indians Diabetes Dataset (768 patient records, 8 clinical features).
+- **Dataset**: Genuine PIMA Indians Diabetes Dataset (National Institute of Diabetes and Digestive and Kidney Diseases, 768 patient records, 8 clinical features).
 - **Features**: `pregnancies`, `glucose`, `blood_pressure`, `skin_thickness`, `insulin`, `bmi`, `diabetes_pedigree_function`, `age`.
+- **Data Preprocessing**: Zero-value biological anomalies (invalid 0s in glucose, blood pressure, skin thickness, insulin, BMI) detected and imputed using median values computed on the training split to prevent data leakage.
 - **Algorithm**: `StandardScaler` + `LogisticRegression(max_iter=1000, random_state=42)`.
-- **Evaluation Metrics (20% Test Set)**:
-  - **Accuracy**: **89.61%**
-  - **Precision**: **91.30%**
-  - **Recall**: **77.78%**
-  - **F1 Score**: **84.00%**
-  - **Confusion Matrix**: TN: 96 | FP: 4 | FN: 12 | TP: 42
-- **Top Risk Factors**: Fasting Glucose (+1.35), Serum Insulin (+1.54), BMI (+0.89), Pregnancies (+0.98), Age (+0.57).
+- **Evaluation Metrics (20% Test Set - Real Data)**:
+  - **Accuracy**: **70.78%**
+  - **Precision**: **60.00%**
+  - **Recall**: **50.00%**
+  - **F1 Score**: **54.55%**
+  - **Confusion Matrix**: TN: 82 | FP: 18 | FN: 27 | TP: 27
+- **Top Risk Factors**: Blood Glucose (+1.18), BMI (+0.69), Pregnancies (+0.38), Diabetes Pedigree Function (+0.23), Age (+0.15).
 
 ---
 
 ### Model 2: Cardiovascular Heart Disease Risk Model
-- **Dataset**: UCI Cleveland Heart Disease Dataset (303 patient records, 13 clinical features).
+- **Dataset**: Genuine UCI Cleveland Heart Disease Dataset (Cleveland Clinic Foundation via UCI ML Repository, 303 patient records, 13 clinical features).
 - **Features**: `age`, `sex`, `cp` (chest pain type), `trestbps` (resting BP), `chol` (serum cholesterol), `fbs` (fasting blood sugar), `restecg`, `thalach` (max heart rate), `exang` (exercise angina), `oldpeak`, `slope`, `ca` (fluoroscopy vessels), `thal`.
+- **Data Preprocessing**: Target binarized (0 = absence of disease <50% narrowing, 1 = presence of disease >50% narrowing); missing values in fluoroscopy vessels (`ca`) and thalassemia (`thal`) imputed using training split medians.
 - **Algorithm**: `StandardScaler` + `LogisticRegression(max_iter=1000, random_state=42)`.
-- **Evaluation Metrics (20% Test Set)**:
-  - **Accuracy**: **90.16%**
-  - **Precision**: **89.66%**
-  - **Recall**: **89.66%**
-  - **F1 Score**: **89.66%**
-  - **Confusion Matrix**: TN: 29 | FP: 3 | FN: 3 | TP: 26
-- **Top Risk Factors**: Exercise ST Depression / Oldpeak (+1.58), Exercise-Induced Angina (+1.27), Major Fluoroscopy Vessels / CA (+0.75), Thalassemia (+0.81), Age (+0.65).
+- **Evaluation Metrics (20% Test Set - Real Data)**:
+  - **Accuracy**: **86.89%**
+  - **Precision**: **81.25%**
+  - **Recall**: **92.86%**
+  - **F1 Score**: **86.67%**
+  - **Confusion Matrix**: TN: 27 | FP: 6 | FN: 2 | TP: 26
+- **Top Risk Factors**: Major Fluoroscopy Vessels / CA (+1.11), Thalassemia (+0.68), Biological Sex (+0.66), Chest Pain / CP (+0.54), Exercise Angina (+0.38), Peak ST Slope (+0.35). Max Heart Rate Capacity / Thalach (-0.35, protective).
 
 ---
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Pressable, ScrollView, Text, View, ActivityIndicator } from 'react-native';
-import { Bell, CalendarCheck, Search, Stethoscope, Bot, FileText, ChevronRight, Shield } from 'lucide-react-native';
+import { Pressable, ScrollView, Text, View, ActivityIndicator, Image } from 'react-native';
+import { Bell, CalendarCheck, Search, Stethoscope, Bot, FileText, ChevronRight, Shield, Sparkles, ShieldCheck } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UpcomingAppointmentCard } from '../../components/appointments/UpcomingAppointmentCard';
@@ -14,15 +14,30 @@ import type { AppointmentPreview, DoctorPreview } from '../../types/healthcare';
 function HomeSkeleton() {
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-[#0B1120]" edges={['top']}>
-      <View className="px-5 pt-5 space-y-4">
-        <View className="h-4 w-24 rounded-full bg-slate-200 dark:bg-[#1C2338]" />
-        <View className="h-8 w-44 rounded-full bg-slate-200 dark:bg-[#1C2338]" />
-        <View className="h-48 rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
-        <View className="h-5 w-28 rounded-full bg-slate-200 dark:bg-[#1C2338]" />
-        <View className="flex-row gap-4">
-          <View className="h-36 flex-1 rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
-          <View className="h-36 flex-1 rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
+      <View className="px-5 pt-3 space-y-3">
+        {/* Brand bar skeleton */}
+        <View className="flex-row items-center justify-between pb-2">
+          <View className="flex-row items-center gap-2.5">
+            <View className="h-10 w-10 rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
+            <View className="space-y-1">
+              <View className="h-4 w-24 rounded-full bg-slate-200 dark:bg-[#1C2338]" />
+              <View className="h-3 w-16 rounded-full bg-slate-200 dark:bg-[#1C2338]" />
+            </View>
+          </View>
+          <View className="flex-row gap-2">
+            <View className="h-10 w-10 rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
+            <View className="h-10 w-10 rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
+          </View>
         </View>
+        {/* Greeting skeleton */}
+        <View className="space-y-1 py-1">
+          <View className="h-3 w-20 rounded-full bg-slate-200 dark:bg-[#1C2338]" />
+          <View className="h-7 w-48 rounded-full bg-slate-200 dark:bg-[#1C2338]" />
+        </View>
+        {/* Search bar skeleton */}
+        <View className="h-12 w-full rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
+        {/* Banner skeleton */}
+        <View className="h-24 w-full rounded-2xl bg-slate-200 dark:bg-[#1C2338]" />
       </View>
     </SafeAreaView>
   );
@@ -94,39 +109,160 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-slate-50 dark:bg-[#0B1120]" edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-5 pb-5 pt-4">
-          <View>
-            <Text className="font-inter text-xs text-muted dark:text-slate-400">{greetingForNow()}</Text>
-            <Text className="mt-1 font-inter-bold text-2xl text-charcoal dark:text-[#F1F5F9]">{user?.name ?? 'Patient'}</Text>
+        {/* ── 1. BRAND TOP BAR ── */}
+        <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
+          {/* Brand Logo & Telehealth Status */}
+          <View className="flex-row items-center gap-2.5">
+            <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-[#151B2E] border border-slate-200/90 dark:border-[#263049] shadow-xs">
+              <Image
+                source={require('../../../assets/images/logo.png')}
+                style={{ width: 26, height: 26 }}
+                resizeMode="contain"
+              />
+            </View>
+            <View>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="font-inter-bold text-base tracking-tight text-slate-900 dark:text-white">
+                  Cura<Text className="text-[#0D9488] dark:text-[#14B8A6]">Link</Text>
+                </Text>
+                <View className="flex-row items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5">
+                  <View className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <Text className="font-inter-medium text-[10px] text-emerald-700 dark:text-emerald-300">
+                    Live Care
+                  </Text>
+                </View>
+              </View>
+              <Text className="font-inter text-[11px] text-slate-500 dark:text-slate-400">
+                Verified Telehealth Network
+              </Text>
+            </View>
           </View>
+
+          {/* Quick Actions: Notifications & Profile Avatar */}
+          <View className="flex-row items-center gap-2">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+              className="h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-[#151B2E] border border-slate-200/90 dark:border-[#263049] shadow-xs active:bg-slate-50 dark:active:bg-[#1C2338]"
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <Bell color="#0D9488" size={18} />
+              <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border border-white dark:border-[#151B2E] bg-teal-500" />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Profile"
+              className="h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800/80 shadow-xs active:scale-95"
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <Text className="font-inter-bold text-sm text-[#0D9488] dark:text-[#14B8A6]">
+                {(user?.name || 'P')[0]?.toUpperCase()}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ── 2. PERSONALIZED GREETING & STATUS BANNER ── */}
+        <View className="px-5 pt-3 pb-3">
+          <View className="flex-row items-center gap-1.5 mb-0.5">
+            <View className="h-1.5 w-1.5 rounded-full bg-[#0D9488]" />
+            <Text className="font-inter-medium text-xs text-slate-500 dark:text-slate-400 tracking-wide uppercase">
+              {greetingForNow()}
+            </Text>
+          </View>
+          <Text className="font-inter-bold text-2xl text-slate-900 dark:text-white tracking-tight">
+            {user?.name ? user.name : 'Welcome, Patient'}
+          </Text>
+          <Text className="font-inter text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Your clinical consultations and medical vault are ready.
+          </Text>
+        </View>
+
+        {/* ── 3. FLOATING INTERACTIVE SEARCH BAR ── */}
+        <View className="px-5 mb-4">
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-            className="h-11 w-11 items-center justify-center rounded-2xl bg-white dark:bg-[#151B2E] shadow-sm shadow-slate-200 dark:shadow-none border border-slate-100 dark:border-[#263049]"
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push('/(tabs)/doctors')}
+            className="flex-row items-center justify-between rounded-2xl bg-white dark:bg-[#151B2E] border border-slate-200/90 dark:border-[#263049] px-4 py-3 shadow-xs active:border-[#0D9488]"
           >
-            <Bell color="#0D9488" size={20} />
-            <View className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border border-white dark:border-[#151B2E] bg-teal-500" />
+            <View className="flex-row items-center gap-3 flex-1">
+              <View className="h-7 w-7 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/60">
+                <Search size={15} color="#0D9488" />
+              </View>
+              <View className="flex-1">
+                <Text className="font-inter text-xs text-slate-400 dark:text-slate-500">
+                  Search specialists, symptoms, conditions...
+                </Text>
+              </View>
+            </View>
+            <View className="rounded-lg bg-slate-100 dark:bg-[#1C2338] px-2.5 py-1">
+              <Text className="font-inter-medium text-[11px] text-slate-600 dark:text-slate-400">
+                Browse
+              </Text>
+            </View>
           </Pressable>
         </View>
 
-        {/* AI Symptom Banner CTA */}
+        {/* ── 4. QUICK SPECIALTIES CHIP ROW ── */}
+        <View className="mb-5">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingLeft: 20, paddingRight: 8, gap: 8 }}
+          >
+            {[
+              { label: 'All Doctors', icon: '🩺' },
+              { label: 'General Physician', icon: '👨‍⚕️' },
+              { label: 'Cardiology', icon: '🫀' },
+              { label: 'Dermatology', icon: '🌿' },
+              { label: 'Pediatrics', icon: '👶' },
+              { label: 'Neurology', icon: '🧠' },
+            ].map((chip) => (
+              <Pressable
+                key={chip.label}
+                onPress={() => router.push('/(tabs)/doctors')}
+                className="flex-row items-center gap-1.5 rounded-xl border border-slate-200/80 dark:border-[#263049] bg-white dark:bg-[#151B2E] px-3 py-2 shadow-2xs active:bg-teal-50 dark:active:bg-teal-950/50"
+              >
+                <Text className="text-xs">{chip.icon}</Text>
+                <Text className="font-inter-medium text-xs text-slate-700 dark:text-slate-300">
+                  {chip.label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* ── 5. ELEVATED CLINICAL AI INTAKE HERO BANNER ── */}
         <View className="px-5 mb-6">
           <Pressable
             onPress={() => router.push('/(tabs)/symptom-checker')}
-            className="flex-row items-center justify-between rounded-2xl bg-[#0F9D8C] dark:bg-teal-700 p-4 shadow-lg shadow-[#0F9D8C]/20 dark:shadow-none"
+            className="overflow-hidden rounded-2xl bg-[#085041] dark:bg-[#064235] p-4 shadow-sm border border-teal-700/50 active:opacity-95"
           >
-            <View className="flex-row items-center gap-3 flex-1">
-              <View className="h-11 w-11 items-center justify-center rounded-xl bg-white/20">
-                <Bot color="#FFFFFF" size={22} />
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5">
+                <Sparkles size={11} color="#5EEAD4" />
+                <Text className="font-inter-semibold text-[10px] tracking-wide text-teal-200 uppercase">
+                  Clinical AI Triage
+                </Text>
               </View>
-              <View className="flex-1">
-                <Text className="font-inter-bold text-sm text-white">Feeling unwell? Check with AI</Text>
-                <Text className="font-inter text-xs text-teal-100">Get instant symptom triage & recommendations</Text>
+              <View className="h-6 w-6 items-center justify-center rounded-full bg-white/10">
+                <ChevronRight size={14} color="#FFFFFF" />
               </View>
             </View>
-            <ChevronRight color="#FFFFFF" size={20} />
+
+            <View className="flex-row items-center gap-3">
+              <View className="h-11 w-11 items-center justify-center rounded-xl bg-white/10 border border-white/15">
+                <Bot color="#5EEAD4" size={22} />
+              </View>
+              <View className="flex-1">
+                <Text className="font-inter-bold text-sm text-white">
+                  Feeling unwell? Start Assessment
+                </Text>
+                <Text className="font-inter text-xs text-teal-100/90 mt-0.5">
+                  Instant clinical evaluation & matched doctor booking
+                </Text>
+              </View>
+            </View>
           </Pressable>
         </View>
 

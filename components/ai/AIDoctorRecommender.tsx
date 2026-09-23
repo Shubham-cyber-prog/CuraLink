@@ -8,6 +8,7 @@ import {
   Bot,
   ArrowRight,
   AlertTriangle,
+  Stethoscope,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
@@ -91,23 +92,23 @@ export function AIDoctorRecommender() {
     <motion.div
       initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
       className="rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden transition-colors duration-200"
     >
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-[#E2E8F0] dark:border-[#263049] bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/40 dark:to-emerald-950/30 px-5 py-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#0F9D8C] to-[#0C8577] dark:from-[#14B8A6] dark:to-[#0D9488] text-white shadow-sm">
-          <Sparkles className="h-5 w-5" />
+      <div className="flex items-center gap-3 border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 px-5 py-3.5">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6] border border-teal-200/60 dark:border-teal-800/50">
+          <Stethoscope className="h-4 w-4" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9] flex items-center gap-1.5">
-            AI Doctor Finder
-            <span className="inline-flex items-center rounded-full bg-teal-100 dark:bg-teal-900/60 px-2 py-0.5 text-[10px] font-semibold text-[#0F9D8C] dark:text-[#14B8A6]">
-              NEW
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+            Specialty Matching Assistant
+            <span className="inline-flex items-center rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/60 dark:border-teal-800/40 px-2 py-0.2 text-[10px] font-medium text-[#0D9488] dark:text-[#14B8A6]">
+              Clinical Triage
             </span>
           </h3>
-          <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-            Describe your concern → Get matched to the right specialty
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Describe symptoms or needs in plain language to identify the right medical specialty
           </p>
         </div>
       </div>

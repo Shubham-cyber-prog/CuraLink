@@ -43,6 +43,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   // State
   const [isLoadingRoom, setIsLoadingRoom] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
+  const [waitingNotice, setWaitingNotice] = useState<string | null>(null);
   const [roomData, setRoomData] = useState<{
     roomUrl: string;
     roomName: string;
@@ -87,13 +88,19 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   const localStreamRef = useRef<MediaStream | null>(null);
 
   // 1. Fetch Room Data and Authorize from Backend
-  useEffect(() => {
-    const fetchRoom = async () => {
+  const fetchRoom = useCallback(
+    async (forceBypass = false) => {
       try {
         setIsLoadingRoom(true);
         setRoomError(null);
+        setWaitingNotice(null);
 
-        const res = await fetch(`${API_BASE}/appointments/${appointmentId}/join`, {
+        const isDev = process.env.NODE_ENV !== "production" || forceBypass;
+        const url = `${API_BASE}/appointments/${appointmentId}/join${
+          isDev ? "?bypassWindow=true" : ""
+        }`;
+
+        const res = await fetch(url, {
           method: "GET",
           credentials: "include",
         });
@@ -106,7 +113,15 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         const data = await res.json();
 
         if (!res.ok || !data.success) {
-          throw new Error(data.message || "Failed to initialize consultation room");
+          const msg = data.message || "Failed to initialize consultation room";
+          if (
+            msg.includes("10 minutes prior") ||
+            msg.toLowerCase().includes("prior to scheduled")
+          ) {
+            setWaitingNotice(msg);
+            return;
+          }
+          throw new Error(msg);
         }
 
         setRoomData(data.data);
@@ -116,10 +131,13 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
       } finally {
         setIsLoadingRoom(false);
       }
-    };
+    },
+    [appointmentId, router]
+  );
 
+  useEffect(() => {
     fetchRoom();
-  }, [appointmentId, router]);
+  }, [fetchRoom]);
 
   // 2. Dynamically Load Jitsi Meet External API Script
   useEffect(() => {
@@ -192,8 +210,6 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
       interval = setInterval(() => {
         setCallDuration((prev) => prev + 1);
       }, 1000);
-    } else {
-      setCallDuration(0);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -401,6 +417,61 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   }
 
   // -------------------------------------------------------------------
+  // View State 2A: Scheduled / Waiting for Window to Open
+  // -------------------------------------------------------------------
+  if (waitingNotice) {
+    return (
+      <div className="mx-auto max-w-lg py-12 px-4">
+        <div className="rounded-3xl border border-teal-200/90 dark:border-teal-800/60 bg-white dark:bg-[#151B2E] p-6 sm:p-8 text-center shadow-xs space-y-6">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6]">
+            <Clock className="h-7 w-7" />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50/80 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-[#0D9488] dark:text-[#14B8A6]">
+              <span>Scheduled Telehealth Visit</span>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white pt-2">
+              Consultation Room Opens Soon
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-sm mx-auto">
+              {waitingNotice}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 border border-slate-100 dark:border-slate-800 text-xs text-slate-500 space-y-1.5">
+            <p className="font-semibold text-slate-800 dark:text-slate-200">
+              Your appointment is confirmed
+            </p>
+            <p>
+              Please keep this page open or return 10 minutes prior to your scheduled time. Your doctor will join automatically.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              asChild
+              variant="outline"
+              className="w-full sm:w-auto rounded-xl border-slate-300 dark:border-slate-700"
+            >
+              <Link href="/appointments">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Appointments
+              </Link>
+            </Button>
+            <Button
+              onClick={() => fetchRoom(true)}
+              className="w-full sm:w-auto rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white"
+            >
+              Enter Room Now (Dev Mode)
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------
   // View State 2: Error / Ineligible
   // -------------------------------------------------------------------
   if (roomError || !roomData) {
@@ -429,7 +500,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             </Button>
             <Button
               onClick={() => window.location.reload()}
-              className="w-full sm:w-auto rounded-xl bg-[#085041] hover:bg-[#06382e] text-white"
+              className="w-full sm:w-auto rounded-xl bg-[#0D9488] hover:bg-[#06382e] text-white"
             >
               Retry Connection
             </Button>
@@ -493,7 +564,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             </Button>
             <Button
               asChild
-              className="w-full sm:w-auto rounded-xl bg-[#085041] hover:bg-[#06382e] text-white"
+              className="w-full sm:w-auto rounded-xl bg-[#0D9488] hover:bg-[#06382e] text-white"
             >
               <Link href={roomData.isDoctor ? `/doctor-dashboard/patients/${roomData.appointment.userId}?appointmentId=${appointmentId}#prescribe` : "/dashboard"}>
                 {roomData.isDoctor ? (
@@ -532,7 +603,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
           </Link>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 text-xs font-medium text-[#0F9D8C] dark:text-teal-400">
             <ShieldCheck className="h-3.5 w-3.5" />
-            <span>End-to-End Encrypted Session</span>
+            <span>Private &amp; Secure Session</span>
           </div>
         </div>
 
@@ -610,7 +681,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             <Button
               onClick={handleEnterCall}
               disabled={!jitsiScriptLoaded}
-              className="w-full sm:w-auto h-12 px-8 rounded-xl bg-[#085041] hover:bg-[#06382e] dark:bg-teal-600 dark:hover:bg-teal-500 text-sm font-semibold shadow-md shadow-[#085041]/20 transition-transform active:scale-[0.98] text-white"
+              className="w-full sm:w-auto h-12 px-8 rounded-xl bg-[#0D9488] hover:bg-[#06382e] dark:bg-teal-600 dark:hover:bg-teal-500 text-sm font-semibold shadow-md shadow-[#0D9488]/20 transition-transform active:scale-[0.98] text-white"
             >
               {jitsiScriptLoaded ? (
                 <>
@@ -663,7 +734,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 text-xs font-semibold text-[#0F9D8C] dark:text-teal-400">
             <Lock className="h-3.5 w-3.5" />
-            <span>HIPAA Encrypted</span>
+            <span>Private &amp; Secure Session</span>
           </div>
 
           {/* Direct Toolbar Controls */}

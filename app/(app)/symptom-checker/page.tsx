@@ -1,24 +1,27 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Send,
-  AlertTriangle,
-  Bot,
-  ArrowLeft,
-  ShieldCheck,
-  Siren,
-  Phone,
-  CalendarPlus,
-  HeartPulse,
-  Activity,
-  Leaf,
-  Info,
-} from "lucide-react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  HeartPulse,
+  Info,
+  Loader2,
+  RotateCcw,
+  ShieldCheck,
+  Stethoscope,
+} from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/Badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 
-/** Structured analysis response from the API */
 interface SymptomAnalysis {
   urgencyLevel: "LOW" | "MEDIUM" | "HIGH" | "EMERGENCY";
   triageCategory: "GREEN" | "YELLOW" | "RED";
@@ -26,436 +29,445 @@ interface SymptomAnalysis {
   possibleCauses: string[];
   recommendedAction: string;
   suggestBooking: boolean;
-  disclaimer: string;
-  isEmergency: boolean;
-  responseTimeMs?: number;
-  error?: string;
-  mlPrediction?: {
-    urgencyLevel: string;
-    confidence: number;
-    confidencePercentage?: number;
-    modelType?: string;
-  } | null;
-  mlUrgency?: string | null;
-  mlConfidence?: number | null;
-  mlConfidencePercentage?: number | null;
-}
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  analysis?: SymptomAnalysis;
-}
-
-/** Urgency config for visual treatment */
-const URGENCY_CONFIG = {
-  EMERGENCY: {
-    icon: Siren,
-    label: "EMERGENCY",
-    bgClass:
-      "bg-red-50 dark:bg-red-950/50 border-red-300 dark:border-red-800",
-    textClass: "text-red-900 dark:text-red-100",
-    badgeClass: "bg-red-600 text-white animate-pulse",
-    iconColor: "text-red-600 dark:text-red-400",
-    avatarBg: "bg-red-100 dark:bg-red-900/60",
-  },
-  HIGH: {
-    icon: HeartPulse,
-    label: "HIGH URGENCY",
-    bgClass:
-      "bg-orange-50 dark:bg-orange-950/40 border-orange-300 dark:border-orange-800",
-    textClass: "text-orange-900 dark:text-orange-100",
-    badgeClass: "bg-orange-600 text-white",
-    iconColor: "text-orange-600 dark:text-orange-400",
-    avatarBg: "bg-orange-100 dark:bg-orange-900/60",
-  },
-  MEDIUM: {
-    icon: Activity,
-    label: "MODERATE",
-    bgClass:
-      "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800",
-    textClass: "text-amber-900 dark:text-amber-100",
-    badgeClass: "bg-amber-600 text-white",
-    iconColor: "text-amber-600 dark:text-amber-400",
-    avatarBg: "bg-amber-100 dark:bg-amber-900/60",
-  },
-  LOW: {
-    icon: Leaf,
-    label: "LOW",
-    bgClass:
-      "bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800",
-    textClass: "text-teal-900 dark:text-teal-100",
-    badgeClass: "bg-teal-600 text-white",
-    iconColor: "text-teal-600 dark:text-teal-400",
-    avatarBg: "bg-teal-100 dark:bg-teal-900/60",
-  },
-} as const;
-
-/** Renders a structured analysis card */
-function AnalysisCard({ analysis }: { analysis: SymptomAnalysis }) {
-  const config =
-    URGENCY_CONFIG[analysis.urgencyLevel] || URGENCY_CONFIG.LOW;
-  const UrgencyIcon = config.icon;
-  const mlUrgency = analysis.mlUrgency || analysis.mlPrediction?.urgencyLevel;
-  const mlConfidencePct =
-    analysis.mlConfidencePercentage ??
-    (analysis.mlConfidence != null
-      ? Math.round(analysis.mlConfidence * 100)
-      : analysis.mlPrediction?.confidencePercentage ??
-        (analysis.mlPrediction?.confidence
-          ? Math.round(analysis.mlPrediction.confidence * 100)
-          : null));
-
-  return (
-    <div
-      className={`rounded-2xl border-2 ${config.bgClass} overflow-hidden shadow-sm`}
-    >
-      {/* Urgency Header */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-black/5 dark:border-white/5">
-        <UrgencyIcon className={`h-5 w-5 ${config.iconColor} shrink-0`} />
-        <span
-          className={`text-xs font-bold px-2 py-0.5 rounded-full ${config.badgeClass}`}
-        >
-          {config.label}
-        </span>
-        {mlUrgency && (
-          <span
-            className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-900/10 dark:bg-white/10 text-slate-800 dark:text-slate-200 border border-slate-300/60 dark:border-slate-700/60 flex items-center gap-1"
-            title={`Clinical ML Text Classifier: ${analysis.mlPrediction?.modelType || 'TF-IDF Logistic Regression'}`}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6]" />
-            ML Classifier: {mlUrgency}
-            {mlConfidencePct != null && ` (${mlConfidencePct}%)`}
-          </span>
-        )}
-        {analysis.responseTimeMs != null && (
-          <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-            {analysis.responseTimeMs}ms
-          </span>
-        )}
-      </div>
-
-      {/* Body */}
-      <div className={`px-4 py-3.5 space-y-3 ${config.textClass}`}>
-        {/* Dual-Signal Consensus Indicator */}
-        {mlUrgency && (
-          <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-2.5 text-xs shadow-xs">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-[11px]">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                Dual-Engine Clinical Verification
-              </span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">2 independent models</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">1. Conversational AI (Gemini)</p>
-                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{analysis.urgencyLevel} Urgency</p>
-              </div>
-              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">2. Custom Clinical ML Classifier</p>
-                <p className="font-bold text-slate-900 dark:text-white mt-0.5">
-                  {mlUrgency} {mlConfidencePct != null && `(${mlConfidencePct}% confidence)`}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Summary */}
-        <p className="text-sm font-medium leading-relaxed">
-          {analysis.summary}
-        </p>
-
-        {/* Possible Causes */}
-        {analysis.possibleCauses.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">
-              Possible Causes
-            </p>
-            <ul className="list-disc list-inside text-sm space-y-0.5 opacity-90">
-              {analysis.possibleCauses.map((c, i) => (
-                <li key={i}>{c}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Recommended Action */}
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">
-            Recommended Action
-          </p>
-          <p className="text-sm leading-relaxed">{analysis.recommendedAction}</p>
-        </div>
-
-        {/* Emergency: Call Now CTA */}
-        {analysis.isEmergency && (
-          <a
-            href="tel:112"
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-lg transition-all active:scale-[0.97] animate-pulse"
-          >
-            <Phone className="h-5 w-5" />
-            Call Emergency Services (112)
-          </a>
-        )}
-
-        {/* Book a Doctor CTA */}
-        {analysis.suggestBooking && !analysis.isEmergency && (
-          <Link
-            href="/find-doctor"
-            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] dark:bg-[#14B8A6] dark:hover:bg-teal-500 text-white font-semibold text-sm shadow-sm transition-all active:scale-[0.97]"
-          >
-            <CalendarPlus className="h-4 w-4" />
-            Book a Doctor on CuraLink
-          </Link>
-        )}
-
-        {/* Disclaimer — present on EVERY response */}
-        <div className="flex items-start gap-1.5 pt-2 border-t border-black/5 dark:border-white/5">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-50" />
-          <p className="text-[11px] leading-snug opacity-60 italic">
-            {analysis.disclaimer}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  disclaimer?: string;
+  isEmergency?: boolean;
 }
 
 export default function SymptomCheckerPage() {
   const shouldReduceMotion = useReducedMotion();
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Welcome to CuraLink's Clinical Symptom Checker. Please describe what symptoms you are experiencing, when they started, and their severity.",
-    },
-  ]);
-  const [input, setInput] = useState("");
+
+  // Multi-step assessment state: 1 = Symptoms, 2 = Clarifying Questions, 3 = Assessment
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Step 1: Symptoms Intake
+  const [primarySymptoms, setPrimarySymptoms] = useState("");
+  const [duration, setDuration] = useState("a-few-days");
+  const [severity, setSeverity] = useState<"mild" | "moderate" | "severe">("moderate");
+
+  // Step 2: Clinical Context
+  const [associatedFever, setAssociatedFever] = useState<"no" | "mild" | "high">("no");
+  const [existingConditions, setExistingConditions] = useState("");
+
+  // Step 3: Analysis Result
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<SymptomAnalysis | null>(null);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+  const handleRunAssessment = async () => {
+    if (!primarySymptoms.trim()) {
+      setError("Please describe your symptoms to begin clinical triage.");
+      return;
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMsg: ChatMessage = {
-      id: `usr_${Date.now()}`,
-      role: "user",
-      content: input.trim(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    const currentInput = input.trim();
-    setInput("");
     setIsLoading(true);
+    setError(null);
+
+    // Build synthesized clinical query
+    const durationLabel =
+      duration === "today"
+        ? "started today"
+        : duration === "a-few-days"
+        ? "lasting 2-3 days"
+        : duration === "weeks"
+        ? "lasting multiple weeks"
+        : "chronic (over a month)";
+
+    const feverLabel =
+      associatedFever === "high"
+        ? "with high fever"
+        : associatedFever === "mild"
+        ? "with low-grade fever"
+        : "no fever";
+
+    const fullMessage = `${primarySymptoms.trim()}. Duration: ${durationLabel}. Severity: ${severity}. Fever: ${feverLabel}.${
+      existingConditions.trim() ? ` Prior medical history: ${existingConditions.trim()}.` : ""
+    }`;
 
     try {
-      const res = await fetch("/api/symptom-checker", {
+      const res = await fetch("/api/symptoms/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages: [...messages, userMsg].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          symptoms: fullMessage,
+          messages: [{ role: "user", content: fullMessage }],
         }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        let errorDetail = `Server responded with status ${res.status}`;
-        try {
-          const errBody = await res.json();
-          if (errBody?.error) errorDetail = errBody.error;
-        } catch {
-          try {
-            const errText = await res.text();
-            if (errText) errorDetail = errText;
-          } catch {
-            // Ignore parse failures
-          }
-        }
-        console.error(
-          "[Symptom Checker UI] API error:",
-          res.status,
-          errorDetail
-        );
-        throw new Error(errorDetail);
+        throw new Error(data.message || data.error || "Unable to complete clinical triage assessment.");
       }
 
-      const data: SymptomAnalysis = await res.json();
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `ai_${Date.now()}`,
-          role: "assistant",
-          content: data.summary || "Assessment complete.",
-          analysis: data,
-        },
-      ]);
+      const result = data.data || data;
+      setAnalysis(result);
+      setStep(3);
     } catch (err: any) {
-      console.error("[Symptom Checker UI] Error:", err);
-      const errorMessage = err?.message || "An unexpected error occurred";
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err_${Date.now()}`,
-          role: "assistant",
-          content: `⚠️ **Unable to process your symptoms right now.**\n\n**Error:** ${errorMessage}\n\n**What you can do:**\n- Try sending your message again in a few seconds.\n- If the problem persists, please book a consultation with a CuraLink doctor directly.\n\n*If you are experiencing a medical emergency, please call 112 (India) or 911 immediately.*`,
-        },
-      ]);
+      console.error("Symptom assessment error:", err);
+      setError(err.message || "Failed to reach clinical evaluation service. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E2E8F0] dark:border-[#263049] pb-5">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1C2338] transition-colors active:scale-[0.97]"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F1F5F9] flex items-center gap-2">
-              <Bot className="h-6 w-6 text-[#0F9D8C] dark:text-[#14B8A6]" />
-              AI Symptom Checker
-            </h1>
-            <p className="text-sm text-[#64748B] dark:text-[#94A3B8]">
-              Evaluate your health symptoms & receive preliminary medical
-              guidance.
-            </p>
-          </div>
-        </div>
+  const handleReset = () => {
+    setStep(1);
+    setPrimarySymptoms("");
+    setDuration("a-few-days");
+    setSeverity("moderate");
+    setAssociatedFever("no");
+    setExistingConditions("");
+    setAnalysis(null);
+    setError(null);
+  };
 
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 self-start sm:self-auto">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C] dark:text-[#14B8A6]" />
-          <span>Private & Secure Session</span>
+  return (
+    <div className="mx-auto max-w-3xl py-6 px-4 sm:px-6 space-y-6">
+      {/* Top Header */}
+      <div className="border-b border-slate-200/80 dark:border-slate-800 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-semibold text-[#0D9488] dark:text-[#14B8A6] uppercase tracking-wider">
+                Clinical Triage Tool
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Symptom Assessment &amp; Triage
+            </h1>
+          </div>
+
+          <Badge variant="info">
+            <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
+            <span>Encrypted &amp; Confidential</span>
+          </Badge>
+        </div>
+        <p className="mt-2 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+          Answer a few clinical questions to evaluate urgency, explore possible explanations, and connect with the right medical specialist.
+        </p>
+
+        {/* Step Progression Bar */}
+        <div className="grid grid-cols-3 gap-2 mt-5">
+          {[
+            { num: 1, label: "1. Primary Symptoms" },
+            { num: 2, label: "2. Clinical Context" },
+            { num: 3, label: "3. Triage & Guidance" },
+          ].map((s) => (
+            <div
+              key={s.num}
+              className={`rounded-lg border p-2 text-xs font-medium transition-colors ${
+                step === s.num
+                  ? "border-[#0D9488] bg-teal-50/60 dark:bg-teal-950/40 text-[#0D9488] dark:text-[#14B8A6] font-semibold"
+                  : step > s.num
+                  ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 text-emerald-800 dark:text-emerald-300"
+                  : "border-slate-200 dark:border-slate-800 text-slate-400"
+              }`}
+            >
+              {s.label}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Chat Container */}
-      <div className="flex flex-col h-[580px] rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs dark:shadow-black/20 overflow-hidden transition-colors duration-200">
-        {/* Messages Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-[#F8FAFC] dark:bg-[#0B1120] transition-colors duration-200">
-          {messages.map((m) => (
-            <motion.div
-              key={m.id}
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className={`flex gap-3 ${
-                m.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
-              {m.role === "assistant" && (
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold ${
-                    m.analysis?.isEmergency
-                      ? "bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400"
-                      : m.analysis?.urgencyLevel === "HIGH"
-                        ? "bg-orange-100 dark:bg-orange-900/60 text-orange-600 dark:text-orange-400"
-                        : "bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6]"
-                  }`}
-                >
-                  {m.analysis?.isEmergency ? (
-                    <Siren className="h-5 w-5" />
-                  ) : (
-                    <Bot className="h-5 w-5" />
-                  )}
-                </div>
-              )}
-
-              <div
-                className={`max-w-xl rounded-2xl text-sm leading-relaxed ${
-                  m.role === "user"
-                    ? "bg-[#0F9D8C] dark:bg-[#14B8A6] text-white rounded-br-none shadow-xs px-4 py-3"
-                    : m.analysis
-                      ? "w-full max-w-xl"
-                      : "bg-white dark:bg-[#151B2E] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs rounded-bl-none px-4 py-3"
-                }`}
-              >
-                {m.analysis ? (
-                  <AnalysisCard analysis={m.analysis} />
-                ) : (
-                  <p className="whitespace-pre-line">{m.content}</p>
-                )}
-              </div>
-
-              {m.role === "user" && (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 dark:bg-slate-700 text-white font-semibold text-xs">
-                  S
-                </div>
-              )}
-            </motion.div>
-          ))}
-
-          {/* Typing Indicator with 3 Animated Staggered Dots */}
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex gap-3 justify-start items-center"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6]">
-                <Bot className="h-5 w-5 animate-pulse" />
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] px-4 py-3 text-xs text-[#64748B] dark:text-[#94A3B8] shadow-xs">
-                <span>CuraLink AI is thinking</span>
-                <span className="flex items-center gap-1 ml-0.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse [animation-delay:200ms]" />
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse [animation-delay:400ms]" />
-                </span>
-              </div>
-            </motion.div>
-          )}
-          <div ref={messagesEndRef} />
+      {error && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {/* Disclaimer Banner */}
-        <div className="flex items-center gap-2 border-t border-[#E2E8F0] dark:border-[#263049] bg-amber-50/70 dark:bg-amber-950/30 px-4 py-2 text-xs font-medium text-amber-800 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-          <span>
-            This AI tool provides informational guidance only. For medical
-            emergencies, call 911/112 or visit an emergency room immediately.
-          </span>
-        </div>
-
-        {/* Form Footer */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex items-center gap-2 border-t border-[#E2E8F0] dark:border-[#263049] p-3 bg-white dark:bg-[#151B2E] transition-colors duration-200"
-        >
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe your symptoms (e.g. 'Mild fever and dry cough since yesterday')..."
-            className="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] px-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none transition-colors"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="flex h-10 min-w-[40px] items-center justify-center rounded-xl bg-[#0F9D8C] dark:bg-[#14B8A6] px-4 text-white hover:bg-[#0C8577] dark:hover:bg-teal-500 disabled:opacity-50 transition-all active:scale-[0.97] cursor-pointer"
+      {/* Step Content */}
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.div
+            key="step1"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
           >
-            <Send className="h-4 w-4" />
-          </button>
-        </form>
+            {/* Primary complaint */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+              <label className="text-sm font-semibold text-slate-900 dark:text-white block">
+                What are your main symptoms?
+              </label>
+              <textarea
+                value={primarySymptoms}
+                onChange={(e) => setPrimarySymptoms(e.target.value)}
+                placeholder="e.g. Throbbing pain behind my forehead and eyes since yesterday morning, sensitive to bright light."
+                rows={4}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0D9488]"
+              />
+              <p className="text-[11px] text-slate-400">
+                Please include where you feel discomfort and how it started.
+              </p>
+            </div>
+
+            {/* Duration */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+              <label className="text-sm font-semibold text-slate-900 dark:text-white block">
+                How long have these symptoms persisted?
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { key: "today", label: "Started Today" },
+                  { key: "a-few-days", label: "2 - 3 Days" },
+                  { key: "weeks", label: "1 - 3 Weeks" },
+                  { key: "chronic", label: "Over a Month" },
+                ].map((d) => (
+                  <button
+                    key={d.key}
+                    type="button"
+                    onClick={() => setDuration(d.key)}
+                    className={`rounded-xl p-3 text-xs font-medium border text-center transition-colors cursor-pointer ${
+                      duration === d.key
+                        ? "border-[#0D9488] bg-teal-50 dark:bg-teal-950/50 text-[#0D9488] dark:text-[#14B8A6] font-semibold"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Severity scale */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+              <label className="text-sm font-semibold text-slate-900 dark:text-white block">
+                How would you rate the intensity?
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: "mild", label: "Mild", desc: "Noticeable but doesn't interrupt daily routine" },
+                  { key: "moderate", label: "Moderate", desc: "Disrupts focus, work, or sleep" },
+                  { key: "severe", label: "Severe", desc: "Significant pain or intense discomfort" },
+                ].map((s) => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setSeverity(s.key as any)}
+                    className={`rounded-xl p-3 text-left border transition-colors cursor-pointer ${
+                      severity === s.key
+                        ? "border-[#0D9488] bg-teal-50 dark:bg-teal-950/50 text-[#0D9488] dark:text-[#14B8A6]"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold">{s.label}</p>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-normal">{s.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => {
+                  if (!primarySymptoms.trim()) {
+                    setError("Please describe your symptoms before proceeding.");
+                    return;
+                  }
+                  setError(null);
+                  setStep(2);
+                }}
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
+              >
+                <span>Continue to Clinical Details</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 2 && (
+          <motion.div
+            key="step2"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {/* Fever check */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+              <label className="text-sm font-semibold text-slate-900 dark:text-white block">
+                Do you have a fever or elevated temperature?
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { key: "no", label: "No Fever", desc: "Normal body temperature" },
+                  { key: "mild", label: "Low-Grade Fever", desc: "Under 101°F (38.3°C)" },
+                  { key: "high", label: "High Fever", desc: "Over 101°F (38.3°C) or chills" },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setAssociatedFever(f.key as any)}
+                    className={`rounded-xl p-3 text-left border transition-colors cursor-pointer ${
+                      associatedFever === f.key
+                        ? "border-[#0D9488] bg-teal-50 dark:bg-teal-950/50 text-[#0D9488] dark:text-[#14B8A6]"
+                        : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    <p className="text-xs font-semibold">{f.label}</p>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-normal">{f.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Medical context */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-3">
+              <label className="text-sm font-semibold text-slate-900 dark:text-white block">
+                Relevant Medical History or Medications (Optional)
+              </label>
+              <textarea
+                value={existingConditions}
+                onChange={(e) => setExistingConditions(e.target.value)}
+                placeholder="e.g. Asthma, hypertension, taking daily antihistamines, or pregnant."
+                rows={3}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0D9488]"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <Button variant="outline" onClick={() => setStep(1)} disabled={isLoading}>
+                <ChevronLeft className="h-4 w-4" />
+                <span>Back</span>
+              </Button>
+
+              <Button
+                onClick={handleRunAssessment}
+                disabled={isLoading}
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white px-6 font-semibold"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    <span>Analyzing Clinical Profile...</span>
+                  </>
+                ) : (
+                  <span>Generate Assessment</span>
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 3 && analysis && (
+          <motion.div
+            key="step3"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {/* Triage Card */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-5 shadow-xs">
+              {/* Urgency Badge Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+                    Clinical Triage Evaluation
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {(analysis.urgencyLevel === "EMERGENCY" || analysis.isEmergency) && (
+                      <Badge variant="emergency">🚨 Emergency · Immediate Care Required</Badge>
+                    )}
+                    {analysis.urgencyLevel !== "EMERGENCY" && !analysis.isEmergency && analysis.triageCategory === "GREEN" && (
+                      <Badge variant="verified">Green · Routine Care / Low Urgency</Badge>
+                    )}
+                    {analysis.urgencyLevel !== "EMERGENCY" && !analysis.isEmergency && analysis.triageCategory === "YELLOW" && (
+                      <Badge variant="pending">Yellow · Consultation Recommended</Badge>
+                    )}
+                    {analysis.urgencyLevel !== "EMERGENCY" && !analysis.isEmergency && analysis.triageCategory === "RED" && (
+                      <Badge variant="emergency">Red · Urgent Clinical Attention Advised</Badge>
+                    )}
+                  </div>
+                </div>
+
+                <Button variant="outline" size="sm" onClick={handleReset} className="self-start sm:self-auto">
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  New Assessment
+                </Button>
+              </div>
+
+              {/* Clinical Summary */}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Clinical Summary
+                </h3>
+                <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                  {analysis.summary}
+                </p>
+              </div>
+
+              {/* Possible Explanations */}
+              {analysis.possibleCauses && analysis.possibleCauses.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                    Possible Explanations to Discuss with a Clinician
+                  </h3>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {analysis.possibleCauses.map((cause, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 text-xs font-medium text-slate-800 dark:text-slate-200"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-[#0D9488] shrink-0 mt-0.5" />
+                        <span>{cause}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recommended Action */}
+              <div className="pt-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Recommended Action Plan
+                </h3>
+                <p className="text-sm font-medium text-slate-900 dark:text-white leading-relaxed">
+                  {analysis.recommendedAction}
+                </p>
+              </div>
+
+              {/* Connect with Doctor Banner */}
+              <div className="rounded-xl border border-teal-200 dark:border-teal-800/80 bg-teal-50/60 dark:bg-teal-950/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0D9488] text-white shrink-0">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                      Speak with a Licensed Doctor
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Share this triage summary directly with a specialist over video consultation.
+                    </p>
+                  </div>
+                </div>
+
+                <Button asChild className="bg-[#0D9488] hover:bg-[#0F766E] text-white shrink-0">
+                  <Link href="/find-doctor">Browse Verified Doctors</Link>
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Prominent Medical Disclaimer Banner */}
+      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4 text-xs text-slate-500 dark:text-slate-400 leading-relaxed flex items-start gap-3">
+        <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+        <div>
+          <span className="font-semibold text-slate-700 dark:text-slate-300 block mb-0.5">
+            Clinical Information Disclaimer
+          </span>
+          This tool provides informational guidance and does not replace professional medical evaluation. It does not prescribe medications. For life-threatening emergencies, chest pain, or severe breathing difficulties, immediately contact local emergency services (112 / 911).
+        </div>
       </div>
     </div>
   );

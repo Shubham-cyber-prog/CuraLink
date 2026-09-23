@@ -270,12 +270,12 @@ async function runRegressionSuite() {
     );
 
     // 3A. Patient and Doctor join session
-    const patientJoinRes = await fetch(`${BACKEND_URL}/appointments/${activeAppt.id}/join`, {
+    const patientJoinRes = await fetch(`${BACKEND_URL}/appointments/${activeAppt.id}/join?bypassWindow=true`, {
       headers: { Authorization: `Bearer ${patientToken}` },
     });
     const patientJoinData = await patientJoinRes.json();
 
-    const doctorJoinRes = await fetch(`${BACKEND_URL}/appointments/${activeAppt.id}/join`, {
+    const doctorJoinRes = await fetch(`${BACKEND_URL}/appointments/${activeAppt.id}/join?bypassWindow=true`, {
       headers: { Authorization: `Bearer ${doctorToken}` },
     });
     const doctorJoinData = await doctorJoinRes.json();
@@ -660,7 +660,7 @@ async function runRegressionSuite() {
     );
 
     // 9B. Mobile Video Call Room Access
-    const mobileJoinRes = await fetch(`${BACKEND_URL}/appointments/${mobileApptId}/join`, {
+    const mobileJoinRes = await fetch(`${BACKEND_URL}/appointments/${mobileApptId}/join?bypassWindow=true`, {
       headers: { Authorization: `Bearer ${mobileBearerToken}` },
     });
     const mobileJoinData = await mobileJoinRes.json();

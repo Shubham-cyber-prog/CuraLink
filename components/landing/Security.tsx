@@ -12,8 +12,8 @@ const ITEMS = [
   },
   {
     icon: ShieldCheck,
-    title: "HIPAA-aligned controls",
-    body: "Access, audit, and least-privilege defaults designed for regulated care — not a generic SaaS template.",
+    title: "Confidentiality & Access Controls",
+    body: "Role-based access, audit trails, and least-privilege defaults designed with medical privacy in mind.",
   },
   {
     icon: FileCheck2,

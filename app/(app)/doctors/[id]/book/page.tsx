@@ -4,36 +4,51 @@ import { use, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, Calendar, Clock, CheckCircle2, User, CreditCard, ShieldCheck } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  User,
+  ShieldCheck,
+  Video,
+  MapPin,
+  AlertCircle,
+  Loader2,
+  FileText,
+} from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Badge } from "@/components/ui/Badge";
 import { Doctor } from "@/types/doctor";
-
 import { api } from "@/lib/api";
 
 export default function BookAppointmentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const searchParams = useSearchParams();
   const router = useRouter();
-  
-  const date = searchParams.get("date");
-  const time = searchParams.get("time");
+  const shouldReduceMotion = useReducedMotion();
 
+  const queryDate = searchParams.get("date");
+  const queryTime = searchParams.get("time");
+
+  const [step, setStep] = useState<1 | 2 | 3>(queryDate && queryTime ? 3 : 1);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [isLoadingDoctor, setIsLoadingDoctor] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // Booking selections
+  const [consultationMode, setConsultationMode] = useState<"video" | "in-person">("video");
+  const [selectedDate, setSelectedDate] = useState<string>(queryDate || "");
+  const [selectedTime, setSelectedTime] = useState<string>(queryTime || "");
+  const [patientNote, setPatientNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!date || !time) {
-      router.replace(`/doctors/${id}`);
-      return;
-    }
-    
-    // Check authentication via API
     let mounted = true;
     const checkAuth = async () => {
       try {
@@ -41,7 +56,7 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
         if (!res.success) throw new Error("Not auth");
         if (mounted) setIsAuthenticated(true);
       } catch (err) {
-        if (mounted) router.push(`/login?redirect=/doctors/${id}/book?date=${date}&time=${time}`);
+        if (mounted) router.push(`/login?redirect=/doctors/${id}/book`);
       }
     };
 
@@ -51,6 +66,15 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
         const data = await api.get(`/doctors/${id}`);
         if (mounted && data.success && data.data) {
           setDoctor(data.data);
+          // Pre-select first available slot if not already in URL
+          if (!queryDate && data.data.availabilitySlots?.[0]) {
+            const firstSlot = data.data.availabilitySlots[0];
+            setSelectedDate(firstSlot.date);
+            const firstTimes = firstSlot.slots || firstSlot.times || [];
+            if (firstTimes[0]) {
+              setSelectedTime(firstTimes[0]);
+            }
+          }
         }
       } catch (err) {
         console.error("Error fetching doctor:", err);
@@ -62,211 +86,462 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
     checkAuth();
     fetchDoctor();
 
-    return () => { mounted = false; };
-  }, [date, time, id, router]);
-
-  if (isLoadingDoctor || isAuthenticated === null) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-12 space-y-6 animate-fadeIn">
-        <Skeleton className="h-6 w-36 rounded-lg" />
-        <Skeleton className="h-10 w-64 rounded-xl" />
-        <div className="grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            <Skeleton className="h-44 w-full rounded-3xl" />
-            <Skeleton className="h-32 w-full rounded-3xl" />
-          </div>
-          <Skeleton className="h-72 w-full rounded-3xl" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!doctor || !date || !time) return null;
+    return () => {
+      mounted = false;
+    };
+  }, [id, queryDate, queryTime, router]);
 
   const handleConfirm = async () => {
+    if (!doctor || !selectedDate || !selectedTime) {
+      setError("Please select both a date and time slot for your appointment.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       const data = await api.post("/appointments/book", {
         doctorId: doctor.id,
-        date,
-        time,
+        date: selectedDate,
+        time: selectedTime,
+        note: patientNote.trim() || undefined,
+        type: consultationMode === "video" ? "VIDEO" : "IN_PERSON",
       });
-      
+
       if (!data.success) {
         throw new Error(data.message || "Failed to book appointment");
       }
-      
+
       setIsSuccess(true);
     } catch (err: any) {
-      setError(err.message || "Unable to connect to the server. Please try again later.");
+      setError(err.message || "Unable to confirm appointment. Please try another slot or check connection.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (isLoadingDoctor || isAuthenticated === null) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-12 space-y-6">
+        <Skeleton className="h-6 w-32 rounded-lg" />
+        <Skeleton className="h-10 w-64 rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!doctor) {
+    return (
+      <div className="py-20 text-center">
+        <p className="text-slate-500">Doctor not found.</p>
+        <Button asChild variant="outline" className="mt-4">
+          <Link href="/find-doctor">Back to directory</Link>
+        </Button>
+      </div>
+    );
+  }
+
   if (isSuccess) {
     return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center py-20 text-center px-4">
-        <motion.div 
-          initial={{ scale: 0, opacity: 0, rotate: -45 }} 
-          animate={{ scale: 1, opacity: 1, rotate: 0 }} 
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="mb-8 rounded-full bg-gradient-to-tr from-teal-400 to-teal-600 p-6 text-white shadow-xl shadow-teal-500/30"
-        >
-          <CheckCircle2 className="h-16 w-16" />
-        </motion.div>
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <h2 className="mb-3 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-[#F1F5F9]">Appointment Confirmed!</h2>
-          <p className="max-w-md mx-auto text-lg text-slate-600 dark:text-slate-300 mb-8 leading-relaxed">
-            You are scheduled to see <span className="font-semibold text-slate-900 dark:text-white">{doctor.name}</span> on <span className="font-semibold text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded">{date}</span> at <span className="font-semibold text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 rounded">{time}</span>.
-          </p>
-          <Button asChild size="lg" className="h-14 px-8 rounded-2xl bg-teal-600 hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-500 shadow-lg shadow-teal-600/20 text-base font-semibold">
-            <Link href="/dashboard">Go to Dashboard</Link>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center py-16 text-center px-4">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 shadow-xs">
+          <CheckCircle2 className="h-8 w-8 stroke-[2.5]" />
+        </div>
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
+          Appointment Scheduled
+        </h2>
+        <p className="max-w-md mx-auto text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
+          Your consultation with <span className="font-semibold text-slate-900 dark:text-white">{doctor.name}</span> is confirmed for{" "}
+          <span className="font-semibold text-[#0D9488]">{selectedDate}</span> at{" "}
+          <span className="font-semibold text-[#0D9488]">{selectedTime}</span> ({consultationMode === "video" ? "Video Call" : "In-Person"}).
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Button asChild size="lg" className="bg-[#0D9488] hover:bg-[#0F766E] text-white">
+            <Link href="/appointments">View in My Visits</Link>
           </Button>
-        </motion.div>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/dashboard">Return to Dashboard</Link>
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <Link href={`/doctors/${id}`} className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-teal-700 dark:text-slate-400 dark:hover:text-teal-400 transition-colors">
+    <div className="mx-auto max-w-3xl px-4 py-8">
+      {/* Back Link */}
+      <Link
+        href={`/doctors/${id}`}
+        className="mb-6 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
+      >
         <ChevronLeft className="h-4 w-4" /> Back to Doctor Profile
       </Link>
 
-      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-[#F1F5F9] mb-2">Review & Confirm</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-lg">Please review your appointment details before confirming.</p>
+      {/* Step Indicator Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200/80 dark:border-slate-800">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Schedule Consultation
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Confirm your visit with {doctor.name} ({doctor.specialty})
+            </p>
+          </div>
+          <Badge variant="verified">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Direct Clinical Booking</span>
+          </Badge>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 dark:bg-teal-950/60 px-4 py-2 text-sm font-medium text-teal-700 dark:text-teal-400 border border-teal-100 dark:border-teal-800/60">
-          <ShieldCheck className="h-4 w-4" /> Secure Checkout
+
+        {/* 3 Steps indicator */}
+        <div className="grid grid-cols-3 gap-2 mt-4">
+          {[
+            { num: 1, title: "1. Mode & Doctor" },
+            { num: 2, title: "2. Slot Selection" },
+            { num: 3, title: "3. Confirm Details" },
+          ].map((s) => (
+            <button
+              key={s.num}
+              type="button"
+              onClick={() => {
+                if (s.num === 1 || (s.num === 2 && doctor) || (s.num === 3 && selectedDate && selectedTime)) {
+                  setStep(s.num as any);
+                }
+              }}
+              className={`text-left p-2 rounded-lg border text-xs font-semibold transition-colors ${
+                step === s.num
+                  ? "border-[#0D9488] bg-teal-50/60 dark:bg-teal-950/40 text-[#0D9488] dark:text-[#14B8A6]"
+                  : step > s.num
+                  ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300"
+                  : "border-slate-200 dark:border-slate-800 text-slate-400"
+              }`}
+            >
+              {s.title}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Appointment Details */}
-          <div className="overflow-hidden rounded-3xl border border-slate-200/60 dark:border-[#263049] bg-white/60 dark:bg-[#151B2E]/90 backdrop-blur-xl p-8 shadow-sm transition-all hover:shadow-md">
-            <h2 className="mb-6 text-xl font-bold text-slate-900 dark:text-[#F1F5F9] flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-teal-600 dark:text-teal-400" /> Appointment Details
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="group flex items-start gap-4 rounded-2xl bg-slate-50/80 dark:bg-[#1C2338]/80 p-5 transition-colors hover:bg-teal-50/50 dark:hover:bg-teal-950/30 border border-transparent hover:border-teal-100 dark:hover:border-teal-800/60">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[#151B2E] shadow-sm text-teal-600 dark:text-teal-400 group-hover:text-teal-700 dark:group-hover:text-teal-300 group-hover:scale-110 transition-transform">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Date</p>
-                  <p className="text-lg font-semibold text-slate-900 dark:text-[#F1F5F9]">{date}</p>
-                </div>
-              </div>
-              <div className="group flex items-start gap-4 rounded-2xl bg-slate-50/80 dark:bg-[#1C2338]/80 p-5 transition-colors hover:bg-teal-50/50 dark:hover:bg-teal-950/30 border border-transparent hover:border-teal-100 dark:hover:border-teal-800/60">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white dark:bg-[#151B2E] shadow-sm text-teal-600 dark:text-teal-400 group-hover:text-teal-700 dark:group-hover:text-teal-300 group-hover:scale-110 transition-transform">
-                  <Clock className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Time</p>
-                  <p className="text-lg font-semibold text-slate-900 dark:text-[#F1F5F9]">{time}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Information */}
-          <div className="rounded-3xl border border-slate-200/60 dark:border-[#263049] bg-white/60 dark:bg-[#151B2E]/90 backdrop-blur-xl p-8 shadow-sm transition-all hover:shadow-md">
-            <h2 className="mb-6 text-xl font-bold text-slate-900 dark:text-[#F1F5F9] flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-teal-600 dark:text-teal-400" /> Payment Information
-            </h2>
-            <div className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-[#263049] bg-white dark:bg-[#1C2338] p-5 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 shadow-inner">
-                  <span className="font-bold text-white tracking-widest text-xs">VISA</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-[#F1F5F9]">Card ending in 4242</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Expires 12/28</p>
-                </div>
-              </div>
-              <Button variant="ghost" className="text-teal-600 hover:text-teal-800 dark:text-teal-400 dark:hover:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/50 font-semibold rounded-full">Change</Button>
-            </div>
-          </div>
+      {error && (
+        <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+          <span>{error}</span>
         </div>
+      )}
 
-        {/* Sidebar Summary */}
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200/60 dark:border-[#263049] bg-white/80 dark:bg-[#151B2E]/90 backdrop-blur-xl p-6 shadow-lg shadow-slate-200/40 dark:shadow-none">
-            <h2 className="mb-5 text-lg font-bold text-slate-900 dark:text-[#F1F5F9]">Provider</h2>
-            <div className="flex items-center gap-4 border-b border-slate-100 dark:border-[#263049] pb-5">
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-teal-50 dark:bg-teal-950/60 ring-2 ring-teal-100 dark:ring-teal-900">
+      {/* Step Content */}
+      <AnimatePresence mode="wait">
+        {step === 1 && (
+          <motion.div
+            key="step1"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 12 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {/* Doctor Summary Card */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6] font-bold text-lg border border-teal-100 dark:border-teal-900/60 overflow-hidden">
                 {doctor.photoUrl ? (
                   <Image src={doctor.photoUrl} alt={doctor.name} width={56} height={56} className="h-full w-full object-cover" />
                 ) : (
-                  <User className="h-14 w-14 p-3 text-teal-600 dark:text-teal-400" />
+                  <span>{doctor.name.replace("Dr. ", "").charAt(0)}</span>
                 )}
               </div>
-              <div>
-                <p className="font-bold text-slate-900 dark:text-[#F1F5F9] text-lg">{doctor.name}</p>
-                <p className="text-sm font-medium text-teal-700 dark:text-teal-400">{doctor.specialty}</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-slate-900 dark:text-white text-base truncate">
+                  {doctor.name}
+                </h3>
+                <p className="text-xs font-medium text-[#0D9488] dark:text-[#14B8A6]">
+                  {doctor.specialty} · {doctor.experience}
+                </p>
+                {doctor.consultationFee && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Standard Fee: ₹{doctor.consultationFee}
+                  </p>
+                )}
               </div>
             </div>
-            
-            <div className="pt-5 space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Consultation Fee</span>
-                <span className="font-semibold text-slate-900 dark:text-[#F1F5F9]">₹{doctor.consultationFee || 500}.00</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Service Fee</span>
-                <span className="font-semibold text-slate-900 dark:text-[#F1F5F9]">₹50.00</span>
-              </div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-[#263049] pt-4 mt-2">
-                <span className="font-bold text-slate-900 dark:text-[#F1F5F9] text-lg">Total</span>
-                <span className="font-extrabold text-teal-600 dark:text-teal-400 text-2xl">₹{(doctor.consultationFee || 500) + 50}.00</span>
-              </div>
-            </div>
-          </div>
 
-          <AnimatePresence>
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/60 p-4 text-sm text-red-600 dark:text-red-400 font-medium"
+            {/* Consultation Mode Selection */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                Choose Consultation Mode
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setConsultationMode("video")}
+                  className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-all cursor-pointer ${
+                    consultationMode === "video"
+                      ? "border-[#0D9488] bg-teal-50/50 dark:bg-teal-950/40 ring-1 ring-[#0D9488]"
+                      : "border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6]">
+                    <Video className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                      Telehealth Video Call
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      Encrypted browser consultation with direct e-prescription.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setConsultationMode("in-person")}
+                  className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-all cursor-pointer ${
+                    consultationMode === "in-person"
+                      ? "border-[#0D9488] bg-teal-50/50 dark:bg-teal-950/40 ring-1 ring-[#0D9488]"
+                      : "border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                      In-Person Clinic Visit
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      Consultation at practitioner&apos;s verified hospital or clinic address.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <Button
+                onClick={() => setStep(2)}
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
               >
-                {error}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <span>Continue to Slots</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
-          <Button 
-            onClick={handleConfirm} 
-            disabled={isSubmitting} 
-            className="w-full h-14 rounded-2xl bg-teal-600 hover:bg-teal-700 dark:bg-teal-600 dark:hover:bg-teal-500 text-base font-bold shadow-lg shadow-teal-600/20 transition-all active:scale-[0.97]"
+        {step === 2 && (
+          <motion.div
+            key="step2"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 12 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
           >
-            {isSubmitting ? (
+            {/* Slot picker using real doctor availability */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Confirming...
+                <Calendar className="h-4 w-4 text-[#0D9488]" />
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Available Dates & Timings
+                </h3>
               </div>
-            ) : "Confirm Appointment"}
-          </Button>
-          <p className="text-center text-xs font-medium text-slate-400 dark:text-slate-500 px-4">
-            By confirming, you agree to our <Link href="/terms-of-service" className="underline hover:text-teal-600 dark:hover:text-teal-400">Terms of Service</Link> and <Link href="/cancellation-policy" className="underline hover:text-teal-600 dark:hover:text-teal-400">Cancellation Policy</Link>.
-          </p>
-        </div>
-      </div>
+
+              {doctor.availabilitySlots && doctor.availabilitySlots.length > 0 ? (
+                <div className="space-y-4">
+                  {/* Date chips */}
+                  <div className="flex flex-wrap gap-2">
+                    {doctor.availabilitySlots.map((slot) => {
+                      const isSelected = selectedDate === slot.date;
+                      return (
+                        <button
+                          key={slot.date}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDate(slot.date);
+                            const availableTimes = slot.slots || slot.times || [];
+                            if (availableTimes[0]) setSelectedTime(availableTimes[0]);
+                          }}
+                          className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer border ${
+                            isSelected
+                              ? "border-[#0D9488] bg-[#0D9488] text-white shadow-2xs"
+                              : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100"
+                          }`}
+                        >
+                          {slot.date}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Times for selected date */}
+                  <div className="pt-2">
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
+                      Available Consultation Windows:
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {(() => {
+                        const activeSlot = doctor.availabilitySlots.find((s) => s.date === selectedDate);
+                        const timesList: string[] = activeSlot ? (activeSlot.slots || activeSlot.times || []) : [];
+                        return timesList.map((t: string) => {
+                          const isSelected = selectedTime === t;
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setSelectedTime(t)}
+                              className={`rounded-xl py-2 px-3 text-xs font-medium transition-colors cursor-pointer border text-center ${
+                                isSelected
+                                  ? "border-[#0D9488] bg-teal-50 dark:bg-teal-950/50 text-[#0D9488] dark:text-[#14B8A6] font-semibold"
+                                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:border-slate-300"
+                              }`}
+                            >
+                              <Clock className="h-3 w-3 inline mr-1 text-slate-400" />
+                              {t}
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-xs text-slate-500">
+                    No custom schedule published. Select preferred immediate booking slot:
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {["Today", "Tomorrow"].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setSelectedDate(d)}
+                        className={`rounded-xl p-2.5 text-xs font-semibold border ${
+                          selectedDate === d
+                            ? "border-[#0D9488] bg-teal-50 text-[#0D9488]"
+                            : "border-slate-200"
+                        }`}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["10:00 AM", "02:30 PM", "05:00 PM"].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setSelectedTime(t)}
+                        className={`rounded-xl p-2 text-xs font-semibold border ${
+                          selectedTime === t
+                            ? "border-[#0D9488] bg-teal-50 text-[#0D9488]"
+                            : "border-slate-200"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between pt-4">
+              <Button variant="outline" onClick={() => setStep(1)}>
+                <ChevronLeft className="h-4 w-4" />
+                <span>Back</span>
+              </Button>
+              <Button
+                disabled={!selectedDate || !selectedTime}
+                onClick={() => setStep(3)}
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white"
+              >
+                <span>Review & Confirm</span>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 3 && (
+          <motion.div
+            key="step3"
+            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 12 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {/* Consultation Summary Breakdown */}
+            <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 space-y-4">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
+                Consultation Summary
+              </h3>
+
+              <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
+                  <span className="text-slate-500 dark:text-slate-400 block mb-1">Doctor</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{doctor.name}</span>
+                  <span className="block text-slate-500">{doctor.specialty}</span>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3">
+                  <span className="text-slate-500 dark:text-slate-400 block mb-1">Schedule & Mode</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {selectedDate} at {selectedTime}
+                  </span>
+                  <span className="block text-slate-500">
+                    {consultationMode === "video" ? "Video Telehealth Call" : "In-Person Clinic Visit"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Optional Health Note */}
+              <div className="space-y-1.5 pt-2">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-slate-400" />
+                  <span>Reason for Consultation / Symptoms (Optional)</span>
+                </label>
+                <textarea
+                  value={patientNote}
+                  onChange={(e) => setPatientNote(e.target.value)}
+                  placeholder="e.g. Cough and throat irritation for 3 days, no fever."
+                  rows={3}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0D9488]"
+                />
+              </div>
+
+              {/* Terms & Privacy Note */}
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800 pt-3">
+                By confirming, you schedule this appointment directly into the clinician&apos;s calendar. You will receive an email confirmation and can access the room from your dashboard.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between pt-4">
+              <Button variant="outline" onClick={() => setStep(2)} disabled={isSubmitting}>
+                <ChevronLeft className="h-4 w-4" />
+                <span>Adjust Slot</span>
+              </Button>
+
+              <Button
+                onClick={handleConfirm}
+                disabled={isSubmitting}
+                className="bg-[#0D9488] hover:bg-[#0F766E] text-white px-6 font-semibold"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    <span>Booking...</span>
+                  </>
+                ) : (
+                  <span>Confirm Appointment</span>
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

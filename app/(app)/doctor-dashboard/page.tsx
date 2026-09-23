@@ -177,7 +177,7 @@ export default function DoctorDashboardPage() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               Clinical Practice Dashboard
             </h1>
-            <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 px-2 py-0.5 text-xs font-semibold text-[#085041] dark:text-teal-300">
+            <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 px-2 py-0.5 text-xs font-semibold text-[#0D9488] dark:text-teal-300">
               <ShieldCheck className="h-3.5 w-3.5" />
               Verified Clinician
             </span>
@@ -196,14 +196,14 @@ export default function DoctorDashboardPage() {
             <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </button>
-          <div className="rounded-lg bg-[#085041] text-white px-3.5 py-2 text-xs font-semibold shadow-xs">
+          <div className="rounded-lg bg-[#0D9488] text-white px-3.5 py-2 text-xs font-semibold shadow-xs">
             Fee: ₹{stats.consultationFee} / session
           </div>
         </div>
       </div>
 
       {statusMessage && (
-        <div className="rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 p-3.5 text-xs font-medium text-[#085041] dark:text-teal-300 flex items-center gap-2">
+        <div className="rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 p-3.5 text-xs font-medium text-[#0D9488] dark:text-teal-300 flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4" />
           {statusMessage}
         </div>
@@ -217,7 +217,7 @@ export default function DoctorDashboardPage() {
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Today&apos;s Visits
             </p>
-            <div className="h-8 w-8 rounded-lg bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center text-[#085041] dark:text-teal-300">
+            <div className="h-8 w-8 rounded-lg bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center text-[#0D9488] dark:text-teal-300">
               <Calendar className="h-4 w-4" />
             </div>
           </div>
@@ -238,7 +238,7 @@ export default function DoctorDashboardPage() {
             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Total Patients
             </p>
-            <div className="h-8 w-8 rounded-lg bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center text-[#085041] dark:text-teal-300">
+            <div className="h-8 w-8 rounded-lg bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center text-[#0D9488] dark:text-teal-300">
               <Users className="h-4 w-4" />
             </div>
           </div>
@@ -361,7 +361,7 @@ export default function DoctorDashboardPage() {
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <Link
                                   href={`/doctor-dashboard/patients/${appt.patientId}`}
-                                  className="font-semibold text-slate-900 dark:text-white hover:text-[#085041] dark:hover:text-teal-400 transition-colors"
+                                  className="font-semibold text-slate-900 dark:text-white hover:text-[#0D9488] dark:hover:text-teal-400 transition-colors"
                                 >
                                   {appt.patientName}
                                 </Link>
@@ -399,7 +399,7 @@ export default function DoctorDashboardPage() {
                                       className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60"
                                       title="Profile Complete (Name, Age, Gender)"
                                     >
-                                      <ShieldCheck className="h-2.5 w-2.5 text-[#085041] dark:text-teal-400" />
+                                      <ShieldCheck className="h-2.5 w-2.5 text-[#0D9488] dark:text-teal-400" />
                                       Complete
                                     </span>
                                   ) : (
@@ -456,7 +456,7 @@ export default function DoctorDashboardPage() {
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${
                               isConfirmed
-                                ? "bg-teal-50 dark:bg-teal-950/50 text-[#085041] dark:text-teal-300 border border-teal-200 dark:border-teal-800"
+                                ? "bg-teal-50 dark:bg-teal-950/50 text-[#0D9488] dark:text-teal-300 border border-teal-200 dark:border-teal-800"
                                 : isCompleted
                                 ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                                 : "bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
@@ -475,7 +475,7 @@ export default function DoctorDashboardPage() {
                           ) : (
                             <Link
                               href={`/doctor-dashboard/patients/${appt.patientId}?appointmentId=${appt.id}#prescribe`}
-                              className="text-[11px] text-slate-500 hover:text-[#085041] dark:hover:text-teal-400 underline font-medium"
+                              className="text-[11px] text-slate-500 hover:text-[#0D9488] dark:hover:text-teal-400 underline font-medium"
                             >
                               Issue Rx
                             </Link>
@@ -489,7 +489,7 @@ export default function DoctorDashboardPage() {
                             {isConfirmed && (
                               <Link
                                 href={`/consultation/${appt.id}`}
-                                className="inline-flex items-center gap-1 rounded-md bg-[#085041] hover:bg-[#063b30] text-white px-2.5 py-1.5 text-xs font-semibold shadow-xs transition-colors"
+                                className="inline-flex items-center gap-1 rounded-md bg-[#0D9488] hover:bg-[#063b30] text-white px-2.5 py-1.5 text-xs font-semibold shadow-xs transition-colors"
                               >
                                 <Video className="h-3.5 w-3.5" />
                                 Join Call
@@ -522,7 +522,7 @@ export default function DoctorDashboardPage() {
                             {isCancelled && (
                               <button
                                 onClick={() => handleUpdateStatus(appt.id, "CONFIRMED")}
-                                className="rounded-md border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 px-2 py-1 text-xs font-semibold text-[#085041] dark:text-teal-300 hover:bg-teal-100 cursor-pointer"
+                                className="rounded-md border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 px-2 py-1 text-xs font-semibold text-[#0D9488] dark:text-teal-300 hover:bg-teal-100 cursor-pointer"
                               >
                                 Re-activate
                               </button>
@@ -566,7 +566,7 @@ export default function DoctorDashboardPage() {
               value={patientSearch}
               onChange={(e) => setPatientSearch(e.target.value)}
               placeholder="Search patients or conditions..."
-              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#151B2E] pl-9 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#085041]"
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#151B2E] pl-9 pr-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0D9488]"
             />
           </div>
         </div>

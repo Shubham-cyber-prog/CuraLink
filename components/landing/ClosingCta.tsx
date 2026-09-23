@@ -28,7 +28,7 @@ export function ClosingCta() {
             </p>
             <div className="mt-4 flex items-center gap-2 text-xs text-teal-200/80">
               <ShieldCheck className="h-4 w-4 text-teal-300" />
-              <span>HIPAA-aligned · Encrypted consultations · No insurance required</span>
+              <span>Designed for Patient Privacy · Verified Medical Practitioners · No Insurance Required</span>
             </div>
           </div>
 

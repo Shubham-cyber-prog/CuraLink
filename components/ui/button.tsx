@@ -4,28 +4,35 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/50 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-teal-600 text-white shadow-sm shadow-teal-700/20 hover:bg-teal-700 hover:shadow-md dark:bg-teal-600 dark:hover:bg-teal-500 dark:shadow-teal-950/40",
+          "bg-[#0D9488] text-white shadow-xs hover:bg-[#0F766E] active:bg-[#115E59] dark:bg-[#0D9488] dark:hover:bg-[#14B8A6]",
+        navy:
+          "bg-[#0F172A] text-white shadow-xs hover:bg-[#1E293B] active:bg-[#334155] dark:bg-[#1E293B] dark:hover:bg-[#334155]",
         outline:
-          "border border-slate-200 bg-white/80 text-slate-800 backdrop-blur hover:border-slate-300 hover:bg-white dark:border-[#1e293b] dark:bg-[#0f172a] dark:text-[#F1F5F9] dark:hover:bg-[#1e293b] dark:hover:border-slate-600",
-        ghost: "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-[#1e293b] dark:hover:text-[#F1F5F9]",
-        link: "text-teal-700 underline-offset-4 hover:underline dark:text-teal-400",
+          "border border-slate-200/90 bg-white text-slate-800 shadow-2xs hover:bg-slate-50 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800",
+        ghost:
+          "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white",
+        danger:
+          "bg-rose-600 text-white shadow-xs hover:bg-rose-700 active:bg-rose-800 dark:bg-rose-700 dark:hover:bg-rose-600",
+        link:
+          "text-[#0D9488] underline-offset-4 hover:underline dark:text-[#14B8A6] p-0 h-auto",
       },
       size: {
-        default: "h-11 px-5",
-        sm: "h-9 px-3.5 text-sm",
-        lg: "h-12 px-8",
+        default: "h-10 px-4 py-2",
+        sm: "h-8 px-3 text-xs",
+        lg: "h-11 px-6 text-base font-semibold",
+        icon: "h-9 w-9 p-0",
       },
     },
     defaultVariants: {
       variant: "default",
       size: "default",
     },
-  },
+  }
 );
 
 export interface ButtonProps
@@ -44,7 +51,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       />
     );
-  },
+  }
 );
 Button.displayName = "Button";
 

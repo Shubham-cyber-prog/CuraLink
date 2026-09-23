@@ -1,6 +1,7 @@
 export interface DaySlot {
   date: string;
   slots: string[];
+  times?: string[];
 }
 
 export interface DoctorReview {

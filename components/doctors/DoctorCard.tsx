@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, Calendar, Clock, User, MapPin, Video, CheckCircle2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { Star, Calendar, Clock, MapPin, Video, CheckCircle2 } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Doctor } from "@/types/doctor";
+import { Badge } from "@/components/ui/Badge";
 
 interface DoctorCardProps {
   doctor: Doctor;
@@ -13,6 +14,7 @@ interface DoctorCardProps {
 }
 
 export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
+  const shouldReduceMotion = useReducedMotion();
   const [activeLocation, setActiveLocation] = useState(userCity);
 
   useEffect(() => {
@@ -31,17 +33,20 @@ export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
     return () => window.removeEventListener("curalink-location-changed", handleLoc);
   }, [userCity]);
 
-  // Real doctor location matching logic
   const isLocalInPersonAvailable =
     Boolean(doctor.city && doctor.city.toLowerCase() === activeLocation.toLowerCase()) ||
-    doctor.specialty.includes("General") ||
-    doctor.specialty.includes("Pediatrics");
+    doctor.specialty?.includes("General") ||
+    doctor.specialty?.includes("Pediatrics");
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-5 shadow-xs dark:shadow-black/20 transition-all hover:shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex gap-4">
+    <motion.div
+      whileHover={shouldReduceMotion ? undefined : { y: -2, scale: 1.008 }}
+      transition={{ duration: 0.16, ease: "easeOut" }}
+      className="flex flex-col gap-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs transition-shadow hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="flex gap-4 items-start sm:items-center">
         {/* Doctor photo/avatar */}
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-[#14B8A6] font-bold text-xl border border-teal-100 dark:border-teal-900/60">
+        <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6] font-bold text-xl border border-teal-100 dark:border-teal-900/60 overflow-hidden">
           {doctor.photoUrl ? (
             <Image
               src={doctor.photoUrl}
@@ -49,69 +54,91 @@ export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
               width={64}
               height={64}
               unoptimized
-              className="h-full w-full rounded-2xl object-cover"
+              className="h-full w-full object-cover"
             />
           ) : (
-            <span>{doctor.name.replace("Dr. ", "").charAt(0)}</span>
+            <span>{doctor.name ? doctor.name.replace("Dr. ", "").charAt(0) : "D"}</span>
           )}
         </div>
 
         {/* Doctor details */}
-        <div className="space-y-1">
+        <div className="space-y-1.5 flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="font-bold text-[#0F172A] dark:text-[#F1F5F9] text-base">{doctor.name}</h3>
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
-              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-              {doctor.rating.toFixed(2)} ({doctor.reviewCount})
-            </span>
+            <h3 className="font-semibold text-slate-900 dark:text-white text-base">
+              {doctor.name}
+            </h3>
+            <Badge variant="verified">
+              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+              <span>Verified</span>
+            </Badge>
+
+            {doctor.rating ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                {Number(doctor.rating).toFixed(1)} {doctor.reviewCount ? `(${doctor.reviewCount})` : ""}
+              </span>
+            ) : null}
           </div>
 
-          <p className="text-xs font-semibold text-[#0F9D8C] dark:text-[#14B8A6]">
-            {doctor.specialty} • {doctor.experience}
+          <p className="text-xs font-medium text-[#0D9488] dark:text-[#14B8A6]">
+            {doctor.specialty || "Medical Practitioner"}{doctor.experience ? ` • ${doctor.experience}` : ""}
           </p>
 
           {/* Location & Consultation availability tags */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-[#1C2338] px-2.5 py-0.5 text-[11px] font-medium text-[#0F172A] dark:text-[#F1F5F9]">
-              <MapPin className="h-3 w-3 text-[#0F9D8C] dark:text-[#14B8A6]" />
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+              <MapPin className="h-3 w-3 text-slate-400" />
               {doctor.city
                 ? `Clinic in ${doctor.city}`
                 : isLocalInPersonAvailable
                 ? `In-person near ${activeLocation}`
-                : `Telehealth consultation`}
+                : `Telehealth Consultation`}
             </span>
-
 
             {doctor.videoConsultation && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 dark:bg-teal-950/60 px-2.5 py-0.5 text-[11px] font-medium text-teal-800 dark:text-teal-300">
-                <Video className="h-3 w-3 text-[#0F9D8C] dark:text-[#14B8A6]" />
-                Video Available Nationwide
+              <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 dark:bg-teal-950/50 px-2.5 py-0.5 text-[11px] font-medium text-[#0F766E] dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40">
+                <Video className="h-3 w-3 text-[#0D9488]" />
+                Video Available
               </span>
             )}
+
+            {doctor.consultationFee ? (
+              <span className="text-xs font-semibold text-slate-900 dark:text-white">
+                ₹{doctor.consultationFee}
+              </span>
+            ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1.5 text-xs text-[#64748B] dark:text-[#94A3B8]">
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-              Next Slot: {doctor.nextAvailableDate}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-              {doctor.nextAvailableTime}
-            </span>
-          </div>
+          {/* Availability metadata */}
+          {(doctor.nextAvailableDate || doctor.nextAvailableTime) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-xs text-slate-500 dark:text-slate-400">
+              {doctor.nextAvailableDate && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                  Next Slot: {doctor.nextAvailableDate}
+                </span>
+              )}
+              {doctor.nextAvailableTime && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  {doctor.nextAvailableTime}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 sm:self-center">
+      {/* Book Consultation Button */}
+      <div className="flex shrink-0 items-center sm:self-center">
         <Link
           href={`/doctors/${doctor.id}`}
-          className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center rounded-xl bg-[#0F9D8C] dark:bg-[#14B8A6] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#0C8577] dark:hover:bg-teal-500 transition-colors active:scale-[0.97]"
+          className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl bg-[#0D9488] hover:bg-[#0F766E] px-4 py-2.5 text-xs font-semibold text-white shadow-2xs transition-colors active:scale-[0.98]"
           id={`book-doc-card-${doctor.id}`}
         >
-          Book Consultation
+          Book Appointment
         </Link>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -279,7 +279,7 @@ export default function DoctorPatientDetailPage() {
         </p>
         <Link
           href="/doctor-dashboard"
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#085041] px-4 py-2 text-xs font-semibold text-white hover:bg-[#063d31]"
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#0D9488] px-4 py-2 text-xs font-semibold text-white hover:bg-[#063d31]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
@@ -296,12 +296,12 @@ export default function DoctorPatientDetailPage() {
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
         <Link
           href="/doctor-dashboard"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-[#085041] dark:hover:text-teal-300 transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-[#0D9488] dark:hover:text-teal-300 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Doctor Dashboard
         </Link>
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 px-2.5 py-1 text-xs font-semibold text-[#085041] dark:text-teal-300">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 px-2.5 py-1 text-xs font-semibold text-[#0D9488] dark:text-teal-300">
           <ShieldCheck className="h-3.5 w-3.5" />
           HIPAA Clinical Chart
         </span>
@@ -311,7 +311,7 @@ export default function DoctorPatientDetailPage() {
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E] p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-center font-bold text-xl text-[#085041] dark:text-teal-300">
+            <div className="h-14 w-14 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-center font-bold text-xl text-[#0D9488] dark:text-teal-300">
               {patient.name?.charAt(0) || "P"}
             </div>
             <div>
@@ -329,7 +329,7 @@ export default function DoctorPatientDetailPage() {
 
           <div className="text-xs space-y-1 text-right sm:text-right border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800">
             <p className="text-slate-500 dark:text-slate-400">Emergency Phone: <strong className="text-slate-800 dark:text-slate-200">{patient.emergencyContact || "Not provided"}</strong></p>
-            <p className="text-slate-500 dark:text-slate-400">Primary Condition: <strong className="text-[#085041] dark:text-teal-400">{patient.primaryCondition || "General Health"}</strong></p>
+            <p className="text-slate-500 dark:text-slate-400">Primary Condition: <strong className="text-[#0D9488] dark:text-teal-400">{patient.primaryCondition || "General Health"}</strong></p>
           </div>
         </div>
 
@@ -337,7 +337,7 @@ export default function DoctorPatientDetailPage() {
         {patient.trustCard && (
           <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-2 text-xs">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#085041] dark:text-teal-400" />
+              <ShieldCheck className="h-3.5 w-3.5 text-[#0D9488] dark:text-teal-400" />
               Verification:
             </span>
 
@@ -357,7 +357,7 @@ export default function DoctorPatientDetailPage() {
             {/* Profile Completed Pill */}
             {patient.trustCard.profileCompleted ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 text-[11px]">
-                <CheckCircle2 className="h-3 w-3 text-[#085041] dark:text-teal-400" />
+                <CheckCircle2 className="h-3 w-3 text-[#0D9488] dark:text-teal-400" />
                 Complete Profile
               </span>
             ) : (
@@ -419,7 +419,7 @@ export default function DoctorPatientDetailPage() {
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
-            <Activity className="h-4 w-4 text-[#085041] dark:text-teal-400" />
+            <Activity className="h-4 w-4 text-[#0D9488] dark:text-teal-400" />
             Current Patient Vitals
           </h2>
           {latestVitals && <span className="text-xs text-slate-400">Recorded: {latestVitals.date}</span>}
@@ -464,7 +464,7 @@ export default function DoctorPatientDetailPage() {
 
             {/* Weight */}
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E] p-4 text-center shadow-xs">
-              <User className="h-4 w-4 mx-auto text-[#085041] dark:text-teal-400 mb-1.5" />
+              <User className="h-4 w-4 mx-auto text-[#0D9488] dark:text-teal-400 mb-1.5" />
               <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Weight</p>
               <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">{latestVitals.weight}</p>
             </div>
@@ -480,7 +480,7 @@ export default function DoctorPatientDetailPage() {
       <section className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0f172a] flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-[#085041] dark:text-teal-400" />
+            <Activity className="h-4 w-4 text-[#0D9488] dark:text-teal-400" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
               Vitals Longitudinal Trendline & Tracking
             </h3>
@@ -725,7 +725,7 @@ export default function DoctorPatientDetailPage() {
         {/* Previous Consultations (4 cols) */}
         <div className="lg:col-span-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E] p-5 shadow-xs space-y-4">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-[#085041] dark:text-teal-400" />
+            <Calendar className="h-4 w-4 text-[#0D9488] dark:text-teal-400" />
             Clinical Consultations
           </h3>
 
@@ -741,17 +741,17 @@ export default function DoctorPatientDetailPage() {
                   onClick={() => setAppointmentId(c.id)}
                   className={`p-3.5 rounded-lg border text-xs cursor-pointer transition-all ${
                     appointmentId === c.id
-                      ? "border-[#085041] bg-teal-50/50 dark:bg-teal-950/40"
+                      ? "border-[#0D9488] bg-teal-50/50 dark:bg-teal-950/40"
                       : "border-slate-100 dark:border-slate-800 hover:border-slate-300"
                   }`}
                 >
                   <div className="flex justify-between font-semibold text-slate-800 dark:text-slate-200">
                     <span>{c.date}</span>
-                    <span className="text-[#085041] dark:text-teal-400">{c.time}</span>
+                    <span className="text-[#0D9488] dark:text-teal-400">{c.time}</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-slate-400">
                     <span>Status: {c.status}</span>
-                    {appointmentId === c.id && <span className="text-xs font-bold text-[#085041] dark:text-teal-300">Selected for Rx</span>}
+                    {appointmentId === c.id && <span className="text-xs font-bold text-[#0D9488] dark:text-teal-300">Selected for Rx</span>}
                   </div>
                 </div>
               ))
@@ -763,7 +763,7 @@ export default function DoctorPatientDetailPage() {
         <div id="prescribe" className="lg:col-span-8 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-[#0f172a] flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[#085041] dark:text-teal-400" />
+              <FileText className="h-4 w-4 text-[#0D9488] dark:text-teal-400" />
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 Issue Digital E-Prescription
               </h3>
@@ -782,7 +782,7 @@ export default function DoctorPatientDetailPage() {
                 value={diagnosis}
                 onChange={(e) => setDiagnosis(e.target.value)}
                 placeholder="e.g. Acute Bronchitis, Type 2 Diabetes"
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-[#085041] focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:border-[#0D9488] focus:outline-none"
                 required
               />
             </div>
@@ -796,7 +796,7 @@ export default function DoctorPatientDetailPage() {
                 <button
                   type="button"
                   onClick={handleAddMedication}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#085041] dark:text-teal-400 hover:underline cursor-pointer"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#0D9488] dark:text-teal-400 hover:underline cursor-pointer"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add Medication
@@ -810,7 +810,7 @@ export default function DoctorPatientDetailPage() {
                     className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-[#070b14]/50 space-y-2.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-[#085041] dark:text-teal-400">
+                      <span className="text-[11px] font-bold text-[#0D9488] dark:text-teal-400">
                         Item #{idx + 1}
                       </span>
                       {medications.length > 1 && (
@@ -900,7 +900,7 @@ export default function DoctorPatientDetailPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Doctor's clinical advice, diet instructions, or when to follow up..."
-                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] p-3 text-xs text-slate-900 dark:text-white focus:border-[#085041] focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] p-3 text-xs text-slate-900 dark:text-white focus:border-[#0D9488] focus:outline-none"
               />
             </div>
 
@@ -922,7 +922,7 @@ export default function DoctorPatientDetailPage() {
               <Button
                 type="submit"
                 disabled={isSubmittingRx}
-                className="bg-[#085041] hover:bg-[#063b30] text-white px-5 py-2.5 text-xs font-bold rounded-lg shadow-xs cursor-pointer"
+                className="bg-[#0D9488] hover:bg-[#063b30] text-white px-5 py-2.5 text-xs font-bold rounded-lg shadow-xs cursor-pointer"
               >
                 {isSubmittingRx ? (
                   <>

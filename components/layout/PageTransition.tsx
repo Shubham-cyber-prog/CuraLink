@@ -25,7 +25,7 @@ export function PageTransition({ children, className = "" }: PageTransitionProps
       exit={{ opacity: 0, y: -8 }}
       transition={{
         duration: 0.25,
-        ease: [0.16, 1, 0.3, 1], // Gentle ease-out curve, calm and trustworthy
+        ease: [0.16, 1, 0.3, 1] as const, // Gentle ease-out curve, calm and trustworthy
       }}
       className={className}
     >

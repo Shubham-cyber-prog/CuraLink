@@ -102,7 +102,7 @@ export default function MedicalRecordsPage() {
         </div>
 
         <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 self-start sm:self-auto">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#0F9D8C] dark:text-[#14B8A6]" />
+          <ShieldCheck className="h-3.5 w-3.5 text-[#0D9488] dark:text-[#14B8A6]" />
           <span>256-bit Encrypted Vault</span>
         </div>
       </div>
@@ -116,7 +116,7 @@ export default function MedicalRecordsPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by diagnosis or doctor name..."
-            className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] pl-10 pr-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0F9D8C] focus:outline-none"
+            className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] pl-10 pr-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0D9488] focus:outline-none"
           />
         </div>
 
@@ -127,7 +127,7 @@ export default function MedicalRecordsPage() {
               onClick={() => setFilter(cat)}
               className={`rounded-xl px-4 py-2 text-xs font-semibold capitalize whitespace-nowrap transition-colors ${
                 filter === cat
-                  ? "bg-[#0F9D8C] text-white"
+                  ? "bg-[#0D9488] text-white"
                   : "border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#1C2338]"
               }`}
             >
@@ -163,7 +163,7 @@ export default function MedicalRecordsPage() {
         </div>
       ) : filteredRecords.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 dark:border-[#263049] bg-slate-50/50 dark:bg-[#151B2E]/60 py-20 text-center px-4">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-teal-400">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-teal-400">
             <FileText className="h-8 w-8" />
           </div>
           <h3 className="text-lg font-bold text-[#0F172A] dark:text-[#F1F5F9]">
@@ -174,7 +174,7 @@ export default function MedicalRecordsPage() {
           </p>
           <Link
             href="/find-doctor"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0F9D8C] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0D9488] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors"
           >
             Find a Doctor & Book
             <ArrowRight className="h-4 w-4" />
@@ -197,10 +197,10 @@ export default function MedicalRecordsPage() {
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-teal-400">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-teal-400">
                       <FileText className="h-5 w-5" />
                     </div>
-                    <span className="rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#0F9D8C] dark:text-teal-300">
+                    <span className="rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#0D9488] dark:text-teal-300">
                       E-Prescription
                     </span>
                   </div>
@@ -219,7 +219,7 @@ export default function MedicalRecordsPage() {
                       {formattedDate}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Pill className="h-3 w-3 text-[#0F9D8C]" />
+                      <Pill className="h-3 w-3 text-[#0D9488]" />
                       {medsCount} {medsCount === 1 ? "medication" : "medications"}
                     </span>
                   </div>
@@ -237,7 +237,7 @@ export default function MedicalRecordsPage() {
                     href={`${API_BASE}/prescriptions/${rec.id}/download`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0F9D8C] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0C8577] transition-colors"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0D9488] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0C8577] transition-colors"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Download PDF
@@ -255,7 +255,7 @@ export default function MedicalRecordsPage() {
           <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#151B2E] border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#0F9D8C]">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#0D9488]">
                   Official E-Prescription
                 </span>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">
@@ -287,7 +287,7 @@ export default function MedicalRecordsPage() {
                   >
                     <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
                       <span>{m.name}</span>
-                      <span className="text-[#0F9D8C]">{m.dosage}</span>
+                      <span className="text-[#0D9488]">{m.dosage}</span>
                     </div>
                     <div className="flex justify-between text-slate-500 dark:text-slate-400">
                       <span>Frequency: {m.frequency}</span>
@@ -327,7 +327,7 @@ export default function MedicalRecordsPage() {
                 href={`${API_BASE}/prescriptions/${selectedRecord.id}/download`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0F9D8C] text-xs font-semibold text-white hover:bg-[#0C8577] transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D9488] text-xs font-semibold text-white hover:bg-[#0C8577] transition-colors"
               >
                 <Download className="h-3.5 w-3.5" />
                 Download PDF

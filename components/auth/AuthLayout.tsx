@@ -31,7 +31,7 @@ export function AuthLayout({ children, subtitle }: AuthLayoutProps) {
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-teal-400/25 bg-teal-900/40 px-3.5 py-1 text-xs font-semibold text-teal-200">
               <ShieldCheck size={14} className="text-teal-400" />
-              <span>HIPAA & ABDM Compliant</span>
+              <span>Designed for Patient Privacy & Security</span>
             </div>
 
             <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-white leading-[1.2]">
@@ -124,7 +124,7 @@ export function AuthLayout({ children, subtitle }: AuthLayoutProps) {
               Terms of Service
             </Link>
             <span>•</span>
-            <span className="text-slate-400 dark:text-slate-500">HIPAA Compliant</span>
+            <span className="text-slate-400 dark:text-slate-500">Designed for Patient Privacy</span>
           </div>
         </div>
       </div>

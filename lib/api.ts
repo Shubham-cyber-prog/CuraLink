@@ -12,14 +12,19 @@ export function getCookie(name: string): string | null {
   return match ? decodeURIComponent(match[2]) : null;
 }
 
-export async function getCsrfToken(): Promise<string> {
-  // 1. Check if already present in document.cookie
-  const existingCookie = getCookie("curalink_csrf");
-  if (existingCookie) {
-    return existingCookie;
+let cachedCsrfToken: string | null = null;
+
+export async function getCsrfToken(forceFresh = false): Promise<string> {
+  if (!forceFresh) {
+    if (cachedCsrfToken) return cachedCsrfToken;
+    const existingCookie = getCookie("curalink_csrf");
+    if (existingCookie) {
+      cachedCsrfToken = existingCookie;
+      return existingCookie;
+    }
   }
 
-  // 2. Fetch fresh token from endpoint with credentials: "include" so browser saves the cookie
+  // Fetch fresh token from endpoint with credentials: "include" so browser saves the cookie
   try {
     const res = await fetch(`${API_BASE}/auth/csrf-token`, {
       method: "GET",
@@ -27,17 +32,26 @@ export async function getCsrfToken(): Promise<string> {
     });
     if (res.ok) {
       const data = await res.json();
-      return data.token || "";
+      if (data.token) {
+        cachedCsrfToken = data.token;
+        if (typeof document !== "undefined") {
+          try {
+            document.cookie = `curalink_csrf=${data.token}; path=/; SameSite=Lax`;
+          } catch {}
+        }
+        return data.token;
+      }
     }
   } catch (err) {
     console.warn("Failed to fetch CSRF token:", err);
   }
 
-  return "";
+  return cachedCsrfToken || "";
 }
 
 interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
+  _isRetry?: boolean;
 }
 
 export interface ApiResponse<T = any> {
@@ -99,6 +113,19 @@ async function request<T = any>(endpoint: string, options: RequestOptions = {}):
     data = await response.json();
   } else {
     data = { success: response.ok, message: await response.text() };
+  }
+
+  // Auto-retry once on CSRF mismatch/expiry
+  if (response.status === 403 && typeof data?.message === "string" && data.message.toLowerCase().includes("csrf") && !options._isRetry) {
+    const freshToken = await getCsrfToken(true);
+    if (freshToken) {
+      headers.set("X-CSRF-Token", freshToken);
+      return request<T>(endpoint, {
+        ...options,
+        headers,
+        _isRetry: true,
+      });
+    }
   }
 
   if (!response.ok) {

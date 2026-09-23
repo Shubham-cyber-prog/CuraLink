@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { AppointmentCard } from "@/components/appointments/AppointmentCard";
 import { Doctor } from "@/types/doctor";
+import { api } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -57,6 +58,7 @@ export default function AppointmentsPage() {
 
   // Cancellation Modal State
   const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
@@ -107,16 +109,13 @@ export default function AppointmentsPage() {
 
     try {
       setIsCancelling(true);
-      const res = await fetch(`${API_BASE}/appointments/${appointmentToCancel.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ status: "CANCELLED" }),
+      setCancelError(null);
+
+      const data = await api.patch(`/appointments/${appointmentToCancel.id}/status`, {
+        status: "CANCELLED",
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.message || "Failed to cancel appointment");
       }
 
@@ -130,7 +129,7 @@ export default function AppointmentsPage() {
       setTimeout(() => setStatusMessage(null), 4000);
       setAppointmentToCancel(null);
     } catch (err: any) {
-      alert(err.message || "Could not cancel appointment. Please try again.");
+      setCancelError(err.message || "Could not cancel appointment. Please try again.");
     } finally {
       setIsCancelling(false);
     }
@@ -311,7 +310,10 @@ export default function AppointmentsPage() {
       {/* Cancellation Confirmation Modal */}
       <Modal
         isOpen={Boolean(appointmentToCancel)}
-        onClose={() => setAppointmentToCancel(null)}
+        onClose={() => {
+          setAppointmentToCancel(null);
+          setCancelError(null);
+        }}
         title="Cancel Appointment?"
         description={
           appointmentToCancel
@@ -322,6 +324,13 @@ export default function AppointmentsPage() {
         }
       >
         <div className="space-y-4 pt-2">
+          {cancelError && (
+            <div className="flex items-center gap-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 p-3 text-xs text-red-700 dark:text-red-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+              <span>{cancelError}</span>
+            </div>
+          )}
+
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
             Are you sure you want to release this consultation slot? Your doctor will be notified immediately.
           </p>
@@ -330,7 +339,10 @@ export default function AppointmentsPage() {
             <Button
               variant="outline"
               disabled={isCancelling}
-              onClick={() => setAppointmentToCancel(null)}
+              onClick={() => {
+                setAppointmentToCancel(null);
+                setCancelError(null);
+              }}
             >
               Keep Appointment
             </Button>

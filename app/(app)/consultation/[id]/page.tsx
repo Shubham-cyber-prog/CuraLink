@@ -22,6 +22,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 
 declare global {
   interface Window {
@@ -256,10 +257,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
     setShowEndModal(false);
 
     try {
-      await fetch(`${API_BASE}/consultations/${appointmentId}/complete`, {
-        method: "POST",
-        credentials: "include",
-      }).catch(() => {});
+      await api.post(`/consultations/${appointmentId}/complete`).catch(() => {});
     } catch (err) {
       console.warn("Could not mark consultation complete on server:", err);
     } finally {

@@ -11,12 +11,8 @@ function createRateLimiter(windowMs: number, maxRequests: number, message: strin
   const store: RateLimitStore = {};
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (
-      process.env.NODE_ENV === 'test' ||
-      process.env.NODE_ENV === 'development' ||
-      !process.env.NODE_ENV ||
-      req.headers['x-client-platform'] === 'mobile'
-    ) {
+    // Only skip rate limiting during automated tests
+    if (process.env.NODE_ENV === 'test') {
       return next();
     }
 

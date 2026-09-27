@@ -13,6 +13,9 @@ router.get('/doctor/:doctorId', (req, res, next) =>
 
 // Patient authenticated route to submit a review
 router.use(authenticate);
+router.post('/', authorize(Role.PATIENT), (req, res, next) =>
+  reviewController.createReview(req, res, next)
+);
 router.post('/submit', authorize(Role.PATIENT), (req, res, next) =>
   reviewController.createReview(req, res, next)
 );

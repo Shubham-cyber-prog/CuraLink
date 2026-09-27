@@ -58,8 +58,12 @@ export class PaymentController {
 
   async getStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { appointmentId } = req.params;
-      const payment = await paymentService.getPaymentByAppointment(appointmentId);
+      const appointmentId = String(req.params.appointmentId);
+      const payment = await paymentService.getPaymentByAppointment(
+        appointmentId,
+        req.user?.id,
+        req.user?.role
+      );
 
       res.status(200).json({
         success: true,

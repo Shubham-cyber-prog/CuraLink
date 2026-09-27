@@ -135,83 +135,74 @@ async function fetchMLUrgency(symptomText: string) {
  */
 async function callGeminiWithRetry(
   prompt: string,
-  systemInstruction: string,
-  maxRetries = 2
+  systemInstruction: string
 ): Promise<{ text: string; modelUsed: string; attempts: number }> {
   const apiKey = process.env.GEMINI_API_KEY!.trim();
-  const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-flash-latest";
+  const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
   const genAI = new GoogleGenerativeAI(apiKey);
 
-  // Verified reliable model chain
-  const modelChain = ["gemini-3.5-flash-lite", "gemini-3.6-flash"];
+  const modelChain = Array.from(
+    new Set([configuredModel, "gemini-3.5-flash-lite", "gemini-3-flash-preview", "gemini-3.5-flash"])
+  );
 
   let lastError: any = null;
+  let totalAttempts = 0;
 
-  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-    const currentModelName = modelChain[Math.min(attempt - 1, modelChain.length - 1)];
-    const timeoutMs = 35000; // 35 seconds timeout per attempt
+  for (const candidate of modelChain) {
+    const model = genAI.getGenerativeModel({
+      model: candidate,
+      systemInstruction,
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
+    });
 
-    console.log(
-      `\n======================================================`
-    );
-    console.log(
-      `[Symptom Checker API] [Attempt ${attempt}/${maxRetries + 1}] Calling Gemini model: ${currentModelName}`
-    );
-    console.log(`[Symptom Checker API] [Attempt ${attempt}] EXACT PROMPT SENT TO GEMINI:`);
-    console.log(`"""\n${prompt}\n"""`);
-
-    const callStartTime = Date.now();
-
-    try {
-      const model = genAI.getGenerativeModel({
-        model: currentModelName,
-        systemInstruction,
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: "application/json",
-        },
-      });
-
-      const result: any = await Promise.race([
-        model.generateContent(prompt),
-        new Promise((_, reject) =>
-          setTimeout(
-            () =>
-              reject(
-                new Error(
-                  `Gemini call to ${currentModelName} timed out after ${timeoutMs / 1000}s`
-                )
-              ),
-            timeoutMs
-          )
-        ),
-      ]);
-
-      const responseText = result.response.text();
-      const callDuration = Date.now() - callStartTime;
-
+    for (let retry = 0; retry < 2; retry++) {
+      totalAttempts++;
+      const callStartTime = Date.now();
       console.log(
-        `[Symptom Checker API] [Attempt ${attempt}] Gemini responded in ${callDuration}ms`
-      );
-      console.log(`[Symptom Checker API] [Attempt ${attempt}] EXACT RAW RESPONSE RECEIVED:`);
-      console.log(responseText);
-
-      return { text: responseText, modelUsed: currentModelName, attempts: attempt };
-    } catch (err: any) {
-      lastError = err;
-      const callDuration = Date.now() - callStartTime;
-      const status = err?.status || err?.code || "UNKNOWN";
-      console.error(
-        `[Symptom Checker API] [Attempt ${attempt}] ❌ Gemini call failed after ${callDuration}ms (Status: ${status}):`,
-        err?.message || err
+        `\n[Symptom Checker API] [${candidate}] Attempt ${retry + 1}/2 calling Gemini...`
       );
 
-      if (attempt <= maxRetries) {
-        const backoffDelay = attempt * 1000;
+      try {
+        const result: any = await Promise.race([
+          model.generateContent(prompt),
+          new Promise((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    `Gemini call to ${candidate} timed out after 50s`
+                  )
+                ),
+              50000
+            )
+          ),
+        ]);
+
+        const responseText = result.response.text();
+        const callDuration = Date.now() - callStartTime;
         console.log(
-          `[Symptom Checker API] Retrying in ${backoffDelay}ms with backoff...`
+          `[Symptom Checker API] ✅ ${candidate} responded in ${callDuration}ms`
         );
-        await new Promise((r) => setTimeout(r, backoffDelay));
+        return { text: responseText, modelUsed: candidate, attempts: totalAttempts };
+      } catch (err: any) {
+        lastError = err;
+        const callDuration = Date.now() - callStartTime;
+        const status = err?.status || err?.code || "UNKNOWN";
+        console.warn(
+          `[Symptom Checker API] ⚠️ ${candidate} attempt ${retry + 1} failed after ${callDuration}ms (Status: ${status}):`,
+          err?.message || err
+        );
+
+        if (status === 503 || status === 429 || err?.message?.includes("503") || err?.message?.includes("429")) {
+          // Temporary spike or rate limit: wait 2500ms before retrying same model
+          console.log(`[Symptom Checker API] Retrying in 2500ms...`);
+          await new Promise((r) => setTimeout(r, 2500));
+        } else {
+          break; // Fatal error on this model, move to next candidate
+        }
       }
     }
   }

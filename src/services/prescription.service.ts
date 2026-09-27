@@ -4,7 +4,7 @@ import path from 'path';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../lib/prisma';
 import { CreatePrescriptionInput } from '../validators/prescription.validator';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
 
 const PRESCRIPTION_SECRET = process.env.PRESCRIPTION_SECRET || 'curalink-rx-secure-signature-key-2026';
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'prescriptions');
@@ -35,6 +35,32 @@ export class PrescriptionService {
 
     if (!patient) {
       throw new NotFoundError('Patient not found');
+    }
+
+    // Verify consultation appointment exists and matches doctor and patient
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: data.consultationId },
+    });
+
+    if (!appointment) {
+      throw new NotFoundError('Consultation appointment not found');
+    }
+
+    if (appointment.doctorId !== doctorId) {
+      throw new ForbiddenError('You can only issue prescriptions for your own appointments.');
+    }
+
+    if (appointment.userId !== data.patientId) {
+      throw new BadRequestError('Prescription patient does not match the appointment patient.');
+    }
+
+    // Prevent duplicate prescription for the appointment
+    const existingRx = await prisma.prescription.findUnique({
+      where: { appointmentId: data.consultationId },
+    });
+
+    if (existingRx) {
+      throw new BadRequestError('A prescription has already been issued for this consultation.');
     }
 
     // 3. Generate SHA-256 Digital Signature
@@ -100,7 +126,7 @@ export class PrescriptionService {
     };
   }
 
-  async getPrescriptionById(prescriptionId: string) {
+  async getPrescriptionById(prescriptionId: string, requestingUserId?: string, userRole?: string) {
     const prescription = await prisma.prescription.findUnique({
       where: { id: prescriptionId },
       include: {
@@ -121,6 +147,14 @@ export class PrescriptionService {
 
     if (!prescription) {
       throw new NotFoundError('Prescription not found');
+    }
+
+    if (requestingUserId && userRole !== 'ADMIN') {
+      const isPatient = prescription.patientId === requestingUserId;
+      const isDoctor = prescription.doctorId === requestingUserId;
+      if (!isPatient && !isDoctor) {
+        throw new ForbiddenError('You are not authorized to view this prescription.');
+      }
     }
 
     const doctorUser = prescription.appointment?.doctor?.user;

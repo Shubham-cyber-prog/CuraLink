@@ -4,7 +4,8 @@ import { BadRequestError, NotFoundError } from '../utils/errors';
 
 export class ReviewService {
   async createReview(patientId: string, input: CreateReviewInput) {
-    const { doctorId, consultationId, rating, comment } = input;
+    const { doctorId, rating, comment } = input;
+    const appointmentId = input.appointmentId || input.consultationId;
 
     // Check if doctor exists
     const doctorProfile = await prisma.doctorProfile.findUnique({
@@ -15,65 +16,59 @@ export class ReviewService {
       throw new NotFoundError('Doctor profile not found');
     }
 
-    // Verify patient consultation if consultationId provided
-    let isVerifiedPatient = true;
-    if (consultationId) {
-      const consultation = await prisma.consultationSession.findFirst({
-        where: {
-          id: consultationId,
-          patientId,
-          doctorId,
-        },
+    let targetAppointmentId = appointmentId;
+
+    if (targetAppointmentId) {
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: targetAppointmentId },
       });
 
-      if (!consultation) {
-        throw new BadRequestError('Invalid consultation record for this doctor.');
+      if (!appointment || appointment.userId !== patientId) {
+        throw new BadRequestError('Invalid appointment record for this review.');
       }
-    }
 
-    // Prevent duplicate review for the same consultation
-    if (consultationId) {
-      const existingReview = await prisma.review.findFirst({
-        where: { consultationId },
+      if (appointment.doctorId !== doctorId) {
+        throw new BadRequestError('Appointment does not match the specified doctor.');
+      }
+
+      const existingReview = await prisma.review.findUnique({
+        where: { appointmentId: targetAppointmentId },
       });
 
       if (existingReview) {
-        throw new BadRequestError('You have already submitted a review for this consultation.');
+        throw new BadRequestError('You have already submitted a review for this appointment.');
       }
+    } else {
+      // Find eligible past appointment for this patient and doctor without an existing review
+      const eligibleAppointment = await prisma.appointment.findFirst({
+        where: {
+          userId: patientId,
+          doctorId,
+          review: null,
+        },
+        orderBy: [{ date: 'desc' }, { time: 'desc' }],
+      });
+
+      if (!eligibleAppointment) {
+        throw new BadRequestError('A verified consultation with this doctor is required before submitting a review.');
+      }
+
+      targetAppointmentId = eligibleAppointment.id;
     }
 
     // Create the review
     const review = await prisma.review.create({
       data: {
+        appointmentId: targetAppointmentId,
         doctorId,
         patientId,
-        consultationId,
         rating,
         comment,
-        verifiedPatient: isVerifiedPatient,
       },
       include: {
         patient: {
-          select: { name: true, email: true },
+          select: { id: true, name: true, email: true },
         },
-      },
-    });
-
-    // Recompute average rating and rating count for doctor
-    const aggregate = await prisma.review.aggregate({
-      where: { doctorId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    const newAvgRating = aggregate._avg.rating || rating;
-    const newRatingCount = aggregate._count.rating || 1;
-
-    await prisma.doctorProfile.update({
-      where: { userId: doctorId },
-      data: {
-        averageRating: newAvgRating,
-        ratingCount: newRatingCount,
       },
     });
 
@@ -96,3 +91,4 @@ export class ReviewService {
 }
 
 export const reviewService = new ReviewService();
+

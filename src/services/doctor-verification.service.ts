@@ -78,8 +78,8 @@ export class DoctorVerificationService {
     }));
 
     const totalRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
-    const avgRating = reviews.length > 0 ? Number((totalRating / reviews.length).toFixed(2)) : 4.9;
-    const reviewCount = reviews.length > 0 ? reviews.length : 12;
+    const avgRating = reviews.length > 0 ? Number((totalRating / reviews.length).toFixed(2)) : null;
+    const reviewCount = reviews.length;
 
     // Generate valid YYYY-MM-DD availability slots for the next 5 days
     const now = new Date();

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import * as Sentry from '@sentry/node';
 import { AppError } from '../utils/errors';
 import { env } from '../config/env';
 
@@ -23,6 +24,15 @@ export function errorHandler(
     return;
   }
 
+  // Handle JSON syntax error from express.json() / body-parser
+  if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {
+    res.status(400).json({
+      success: false,
+      message: 'Malformed JSON payload in request body',
+    });
+    return;
+  }
+
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       success: false,
@@ -31,7 +41,8 @@ export function errorHandler(
     return;
   }
 
-  // Unhandled / server errors
+  // Unhandled / server errors — report to Sentry
+  Sentry.captureException(err);
   console.error('Unhandled Server Error:', err);
 
   res.status(500).json({

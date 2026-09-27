@@ -332,6 +332,33 @@ export default function DashboardPage() {
         </div>
 
         <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
+          {/* Active AI Deterioration Alerts */}
+          {vitalsSummary?.alerts && vitalsSummary.alerts.length > 0 && (
+            <div className="space-y-2">
+              {vitalsSummary.alerts.map((alert: any) => (
+                <div
+                  key={alert.id}
+                  className={`p-3.5 rounded-xl border flex items-start gap-3 ${
+                    alert.severity === "CRITICAL"
+                      ? "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/60 text-red-800 dark:text-red-200"
+                      : "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200"
+                  }`}
+                >
+                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div className="text-xs">
+                    <p className="font-semibold text-sm">{alert.title}</p>
+                    <p className="mt-0.5 opacity-90">{alert.message}</p>
+                    {alert.recommendedAction && (
+                      <p className="mt-1 font-medium">
+                        Recommendation: {alert.recommendedAction}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Glucose */}
             <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
@@ -340,11 +367,13 @@ export default function DashboardPage() {
                 <Droplets className="h-3.5 w-3.5 text-[#0D9488]" />
               </div>
               <p className="text-xl font-bold text-slate-900 dark:text-white mt-1.5">
-                {vitalsSummary?.timeSeries?.slice(-1)[0]?.bloodGlucose || 112}{" "}
+                {vitalsSummary?.timeSeries && vitalsSummary.timeSeries.length > 0 && vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1]?.bloodGlucose != null
+                  ? `${vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1].bloodGlucose} `
+                  : "-- "}
                 <span className="text-xs font-normal text-slate-400">mg/dL</span>
               </p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                Normal fasting range
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
+                {vitalsSummary?.timeSeries && vitalsSummary.timeSeries.length > 0 ? "Latest logged reading" : "No logs recorded"}
               </p>
             </div>
 
@@ -355,12 +384,13 @@ export default function DashboardPage() {
                 <Heart className="h-3.5 w-3.5 text-rose-500" />
               </div>
               <p className="text-xl font-bold text-slate-900 dark:text-white mt-1.5">
-                {vitalsSummary?.timeSeries?.slice(-1)[0]?.systolicBp || 120}/
-                {vitalsSummary?.timeSeries?.slice(-1)[0]?.diastolicBp || 80}{" "}
+                {vitalsSummary?.timeSeries && vitalsSummary.timeSeries.length > 0 && vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1]?.systolicBp && vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1]?.diastolicBp
+                  ? `${vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1].systolicBp}/${vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1].diastolicBp} `
+                  : "--/-- "}
                 <span className="text-xs font-normal text-slate-400">mmHg</span>
               </p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                Standard clinical reading
+                {vitalsSummary?.timeSeries && vitalsSummary.timeSeries.length > 0 ? "Latest logged reading" : "No logs recorded"}
               </p>
             </div>
 
@@ -371,10 +401,13 @@ export default function DashboardPage() {
                 <Activity className="h-3.5 w-3.5 text-indigo-500" />
               </div>
               <p className="text-xl font-bold text-slate-900 dark:text-white mt-1.5">
-                72 <span className="text-xs font-normal text-slate-400">bpm</span>
+                {vitalsSummary?.timeSeries && vitalsSummary.timeSeries.length > 0 && vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1]?.heartRate != null
+                  ? `${vitalsSummary.timeSeries[vitalsSummary.timeSeries.length - 1].heartRate} `
+                  : "-- "}
+                <span className="text-xs font-normal text-slate-400">bpm</span>
               </p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                Optimal rhythm
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
+                {vitalsSummary?.timeSeries && vitalsSummary.timeSeries.length > 0 ? "Latest logged reading" : "No logs recorded"}
               </p>
             </div>
           </div>

@@ -77,7 +77,11 @@ export class AuthController {
   }
 
   googleMobileLogin(req: Request, res: Response): void {
-    const clientId = process.env.GOOGLE_CLIENT_ID || '498397902593-9h36l23od7sngoejesi3h84m7enrhm0c.apps.googleusercontent.com';
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      res.status(500).json({ success: false, message: 'Google OAuth is not configured. Set GOOGLE_CLIENT_ID in environment.' });
+      return;
+    }
     const host = req.headers.host || 'localhost:5000';
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
     const defaultCallback = `${protocol}://${host}/api/auth/google/callback`;

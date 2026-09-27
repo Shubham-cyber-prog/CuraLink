@@ -4,11 +4,10 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Stethoscope, Calendar, MessageSquare, User } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 
 export function FloatingMobileNav() {
   const pathname = usePathname();
-  const shouldReduceMotion = useReducedMotion();
 
   const navItems = [
     { label: "Home", href: "/dashboard", icon: Home },
@@ -37,7 +36,7 @@ export function FloatingMobileNav() {
               className="relative flex flex-1 flex-col items-center justify-center py-1 text-center group"
             >
               <motion.div
-                whileTap={shouldReduceMotion ? undefined : { scale: 0.92 }}
+                whileTap={{ scale: 0.92 }}
                 transition={{ duration: 0.12 }}
                 className="relative flex flex-col items-center"
               >
@@ -65,11 +64,7 @@ export function FloatingMobileNav() {
                   <motion.div
                     layoutId="mobile-active-nav-dot"
                     className="absolute -bottom-1 h-1 w-3 rounded-full bg-[#0D9488] dark:bg-[#14B8A6]"
-                    transition={
-                      shouldReduceMotion
-                        ? { duration: 0 }
-                        : { duration: 0.2, ease: "easeOut" }
-                    }
+                    transition={{ duration: 0.2, ease: "easeOut" }}
                   />
                 )}
               </motion.div>

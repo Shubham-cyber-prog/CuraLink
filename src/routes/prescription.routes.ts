@@ -12,6 +12,9 @@ router.use(authenticate);
 router.get('/my-prescriptions', authorize(Role.PATIENT), (req, res, next) =>
   prescriptionController.getMyPrescriptions(req, res, next)
 );
+router.get('/my', authorize(Role.PATIENT), (req, res, next) =>
+  prescriptionController.getMyPrescriptions(req, res, next)
+);
 
 // Doctor routes
 router.post('/issue', authorize(Role.DOCTOR), (req, res, next) =>

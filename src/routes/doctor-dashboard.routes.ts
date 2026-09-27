@@ -469,6 +469,14 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
     });
 
+    if (appointments.length === 0) {
+      res.status(403).json({
+        success: false,
+        message: 'You are not authorized to access this patient profile because you have no clinical consultations with them.',
+      });
+      return;
+    }
+
     const prescriptions = await prisma.prescription.findMany({
       where: {
         patientId,
@@ -495,35 +503,23 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
           date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           isoDate: d.toISOString(),
           timestamp: d.getTime(),
-          bloodPressure: log.systolicBp && log.diastolicBp ? `${log.systolicBp}/${log.diastolicBp} mmHg` : '120/80 mmHg',
-          systolicBp: log.systolicBp,
-          diastolicBp: log.diastolicBp,
-          bloodGlucose: log.bloodGlucose ? `${log.bloodGlucose} mg/dL` : '100 mg/dL',
-          rawGlucose: log.bloodGlucose,
-          glucoseType: log.glucoseType,
-          heartRate: log.heartRate ? `${log.heartRate} bpm` : '72 bpm',
-          temperature: log.temperature ? `${log.temperature} °F` : '98.6 °F',
-          spO2: log.spO2 ? `${log.spO2}%` : '98%',
-          weight: log.weight ? `${log.weight} kg` : '68 kg',
-          rawWeight: log.weight,
+          bloodPressure: log.systolicBp && log.diastolicBp ? `${log.systolicBp}/${log.diastolicBp} mmHg` : null,
+          systolicBp: log.systolicBp ?? null,
+          diastolicBp: log.diastolicBp ?? null,
+          bloodGlucose: log.bloodGlucose != null ? `${log.bloodGlucose} mg/dL` : null,
+          rawGlucose: log.bloodGlucose ?? null,
+          glucoseType: log.glucoseType || null,
+          heartRate: log.heartRate != null ? `${log.heartRate} bpm` : null,
+          temperature: log.temperature != null ? `${log.temperature} °F` : null,
+          spO2: log.spO2 != null ? `${log.spO2}%` : null,
+          weight: log.weight != null ? `${log.weight} kg` : null,
+          rawWeight: log.weight ?? null,
         };
       });
       aiHealthReport = VitalsAiService.analyzeVitals(realVitalLogs);
     } else {
-      // Fallback if no real vitals have been logged yet
-      const dates = appointments.length > 0 
-        ? appointments.map(a => a.date) 
-        : ['2026-09-01', '2026-09-10', '2026-09-18'];
-
-      vitalsHistory = dates.slice(0, 5).map((date, idx) => ({
-        date,
-        bloodPressure: `${118 + idx * 3}/${78 + idx * 2} mmHg`,
-        heartRate: `${72 + (idx % 3) * 4} bpm`,
-        temperature: `${98.4 + (idx % 2) * 0.4} °F`,
-        spO2: `${98 + (idx % 2)}%`,
-        bloodGlucose: `${95 + idx * 5} mg/dL`,
-        weight: `${68 + idx * 0.5} kg`,
-      }));
+      vitalsHistory = [];
+      aiHealthReport = null;
     }
 
     res.status(200).json({
@@ -532,10 +528,10 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
         patient: {
           ...patient,
           phone: (patient as any).phone || null,
-          age: (patient as any).age || 32,
+          age: (patient as any).age || null,
           gender: (patient as any).gender || 'Not specified',
-          bloodGroup: 'A+',
-          emergencyContact: '+91 98765 43210',
+          bloodGroup: (patient as any).bloodGroup || null,
+          emergencyContact: (patient as any).emergencyContact || null,
           trustCard,
         },
         consultations: appointments,

@@ -18,6 +18,9 @@ router.patch('/me/profile', authenticate, authorize(Role.DOCTOR), (req, res, nex
   doctorController.updateMyProfile(req, res, next)
 );
 
+// Public route to view doctor availability for a date
+router.get('/:id/availability', (req, res, next) => doctorController.getDoctorAvailability(req, res, next));
+
 // Public route to view a single verified doctor by ID
 router.get('/:id', (req, res, next) => doctorController.getDoctorById(req, res, next));
 

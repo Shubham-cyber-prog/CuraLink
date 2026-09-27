@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { mlServiceClient } from '../services/ml-service.client';
+import { symptomCheckerLimiter } from '../middleware/rate-limit.middleware';
 
 const router = Router();
 
@@ -146,58 +147,60 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
       return;
     }
 
-    const modelChain = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+    const modelChain = Array.from(
+      new Set([process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.5-flash'])
+    );
     const genAI = new GoogleGenerativeAI(geminiKey);
 
     let parsedResult: AnalysisResult | null = null;
     let lastError: any = null;
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      const currentModelName = modelChain[Math.min(attempt - 1, modelChain.length - 1)];
-      const attemptStart = Date.now();
+    for (const candidate of modelChain) {
+      const model = genAI.getGenerativeModel({
+        model: candidate,
+        systemInstruction: SYMPTOM_SYSTEM_PROMPT,
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json',
+        },
+      });
 
-      console.log(`[Express Symptom Route] [Attempt ${attempt}/3] Calling model: ${currentModelName}`);
-      console.log(`[Express Symptom Route] EXACT PROMPT SENT TO GEMINI: "${symptoms}"`);
+      for (let retry = 0; retry < 2; retry++) {
+        const attemptStart = Date.now();
+        console.log(`[Express Symptom Route] [${candidate}] Attempt ${retry + 1}/2 calling Gemini...`);
 
-      try {
-        const model = genAI.getGenerativeModel({
-          model: currentModelName,
-          systemInstruction: SYMPTOM_SYSTEM_PROMPT,
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-          },
-        });
+        try {
+          const result = await Promise.race([
+            model.generateContent(symptoms),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error(`Gemini call timed out after 50s`)), 50000)
+            ),
+          ]) as any;
 
-        const result = await Promise.race([
-          model.generateContent(symptoms),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Gemini call timed out after 35s`)), 35000)
-          ),
-        ]) as any;
+          const text = result.response.text();
+          const callDuration = Date.now() - attemptStart;
+          console.log(`[Express Symptom Route] ✅ ${candidate} responded in ${callDuration}ms`);
 
-        const text = result.response.text();
-        const callDuration = Date.now() - attemptStart;
-        console.log(`[Express Symptom Route] [Attempt ${attempt}] Response in ${callDuration}ms:`);
-        console.log(text);
+          let cleanText = text.trim();
+          if (cleanText.startsWith('```')) {
+            cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+          }
+          parsedResult = JSON.parse(cleanText) as AnalysisResult;
+          break; // Success!
+        } catch (err: any) {
+          lastError = err;
+          const status = err?.status || err?.code;
+          console.warn(`[Express Symptom Route] ⚠️ ${candidate} attempt ${retry + 1} failed:`, err?.message || err);
 
-        let cleanText = text.trim();
-        if (cleanText.startsWith('```')) {
-          cleanText = cleanText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-        }
-        parsedResult = JSON.parse(cleanText) as AnalysisResult;
-        break; // Success!
-      } catch (err: any) {
-        lastError = err;
-        const callDuration = Date.now() - attemptStart;
-        console.error(`[Express Symptom Route] [Attempt ${attempt}] ❌ Failed (${callDuration}ms):`, err?.message || err);
-
-        if (attempt < 3) {
-          const delay = attempt * 1000;
-          console.log(`[Express Symptom Route] Retrying in ${delay}ms...`);
-          await new Promise((r) => setTimeout(r, delay));
+          if (status === 503 || status === 429 || err?.message?.includes('503') || err?.message?.includes('429')) {
+            await new Promise((r) => setTimeout(r, 2500));
+          } else {
+            break;
+          }
         }
       }
+
+      if (parsedResult) break;
     }
 
     if (!parsedResult) {
@@ -240,7 +243,7 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
   }
 };
 
-router.post('/', handleSymptomAnalysis);
-router.post('/analyze', handleSymptomAnalysis);
+router.post('/', symptomCheckerLimiter, handleSymptomAnalysis);
+router.post('/analyze', symptomCheckerLimiter, handleSymptomAnalysis);
 
 export default router;

@@ -45,10 +45,10 @@ export function Logo({
       </span>
       <span
         className={`text-[17px] font-semibold tracking-tight ${
-          inverted ? "text-white" : "text-slate-900 dark:text-white"
+          inverted ? "text-[#F5F3EE]" : "text-slate-900 dark:text-[#F5F3EE]"
         }`}
       >
-        Cura<span className="text-teal-600 dark:text-teal-400">Link</span>
+        Cura<span className="text-[#0F9D8C]">Link</span>
       </span>
     </Link>
   );

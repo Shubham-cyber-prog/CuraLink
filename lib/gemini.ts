@@ -71,7 +71,7 @@ export async function streamGeminiChat({
   }
 
   const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
-  const modelChain = Array.from(new Set([configuredModel, "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"]));
+  const modelChain = Array.from(new Set([configuredModel, "gemini-3.5-flash-lite", "gemini-3-flash-preview", "gemini-3.5-flash"]));
   console.log(`[Gemini] Model chain: ${modelChain.join(", ")} | API key present: true`);
 
   const formattedContents = formatMessagesForGemini(messages);
@@ -89,24 +89,56 @@ export async function streamGeminiChat({
   let usedModel = configuredModel;
 
   for (const candidate of modelChain) {
-    try {
-      usedModel = candidate;
-      const model = genAI.getGenerativeModel({
-        model: candidate,
-        systemInstruction,
-        generationConfig: {
-          temperature,
-        },
-      });
+    usedModel = candidate;
+    const model = genAI.getGenerativeModel({
+      model: candidate,
+      systemInstruction,
+      generationConfig: {
+        temperature,
+      },
+    });
 
-      result = await model.generateContentStream({
-        contents: formattedContents,
-      });
-      break; // Successfully started stream
-    } catch (mErr: any) {
-      lastErr = mErr;
-      console.warn(`[Gemini] Candidate model ${candidate} failed (${mErr?.status || mErr?.message}). Trying next...`);
+    for (let retry = 0; retry < 2; retry++) {
+      try {
+        result = await model.generateContentStream({
+          contents: formattedContents,
+        });
+        break; // Successfully started stream
+      } catch (mErr: any) {
+        lastErr = mErr;
+        const status = mErr?.status || mErr?.code;
+        console.warn(
+          `[Gemini] Candidate ${candidate} attempt ${retry + 1} failed (${status || mErr?.message}).`
+        );
+        // If SSE streaming endpoint encounters 503, fallback to direct generateContent
+        if (status === 503 || mErr?.message?.includes("503")) {
+          try {
+            console.log(`[Gemini] Falling back to direct generateContent on ${candidate}...`);
+            const directRes = await model.generateContent({
+              contents: formattedContents,
+            });
+            const text = directRes.response.text();
+            if (text) {
+              result = {
+                stream: (async function* () {
+                  yield { text: () => text };
+                })(),
+              };
+              break;
+            }
+          } catch (directErr: any) {
+            console.warn(`[Gemini] Direct generateContent on ${candidate} also failed:`, directErr?.message);
+          }
+        }
+        if (status === 429) {
+          const backoff = (retry + 1) * 2000;
+          await new Promise((resolve) => setTimeout(resolve, backoff));
+        } else {
+          break;
+        }
+      }
     }
+    if (result) break;
   }
 
   if (!result) {

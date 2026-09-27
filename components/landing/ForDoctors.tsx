@@ -1,38 +1,60 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle2, Stethoscope } from "lucide-react";
 import { motion } from "framer-motion";
-import { fadeInUp } from "@/components/motion/variants";
+import { Button } from "@/components/ui/button";
 
 export function ForDoctors() {
   return (
-    <section id="for-doctors" className="px-6 py-16" aria-labelledby="doctors-heading">
+    <section id="for-doctors" className="px-4 sm:px-6 py-20 bg-[#F5F7F6] dark:bg-[#0B1120] border-b border-[#E2E8F0] dark:border-slate-800" aria-labelledby="doctors-heading">
       <motion.div
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        variants={fadeInUp}
+        className="mx-auto max-w-6xl rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-[#151B2E] p-8 sm:p-12 shadow-xs"
+        initial={{ opacity: 0, y: 14 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 rounded-2xl border border-slate-200/80 dark:border-[#1e293b] bg-white dark:bg-[#0f172a] px-8 py-10 shadow-sm md:flex-row md:items-center">
-          <div className="max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-700 dark:text-teal-400">Clinicians</p>
-            <h2 id="doctors-heading" className="mt-3 text-2xl tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              Practice on a calendar you control
+        <div className="grid lg:grid-cols-12 gap-8 items-center">
+          <div className="lg:col-span-8">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#0D9488] dark:text-[#14B8A6]">
+              For Healthcare Practitioners
+            </span>
+            <h2 id="doctors-heading" className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-[#0F172A] dark:text-white">
+              Practice on a schedule you control
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-              Join a network that sends you prepared patients, not empty inboxes. CuraLink is built
-              for licensed doctors who want telehealth without the noise.
+            <p className="mt-3 text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed">
+              Join a verified medical network designed to eliminate administrative noise. CuraLink handles patient intake summaries, calendar scheduling, and secure video consultations so you can focus on clinical medicine.
+            </p>
+
+            <div className="mt-6 grid sm:grid-cols-3 gap-3 text-xs text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-[#0D9488] shrink-0" />
+                <span>Flexible consultation hours</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-[#0D9488] shrink-0" />
+                <span>Pre-visit intake notes</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-[#0D9488] shrink-0" />
+                <span>Direct payout management</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col items-start lg:items-end justify-center gap-3">
+            <Button asChild className="w-full sm:w-auto bg-[#0F172A] hover:bg-slate-800 dark:bg-white dark:text-[#0F172A] text-white px-6 py-2.5 rounded-lg shadow-xs font-medium">
+              <Link href="/register?role=doctor" className="inline-flex items-center justify-center gap-2">
+                <Stethoscope className="h-4 w-4" />
+                <span>Apply as a Doctor</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Medical credential verification required
             </p>
           </div>
-          <Link
-            href="/register"
-            target="_self"
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-slate-900 dark:bg-white dark:text-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:hover:bg-slate-100"
-          >
-            Apply as a doctor
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
         </div>
       </motion.div>
     </section>

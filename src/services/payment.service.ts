@@ -18,6 +18,10 @@ export class PaymentService {
       throw new NotFoundError('Appointment not found');
     }
 
+    if (appointment.userId !== userId) {
+      throw new BadRequestError('You can only create payment orders for your own appointments.');
+    }
+
     const keySecret = process.env.RAZORPAY_KEY_SECRET || 'dev_razorpay_secret_key';
     const razorpayOrderId = `order_${crypto.randomBytes(10).toString('hex')}`;
 
@@ -68,11 +72,15 @@ export class PaymentService {
     const { appointmentId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = input;
 
     const payment = await prisma.payment.findUnique({
-      where: { id: appointmentId },
+      where: { appointmentId },
     });
 
     if (!payment) {
       throw new NotFoundError('Payment record not found');
+    }
+
+    if (payment.userId !== userId) {
+      throw new BadRequestError('You are not authorized to verify payment for this appointment.');
     }
 
     const isSignatureValid =
@@ -109,13 +117,24 @@ export class PaymentService {
   /**
    * Get payment details by appointment ID
    */
-  async getPaymentByAppointment(appointmentId: string) {
+  async getPaymentByAppointment(appointmentId: string, requestingUserId?: string, role?: string) {
     const payment = await prisma.payment.findUnique({
       where: { appointmentId },
+      include: {
+        appointment: true,
+      },
     });
 
     if (!payment) {
       throw new NotFoundError('No payment found for this appointment');
+    }
+
+    if (requestingUserId && role !== 'ADMIN') {
+      const isPatient = payment.userId === requestingUserId;
+      const isDoctor = payment.appointment?.doctorId === requestingUserId;
+      if (!isPatient && !isDoctor) {
+        throw new BadRequestError('Not authorized to access payment details for this appointment');
+      }
     }
 
     return payment;

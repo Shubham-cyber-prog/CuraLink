@@ -33,7 +33,7 @@ export class ReviewController {
 
   async getDoctorReviews(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { doctorId } = req.params;
+      const doctorId = String(req.params.doctorId);
       const reviews = await reviewService.getDoctorReviews(doctorId);
 
       res.status(200).json({

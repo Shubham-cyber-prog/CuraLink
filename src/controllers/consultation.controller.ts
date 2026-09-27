@@ -9,7 +9,7 @@ export class ConsultationController {
         throw new UnauthorizedError('Authentication required');
       }
 
-      const { appointmentId } = req.params;
+      const appointmentId = String(req.params.appointmentId);
       const userRole = req.user.role;
 
       const roomData = await consultationService.getOrCreateConsultationRoom(
@@ -34,7 +34,7 @@ export class ConsultationController {
         throw new UnauthorizedError('Authentication required');
       }
 
-      const { appointmentId } = req.params;
+      const appointmentId = String(req.params.appointmentId);
       const userRole = req.user.role;
 
       const updatedAppointment = await consultationService.completeConsultation(

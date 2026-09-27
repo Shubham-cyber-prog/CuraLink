@@ -13,6 +13,7 @@ import symptomRoutes from './routes/symptom.routes';
 import doctorDashboardRoutes from './routes/doctor-dashboard.routes';
 import riskRoutes from './routes/risk.routes';
 import vitalsRoutes from './routes/vitals.routes';
+import adminRoutes from './routes/admin.routes';
 import { errorHandler } from './middleware/error.middleware';
 import cookieParser from 'cookie-parser';
 import { securityHeaders } from './middleware/security-headers.middleware';
@@ -41,7 +42,19 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Turnstile-Token', 'X-Client-Platform'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-CSRF-Token',
+    'X-Turnstile-Token',
+    'X-Client-Platform',
+    'sentry-trace',
+    'baggage',
+    'traceparent',
+    'tracestate',
+    'X-Requested-With',
+    'Accept',
+  ],
 }));
 
 // Body parsing and cookies
@@ -68,8 +81,10 @@ app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/privacy', privacyRoutes);
 app.use('/api/symptom-checker', symptomRoutes);
+app.use('/api/symptoms', symptomRoutes);
 app.use('/api/risk', riskRoutes);
 app.use('/api/vitals', vitalsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

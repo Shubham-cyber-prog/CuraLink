@@ -1,50 +1,38 @@
 import { Hero } from "@/components/landing/Hero";
 import { Stats } from "@/components/landing/Stats";
-import { DoctorDiscoveryPreview } from "@/components/landing/DoctorDiscoveryPreview";
-import { HowItWorks } from "@/components/landing/HowItWorks";
-import { Features } from "@/components/landing/Features";
-import { SymptomAssessmentPreview } from "@/components/landing/SymptomAssessmentPreview";
-import { AppointmentExperiencePreview } from "@/components/landing/AppointmentExperiencePreview";
-import { HealthRecordsPreview } from "@/components/landing/HealthRecordsPreview";
-import { Security } from "@/components/landing/Security";
-import { Testimonials } from "@/components/landing/Testimonials";
-import { ForDoctors } from "@/components/landing/ForDoctors";
-import { ClosingCta } from "@/components/landing/ClosingCta";
+import { PinnedFeaturesSection } from "@/components/landing/PinnedFeaturesSection";
+import { EditorialDoctorDiscovery } from "@/components/landing/EditorialDoctorDiscovery";
+import { EditorialIntakeFlow } from "@/components/landing/EditorialIntakeFlow";
+import { ClinicalSecurityDeepDive } from "@/components/landing/ClinicalSecurityDeepDive";
+import { EditorialForClinicians } from "@/components/landing/EditorialForClinicians";
+import { EditorialClosingCta } from "@/components/landing/EditorialClosingCta";
 
 export default function LandingPage() {
   return (
-    <main id="main" className="flex flex-1 flex-col">
-      {/* 1. Hero with Trust Indicators */}
+    <main id="main" className="flex flex-1 flex-col bg-[#0A0F0D]">
+      {/* 1. Asymmetric Editorial Hero with GSAP text reveal & parallax */}
       <Hero />
+
+      {/* 2. GSAP ScrollTrigger Animated Count-Up Counters */}
       <Stats />
 
-      {/* 2. Doctor discovery preview */}
-      <DoctorDiscoveryPreview />
+      {/* 3. Horizontal-Pinned GSAP Scroll Section: 4 Core AI/Clinical Capabilities */}
+      <PinnedFeaturesSection />
 
-      {/* 3. How CuraLink works */}
-      <HowItWorks />
+      {/* 4. Warm Off-White Editorial Doctor Discovery with GSAP Card Stagger */}
+      <EditorialDoctorDiscovery />
 
-      {/* 4. Healthcare specialties */}
-      <Features />
+      {/* 5. Interactive Clinical Intake Telemetry & Dossier Protocol */}
+      <EditorialIntakeFlow />
 
-      {/* 5. Clinical symptom assessment */}
-      <SymptomAssessmentPreview />
+      {/* 6. Technical Security & Sovereign Data Architecture Matrix */}
+      <ClinicalSecurityDeepDive />
 
-      {/* 6. Appointment experience */}
-      <AppointmentExperiencePreview />
+      {/* 7. Warm Off-White Practitioner Network & Practice Invariants */}
+      <EditorialForClinicians />
 
-      {/* 7. Health records & privacy */}
-      <HealthRecordsPreview />
-
-      {/* 8. Security & trust */}
-      <Security />
-
-      {/* Patient trust & Practitioner network */}
-      <Testimonials />
-      <ForDoctors />
-
-      {/* 9. Final CTA */}
-      <ClosingCta />
+      {/* 8. Editorial Closing Call to Action */}
+      <EditorialClosingCta />
     </main>
   );
 }

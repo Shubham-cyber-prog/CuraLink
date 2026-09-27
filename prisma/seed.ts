@@ -1,14 +1,31 @@
+import 'dotenv/config';
 import prisma from '../src/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 async function main() {
-  console.log('🌱 Seeding database with realistic verified doctors and reviews...');
+  console.log('🌱 Seeding database with realistic verified doctors, patients, admin, appointments, prescriptions, and reviews...');
 
   const defaultPasswordHash = await bcrypt.hash('DoctorSecurePass123!', 10);
   const patientPasswordHash = await bcrypt.hash('PatientSecurePass123!', 10);
+  const adminPasswordHash = await bcrypt.hash('AdminSecurePass123!', 10);
 
-  // 1. Ensure sample patient exists for reviews
-  const patientUser = await prisma.user.upsert({
+  // 1. Seed System Administrator
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@curalink.health' },
+    update: {
+      role: 'ADMIN',
+    },
+    create: {
+      name: 'System Administrator',
+      email: 'admin@curalink.health',
+      passwordHash: adminPasswordHash,
+      role: 'ADMIN',
+    },
+  });
+  console.log(`✅ Seeded Admin: ${adminUser.name} (${adminUser.email})`);
+
+  // 2. Seed 3 Realistic Patients
+  const patientUser1 = await prisma.user.upsert({
     where: { email: 'patient.sample@curalink.com' },
     update: {},
     create: {
@@ -16,6 +33,9 @@ async function main() {
       email: 'patient.sample@curalink.com',
       passwordHash: patientPasswordHash,
       role: 'PATIENT',
+      phone: '+919876543211',
+      age: 29,
+      gender: 'Male',
     },
   });
 
@@ -27,10 +47,28 @@ async function main() {
       email: 'patient.meera@curalink.com',
       passwordHash: patientPasswordHash,
       role: 'PATIENT',
+      phone: '+919876543212',
+      age: 34,
+      gender: 'Female',
     },
   });
 
-  // 2. Doctor definitions with realistic specializations, bios, fees, and licenses
+  const patientUser3 = await prisma.user.upsert({
+    where: { email: 'patient.aarav@curalink.com' },
+    update: {},
+    create: {
+      name: 'Aarav Patel',
+      email: 'patient.aarav@curalink.com',
+      passwordHash: patientPasswordHash,
+      role: 'PATIENT',
+      phone: '+919876543213',
+      age: 41,
+      gender: 'Male',
+    },
+  });
+  console.log(`✅ Seeded 3 Patients: Rohan Verma, Meera Iyer, Aarav Patel`);
+
+  // 3. Doctor definitions with realistic specializations, bios, fees, and licenses
   const doctorsData = [
     {
       name: 'Dr. Priya Sharma',
@@ -44,7 +82,7 @@ async function main() {
         {
           rating: 5,
           comment: 'Very attentive and took the time to explain everything clearly. Highly recommend!',
-          patientId: patientUser.id,
+          patientId: patientUser1.id,
         },
         {
           rating: 5,
@@ -60,12 +98,12 @@ async function main() {
       experienceYears: 15,
       consultationFee: 1000,
       medicalLicenseNumber: 'MCI-2011-47201',
-      bio: 'Dr. Marcus Vance is a board-certified cardiologist specializing in preventive cardiology, hypertension management, and cardiovascular risk assessments. He works with patients on heart-healthy sustainable habits.',
+      bio: 'Dr. Marcus Vance is a board-certified cardiologist specializing in preventive cardiology, hypertension management, and cardiovascular risk assessments.',
       reviews: [
         {
           rating: 5,
           comment: 'Dr. Vance gave an in-depth review of my ECG and blood reports. Superb bedside manner.',
-          patientId: patientUser.id,
+          patientId: patientUser1.id,
         },
         {
           rating: 4,
@@ -81,12 +119,12 @@ async function main() {
       experienceYears: 8,
       consultationFee: 750,
       medicalLicenseNumber: 'MCI-2018-91024',
-      bio: 'Dr. Sarah Jenkins is an experienced dermatologist specializing in medical dermatology, adult acne, eczema, and skin cancer screenings. She provides personalized, evidence-based skin regimens.',
+      bio: 'Dr. Sarah Jenkins is an experienced dermatologist specializing in medical dermatology, adult acne, eczema, and skin cancer screenings.',
       reviews: [
         {
           rating: 5,
           comment: 'Prescribed a regimen that cleared my stubborn dermatitis within three weeks. Excellent!',
-          patientId: patientUser.id,
+          patientId: patientUser1.id,
         },
       ],
     },
@@ -97,7 +135,7 @@ async function main() {
       experienceYears: 10,
       consultationFee: 600,
       medicalLicenseNumber: 'MCI-2016-55412',
-      bio: 'Dr. Kenji Sato is a compassionate pediatrician focused on childhood development, infant nutrition, and common pediatric conditions. He ensures a gentle, welcoming environment for young patients.',
+      bio: 'Dr. Kenji Sato is a compassionate pediatrician focused on childhood development, infant nutrition, and common pediatric conditions.',
       reviews: [
         {
           rating: 5,
@@ -113,12 +151,12 @@ async function main() {
       experienceYears: 20,
       consultationFee: 1200,
       medicalLicenseNumber: 'MCI-2006-18940',
-      bio: 'Dr. Elena Rostova is a senior neurologist with two decades of experience treating chronic migraines, neuropathy, and sleep disorders. She has led numerous clinical studies in neurobiology.',
+      bio: 'Dr. Elena Rostova is a senior neurologist with two decades of experience treating chronic migraines, neuropathy, and sleep disorders.',
       reviews: [
         {
           rating: 5,
           comment: 'Finally found relief from chronic migraines after consulting Dr. Rostova. Brilliant specialist.',
-          patientId: patientUser.id,
+          patientId: patientUser1.id,
         },
       ],
     },
@@ -129,7 +167,7 @@ async function main() {
       experienceYears: 14,
       consultationFee: 800,
       medicalLicenseNumber: 'MCI-2012-66381',
-      bio: 'Dr. Aisha Rahman is an empathetic gynecologist and obstetrician specializing in reproductive wellness, PCOS management, and prenatal care. She empowers women through holistic health guidance.',
+      bio: 'Dr. Aisha Rahman is an empathetic gynecologist and obstetrician specializing in reproductive wellness, PCOS management, and prenatal care.',
       reviews: [
         {
           rating: 5,
@@ -145,12 +183,12 @@ async function main() {
       experienceYears: 11,
       consultationFee: 900,
       medicalLicenseNumber: 'MCI-2015-32109',
-      bio: 'Dr. Christian Lind is a psychiatrist specializing in adult ADHD, anxiety disorders, and depression. He utilizes an evidence-based approach combining pharmacotherapy with cognitive strategies.',
+      bio: 'Dr. Christian Lind is a psychiatrist specializing in adult ADHD, anxiety disorders, and depression.',
       reviews: [
         {
           rating: 5,
           comment: 'Extremely thoughtful and compassionate. The video consultation was seamless.',
-          patientId: patientUser.id,
+          patientId: patientUser1.id,
         },
       ],
     },
@@ -212,12 +250,11 @@ async function main() {
       },
     });
 
-    // Seed sample reviews via past completed appointments
+    // Seed sample reviews & prescriptions via past completed appointments
     for (let i = 0; i < docData.reviews.length; i++) {
       const reviewItem = docData.reviews[i];
       const pastDate = `2026-08-1${i + 1}`;
 
-      // Check if an appointment already exists for this review
       let appointment = await prisma.appointment.findFirst({
         where: {
           userId: reviewItem.patientId,
@@ -252,12 +289,33 @@ async function main() {
           comment: reviewItem.comment,
         },
       });
+
+      // Sample e-prescription for this consultation
+      const existingPrescription = await prisma.prescription.findUnique({
+        where: { appointmentId: appointment.id },
+      });
+
+      if (!existingPrescription) {
+        await prisma.prescription.create({
+          data: {
+            appointmentId: appointment.id,
+            doctorId: user.id,
+            patientId: reviewItem.patientId,
+            diagnosis: `${docData.specialization} Clinical Consultation & Care Plan`,
+            medications: JSON.stringify([
+              { name: 'Standard Clinical Medication', dosage: '500mg', frequency: 'As directed', duration: '5 days' },
+              { name: 'Nutritional Support Supplement', dosage: '1 tablet', frequency: 'Once daily with meals', duration: '14 days' },
+            ]),
+            notes: 'Rest, hydrate, and maintain follow-up if symptoms persist.',
+          },
+        });
+      }
     }
 
     console.log(`✅ Seeded doctor: ${docData.name} (${docData.specialization}) - ID: ${user.id}`);
   }
 
-  console.log('🎉 Seeding complete! 8 doctors seeded with verified status and reviews.');
+  console.log('🎉 Seeding complete! 1 Admin, 3 Patients, 8 Verified Doctors, Sample Appointments, Prescriptions, and Reviews ready.');
 }
 
 main()

@@ -70,12 +70,11 @@ export class DataPrivacyService {
           passwordHash: 'ANONYMIZED_ACCOUNT_DELETED',
         },
       }),
-      // Mark erasure request as COMPLETED
+      // Mark erasure request as PROCESSED
       prisma.dataErasureRequest.update({
         where: { id: requestId },
         data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
+          status: 'PROCESSED',
         },
       }),
     ]);
@@ -98,7 +97,7 @@ export class DataPrivacyService {
   async getUserPrivacyStatus(userId: string) {
     const requests = await prisma.dataErasureRequest.findMany({
       where: { userId },
-      orderBy: { requestedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     return {

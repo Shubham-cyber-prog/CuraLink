@@ -36,8 +36,12 @@ export class PrescriptionController {
 
   async getPrescription(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-      const prescription = await prescriptionService.getPrescriptionById(id);
+      const id = String(req.params.id);
+      const prescription = await prescriptionService.getPrescriptionById(
+        id,
+        req.user?.id,
+        req.user?.role
+      );
 
       res.status(200).json({
         success: true,
@@ -64,8 +68,12 @@ export class PrescriptionController {
 
   async downloadPrescription(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { id } = req.params;
-      const prescription = await prescriptionService.getPrescriptionById(id);
+      const id = String(req.params.id);
+      const prescription = await prescriptionService.getPrescriptionById(
+        id,
+        req.user?.id,
+        req.user?.role
+      );
 
       const filePath = path.join(process.cwd(), 'public', prescription.pdfUrl);
 

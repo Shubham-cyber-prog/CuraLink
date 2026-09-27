@@ -19,6 +19,7 @@ const DEFAULT_PROD_URL = 'https://api.curalink.com/api';
 function extractHostIp(): string | null {
   try {
     const rawHost =
+      (Constants as any).expoGoConfig?.debuggerHost ||
       Constants.expoConfig?.hostUri ||
       (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
       (Constants as any).manifest?.debuggerHost ||

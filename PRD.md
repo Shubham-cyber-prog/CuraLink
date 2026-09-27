@@ -11,7 +11,7 @@ CuraLink is an AI-powered telehealth ecosystem serving Patients, Doctors, and Ad
 ### Tech Stack
 - **Web Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS v4, Framer Motion, Lucide React, `@react-oauth/google`
 - **Mobile Client:** Expo SDK 57 / React Native 0.86, Expo Router, NativeWind, Expo SecureStore, `expo-auth-session`, `expo-web-browser`
-- **Backend Infrastructure:** Express.js, TypeScript (`tsx`), Prisma ORM (SQLite dev / PostgreSQL prod), Zod validation, Daily.co REST API
+- **Backend Infrastructure:** Express.js, TypeScript (`tsx`), Prisma ORM (Neon PostgreSQL), Zod validation, Daily.co REST API
 - **Security & Auth:** Dual JWT tokens (15-min access + 7-day refresh), HttpOnly+SameSite=Lax cookies (web), Bearer token in SecureStore (mobile), Backend-Mediated Google OAuth 2.0 (`curalink://` deep-linking), Double-Submit CSRF cookie (`curalink_csrf`), granular rate limiters, security headers (CSP/HSTS)
 
 ---

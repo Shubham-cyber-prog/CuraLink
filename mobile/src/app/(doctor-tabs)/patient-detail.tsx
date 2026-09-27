@@ -181,7 +181,7 @@ export default function DoctorPatientDetailScreen() {
           name: d.name || 'Patient Record',
           email: d.email || '',
           phone: d.phone,
-          age: d.age || 35,
+          age: d.age ?? undefined,
           gender: d.gender || 'Unknown',
           riskLevel: d.riskLevel || 'Low',
           primaryCondition: d.primaryCondition || 'General Consultation',
@@ -367,7 +367,7 @@ export default function DoctorPatientDetailScreen() {
                 <Heart size={16} color="#E11D48" />
               </View>
               <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">
-                {vitals.bloodPressure || '120/80'}
+                {vitals.bloodPressure || '--/--'}
               </Text>
               <Text className="font-inter text-[11px] text-slate-400 mt-0.5">mmHg</Text>
             </Card>
@@ -379,7 +379,7 @@ export default function DoctorPatientDetailScreen() {
                 <Activity size={16} color="#0D9488" />
               </View>
               <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">
-                {vitals.heartRate || 72}
+                {vitals.heartRate ? `${vitals.heartRate}` : '--'}
               </Text>
               <Text className="font-inter text-[11px] text-slate-400 mt-0.5">bpm</Text>
             </Card>
@@ -391,7 +391,7 @@ export default function DoctorPatientDetailScreen() {
                 <Wind size={16} color="#0284C7" />
               </View>
               <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">
-                {vitals.oxygenSaturation ? `${vitals.oxygenSaturation}%` : '98%'}
+                {vitals.oxygenSaturation ? `${vitals.oxygenSaturation}%` : '--'}
               </Text>
               <Text className="font-inter text-[11px] text-slate-400 mt-0.5">SpO2</Text>
             </Card>
@@ -403,7 +403,7 @@ export default function DoctorPatientDetailScreen() {
                 <Thermometer size={16} color="#D97706" />
               </View>
               <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">
-                {vitals.temperature ? `${vitals.temperature}°` : '98.6°'}
+                {vitals.temperature ? `${vitals.temperature}°` : '--'}
               </Text>
               <Text className="font-inter text-[11px] text-slate-400 mt-0.5">Fahrenheit</Text>
             </Card>
@@ -415,7 +415,7 @@ export default function DoctorPatientDetailScreen() {
                 <Droplets size={16} color="#7C3AED" />
               </View>
               <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">
-                {vitals.glucose || 105}
+                {vitals.glucose ? `${vitals.glucose}` : '--'}
               </Text>
               <Text className="font-inter text-[11px] text-slate-400 mt-0.5">mg/dL</Text>
             </Card>
@@ -427,7 +427,7 @@ export default function DoctorPatientDetailScreen() {
                 <Scale size={16} color="#475569" />
               </View>
               <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">
-                {vitals.weight || 68}
+                {vitals.weight ? `${vitals.weight}` : '--'}
               </Text>
               <Text className="font-inter text-[11px] text-slate-400 mt-0.5">kg</Text>
             </Card>

@@ -11,27 +11,79 @@ export class AppointmentService {
   async bookAppointment(userId: string, input: CreateAppointmentInput) {
     const { doctorId, date, time } = input;
 
-    // Check if the user already has an appointment at this time
-    const existingAppointment = await prisma.appointment.findFirst({
-      where: {
-        userId,
-        date,
-        time,
-      }
-    });
-
-    if (existingAppointment) {
-      throw new BadRequestError('You already have an appointment scheduled at this time.');
+    // Prevent doctor booking themselves
+    if (userId === doctorId) {
+      throw new BadRequestError('Doctors cannot book an appointment with themselves.');
     }
 
-    const appointment = await prisma.appointment.create({
-      data: {
-        userId,
-        doctorId,
-        date,
-        time,
-        status: 'CONFIRMED'
+    // Check for past date
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (date < todayStr) {
+      throw new BadRequestError('Cannot book an appointment for a past date.');
+    }
+
+    // Verify doctor exists and is verified
+    const doctorProfile = await prisma.doctorProfile.findFirst({
+      where: {
+        OR: [{ userId: doctorId }, { id: doctorId }],
+      },
+    });
+
+    if (!doctorProfile) {
+      throw new BadRequestError('Doctor not found.');
+    }
+
+    if (doctorProfile.verificationStatus !== 'APPROVED') {
+      throw new BadRequestError('This doctor is pending administrative verification and cannot accept bookings.');
+    }
+
+    const resolvedDoctorId = doctorProfile.userId;
+
+    if (userId === resolvedDoctorId) {
+      throw new BadRequestError('Doctors cannot book an appointment with themselves.');
+    }
+
+    // Atomic transaction for concurrency safety
+    const appointment = await prisma.$transaction(async (tx) => {
+      // Check if doctor is already booked at this date and time
+      const doctorConflict = await tx.appointment.findFirst({
+        where: {
+          doctorId: resolvedDoctorId,
+          date,
+          time,
+          status: { not: 'CANCELLED' },
+        },
+      });
+
+      if (doctorConflict) {
+        throw new BadRequestError('This time slot is already booked with this doctor. Please select another slot.');
       }
+
+      // Check if the user already has an appointment at this time
+      const userConflict = await tx.appointment.findFirst({
+        where: {
+          userId,
+          date,
+          time,
+          status: { not: 'CANCELLED' },
+        },
+      });
+
+      if (userConflict) {
+        throw new BadRequestError('You already have an appointment scheduled at this time.');
+      }
+
+      const created = await tx.appointment.create({
+        data: {
+          userId,
+          doctorId: resolvedDoctorId,
+          date,
+          time,
+          status: 'CONFIRMED',
+        },
+      });
+
+      return created;
     });
 
     return appointment;

@@ -33,7 +33,7 @@ export class PrivacyController {
 
   async processDataErasure(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { requestId } = req.params;
+      const requestId = String(req.params.requestId);
       const adminId = req.user!.id;
 
       const result = await dataPrivacyService.processErasureRequest(requestId, adminId);

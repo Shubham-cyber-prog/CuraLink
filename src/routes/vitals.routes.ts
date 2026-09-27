@@ -2,48 +2,20 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/auth.middleware';
 import { VitalsAiService, VitalRecord } from '../services/vitals-ai.service';
+import { Role } from '../types/role';
 
 const router = Router();
 
-/**
- * Helper to get active user ID or fallback demo user in dev
- */
-async function resolveUserId(req: Request): Promise<string> {
-  if (req.user?.id) return req.user.id;
-
-  // Fallback in development for seamless testing
-  const demoPatient = await prisma.user.findFirst({
-    where: { role: 'PATIENT' },
-    select: { id: true },
-  });
-
-  if (demoPatient) return demoPatient.id;
-
-  const anyUser = await prisma.user.findFirst({ select: { id: true } });
-  if (anyUser) return anyUser.id;
-
-  throw new Error('No valid patient account found.');
-}
-
-/**
- * Optional authentication middleware:
- * Populates req.user if token is present, but allows dev fallback if not.
- */
-function optionalAuthenticate(req: Request, res: Response, next: NextFunction) {
-  try {
-    authenticate(req, res, () => next());
-  } catch {
-    next();
-  }
-}
+// Protect all vitals routes with authentication
+router.use(authenticate);
 
 /**
  * POST /api/vitals
  * Log new patient vital reading
  */
-router.post('/', optionalAuthenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = await resolveUserId(req);
+    const userId = req.user!.id;
     const {
       systolicBp,
       diastolicBp,
@@ -198,9 +170,9 @@ router.post('/', optionalAuthenticate, async (req: Request, res: Response, next:
  * GET /api/vitals
  * Get chronological vital logs for current user
  */
-router.get('/', optionalAuthenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = await resolveUserId(req);
+    const userId = req.user!.id;
     const { days } = req.query;
 
     let dateFilter: any = {};
@@ -232,9 +204,9 @@ router.get('/', optionalAuthenticate, async (req: Request, res: Response, next: 
  * GET /api/vitals/trends
  * Formatted time-series dataset ready for SVG/Canvas graphing
  */
-router.get('/trends', optionalAuthenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/trends', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = await resolveUserId(req);
+    const userId = req.user!.id;
     const { days = '30' } = req.query;
 
     let dateFilter: any = {};
@@ -292,9 +264,9 @@ router.get('/trends', optionalAuthenticate, async (req: Request, res: Response, 
  * GET /api/vitals/ai-insights
  * Detailed AI deterioration report and active clinical alerts
  */
-router.get('/ai-insights', optionalAuthenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/ai-insights', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = await resolveUserId(req);
+    const userId = req.user!.id;
 
     const logs = await (prisma as any).vitalLog.findMany({
       where: { userId },
@@ -317,9 +289,15 @@ router.get('/ai-insights', optionalAuthenticate, async (req: Request, res: Respo
  * GET /api/vitals/patient/:patientId
  * Doctor endpoint: retrieve a patient's longitudinal vital trends and AI alerts
  */
-router.get('/patient/:patientId', optionalAuthenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.get('/patient/:patientId', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { patientId } = req.params;
+    const requestingUser = req.user!;
+    if (requestingUser.role === Role.PATIENT && requestingUser.id !== patientId) {
+      res.status(403).json({ success: false, message: 'You are not authorized to view another patient\'s vitals.' });
+      return;
+    }
+
     const { days = '30' } = req.query;
 
     let dateFilter: any = {};
@@ -370,11 +348,24 @@ router.get('/patient/:patientId', optionalAuthenticate, async (req: Request, res
 
 /**
  * DELETE /api/vitals/:id
- * Remove an errant vital entry
+ * Remove an errant vital entry with ownership verification
  */
-router.delete('/:id', optionalAuthenticate, async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const requestingUser = req.user!;
+
+    const existingLog = await (prisma as any).vitalLog.findUnique({ where: { id } });
+    if (!existingLog) {
+      res.status(404).json({ success: false, message: 'Vital entry not found' });
+      return;
+    }
+
+    if (existingLog.userId !== requestingUser.id && requestingUser.role !== Role.ADMIN) {
+      res.status(403).json({ success: false, message: 'You are not authorized to delete this vital entry.' });
+      return;
+    }
+
     await (prisma as any).vitalLog.delete({ where: { id } });
     res.status(200).json({ success: true, message: 'Vital entry deleted' });
   } catch (error) {

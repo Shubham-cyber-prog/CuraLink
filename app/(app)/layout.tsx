@@ -8,6 +8,7 @@ import { TopNavbar } from "@/components/layout/TopNavbar";
 import { FloatingMobileNav } from "@/components/layout/FloatingMobileNav";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { AIChatWidget } from "@/components/ai/AIChatWidget";
+import { MotionProvider } from "@/components/motion/MotionProvider";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -71,25 +72,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-[#0F172A] dark:text-[#F1F5F9] transition-colors duration-200">
-      {/* Top Navbar — Full Width, No Sidebar */}
-      <TopNavbar />
+    <MotionProvider>
+      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-[#0F172A] dark:text-[#F1F5F9] transition-colors duration-200">
+        {/* Top Navbar — Full Width, No Sidebar */}
+        <TopNavbar />
 
-      {/* Main Content Container */}
-      <div className="relative z-10 flex min-h-[calc(100vh-64px)] flex-col">
-        {/* Page Content (with mobile bottom padding for FloatingMobileNav) */}
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pb-28 md:pb-12">
-          <div className="mx-auto max-w-[1280px]">
-            <PageTransition>{children}</PageTransition>
-          </div>
-        </main>
+        {/* Main Content Container */}
+        <div className="relative z-10 flex min-h-[calc(100vh-64px)] flex-col">
+          {/* Page Content (with mobile bottom padding for FloatingMobileNav) */}
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pb-28 md:pb-12">
+            <div className="mx-auto max-w-[1280px]">
+              <PageTransition>{children}</PageTransition>
+            </div>
+          </main>
+        </div>
+
+        {/* Mobile Bottom Navigation Bar (< 768px) */}
+        <FloatingMobileNav />
+
+        {/* Global AI Health Assistant Widget */}
+        <AIChatWidget />
       </div>
-
-      {/* Mobile Bottom Navigation Bar (< 768px) */}
-      <FloatingMobileNav />
-
-      {/* Global AI Health Assistant Widget */}
-      <AIChatWidget />
-    </div>
+    </MotionProvider>
   );
 }

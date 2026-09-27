@@ -20,6 +20,12 @@ jest.mock('../../src/lib/prisma', () => {
         upsert: jest.fn(),
         findMany: jest.fn(),
       },
+      appointment: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+      },
       prescription: {
         create: jest.fn(),
         findUnique: jest.fn(),
@@ -168,6 +174,12 @@ describe('Phase 1 Roadmap API Integration Tests', () => {
         email: 'patient@curalink.health',
       });
 
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: 'consult_999',
+        doctorId: 'doc-user-1',
+        userId: 'pat-user-1',
+      });
+
       (prisma.prescription.create as jest.Mock).mockImplementation(({ data }) => ({
         ...data,
         createdAt: new Date(),
@@ -232,6 +244,12 @@ describe('Phase 1 Roadmap API Integration Tests', () => {
         userId: 'doc-user-1',
       });
 
+      (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+        id: 'consult_999',
+        doctorId: 'doc-user-1',
+        userId: 'pat-user-1',
+      });
+      (prisma.review.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.review.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.review.create as jest.Mock).mockResolvedValue({
         id: 'rev_1',

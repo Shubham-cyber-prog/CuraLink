@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { View, StyleSheet, Dimensions, Vibration, Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue, runOnJS } from 'react-native-reanimated';
-import { useRouter, useNavigation, usePathname } from 'expo-router';
+import { useRouter } from 'expo-router';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -28,19 +28,15 @@ interface Props {
  */
 export function UniversalEdgeBackGesture({ children }: Props) {
   const router = useRouter();
-  const navigation = useNavigation();
-  const pathname = usePathname();
-
   const canGoBackShared = useSharedValue(false);
 
   React.useEffect(() => {
     try {
-      const can = Boolean(navigation.canGoBack() || router.canGoBack());
-      canGoBackShared.value = can;
+      canGoBackShared.value = Boolean(router?.canGoBack?.());
     } catch {
       canGoBackShared.value = false;
     }
-  }, [pathname, navigation, router, canGoBackShared]);
+  });
 
   const triggerHaptic = useCallback(() => {
     try {
@@ -54,20 +50,18 @@ export function UniversalEdgeBackGesture({ children }: Props) {
 
   const handleNavigateBack = useCallback(() => {
     try {
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else if (router.canGoBack()) {
+      if (router?.canGoBack?.()) {
         router.back();
       }
     } catch {
       // Fallback
     }
-  }, [navigation, router]);
+  }, [router]);
 
   // On Android, allow right-edge inward swipe to navigate back
   const rightEdgeGesture = useMemo(() => {
     // Only enable on Android; iOS uses native left-edge swipe exclusively
-    if (Platform.OS === 'ios') {
+    if (Platform.OS !== 'android') {
       return Gesture.Native();
     }
 
@@ -100,7 +94,7 @@ export function UniversalEdgeBackGesture({ children }: Props) {
       });
   }, [canGoBackShared, triggerHaptic, handleNavigateBack]);
 
-  if (Platform.OS === 'ios') {
+  if (Platform.OS !== 'android') {
     return <View style={styles.container}>{children}</View>;
   }
 

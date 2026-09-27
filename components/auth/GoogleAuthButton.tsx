@@ -70,6 +70,9 @@ export function GoogleAuthButton({ label = "Continue with Google", role, onError
           if (onSuccess) {
             onSuccess(user, token);
           } else {
+            if (typeof window !== "undefined" && token) {
+              localStorage.setItem("curalink_token", token);
+            }
             const userRole = user?.role as string;
             if (userRole === "DOCTOR") router.push("/doctor-dashboard");
             else if (userRole === "ADMIN") router.push("/admin-dashboard");

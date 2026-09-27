@@ -1,5 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { mlServiceClient } from '../services/ml-service.client';
+import { authenticate } from '../middleware/auth.middleware';
+import { diabetesRiskSchema, heartRiskSchema, urgencyTextSchema } from '../validators/risk.validator';
 
 const router = Router();
 
@@ -12,13 +14,17 @@ router.get('/status', async (_req: Request, res: Response) => {
   res.status(health.healthy ? 200 : 503).json(health);
 });
 
+// Protect all risk prediction routes with authentication
+router.use(authenticate);
+
 /**
  * POST /api/risk/diabetes
  * Compute diabetes risk score and explainable feature contributions.
  */
-router.post('/diabetes', async (req: Request, res: Response) => {
+router.post('/diabetes', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = await mlServiceClient.predictDiabetesRisk(req.body);
+    const validated = diabetesRiskSchema.parse(req.body);
+    const result = await mlServiceClient.predictDiabetesRisk(validated);
     if (!result) {
       res.status(503).json({
         success: false,
@@ -27,8 +33,8 @@ router.post('/diabetes', async (req: Request, res: Response) => {
       return;
     }
     res.status(200).json({ success: true, data: result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Error predicting diabetes risk' });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -36,9 +42,10 @@ router.post('/diabetes', async (req: Request, res: Response) => {
  * POST /api/risk/heart
  * Compute cardiovascular disease risk and explainable feature contributions.
  */
-router.post('/heart', async (req: Request, res: Response) => {
+router.post('/heart', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = await mlServiceClient.predictHeartRisk(req.body);
+    const validated = heartRiskSchema.parse(req.body);
+    const result = await mlServiceClient.predictHeartRisk(validated);
     if (!result) {
       res.status(503).json({
         success: false,
@@ -47,29 +54,31 @@ router.post('/heart', async (req: Request, res: Response) => {
       return;
     }
     res.status(200).json({ success: true, data: result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Error predicting heart disease risk' });
+  } catch (err) {
+    next(err);
   }
 });
 
-router.post('/predict', async (req: Request, res: Response) => {
+router.post('/predict', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { modelType, features } = req.body;
     const type = (modelType || req.body.type || '').toLowerCase();
     const data = features || req.body.data || req.body;
     if (type === 'diabetes') {
-      const result = await mlServiceClient.predictDiabetesRisk(data);
+      const validated = diabetesRiskSchema.parse(data);
+      const result = await mlServiceClient.predictDiabetesRisk(validated);
       res.status(200).json({ success: true, data: result });
       return;
     }
     if (type === 'heart') {
-      const result = await mlServiceClient.predictHeartRisk(data);
+      const validated = heartRiskSchema.parse(data);
+      const result = await mlServiceClient.predictHeartRisk(validated);
       res.status(200).json({ success: true, data: result });
       return;
     }
     res.status(400).json({ success: false, error: 'Invalid modelType: must be diabetes or heart' });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Error running risk prediction' });
+  } catch (err) {
+    next(err);
   }
 });
 
@@ -77,14 +86,11 @@ router.post('/predict', async (req: Request, res: Response) => {
  * POST /api/risk/urgency
  * Predict clinical symptom urgency using the custom-trained text classifier.
  */
-router.post('/urgency', async (req: Request, res: Response) => {
+router.post('/urgency', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const text = req.body?.symptomText || req.body?.symptoms || req.body?.message || '';
-    if (!text) {
-      res.status(400).json({ success: false, error: 'Please provide symptomText' });
-      return;
-    }
-    const result = await mlServiceClient.predictUrgency(text);
+    const { symptomText } = urgencyTextSchema.parse({ symptomText: text });
+    const result = await mlServiceClient.predictUrgency(symptomText);
     if (!result) {
       res.status(503).json({
         success: false,
@@ -93,8 +99,8 @@ router.post('/urgency', async (req: Request, res: Response) => {
       return;
     }
     res.status(200).json({ success: true, data: result });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Error classifying urgency' });
+  } catch (err) {
+    next(err);
   }
 });
 

@@ -19,6 +19,7 @@ import {
   Heart,
   ChevronRight,
   AlertTriangle,
+  UserX,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Doctor } from "@/types/doctor";
@@ -415,20 +416,20 @@ export default function DashboardPage() {
       </motion.section>
 
       {/* ── 5. RECOMMENDED MEDICAL PRACTITIONERS ── */}
-      {topRecommendedDoctors.length > 0 && (
-        <motion.section {...anim(4)} className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Verified Physicians Near You
-            </h2>
-            <Link
-              href="/find-doctor"
-              className="text-xs font-medium text-[#0D9488] dark:text-[#14B8A6] hover:underline"
-            >
-              Browse all specialists
-            </Link>
-          </div>
+      <motion.section {...anim(4)} className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Verified Physicians Near You
+          </h2>
+          <Link
+            href="/find-doctor"
+            className="text-xs font-medium text-[#0D9488] dark:text-[#14B8A6] hover:underline"
+          >
+            Browse all specialists
+          </Link>
+        </div>
 
+        {topRecommendedDoctors.length > 0 ? (
           <div className="space-y-3">
             {topRecommendedDoctors.map((doc) => (
               <div
@@ -473,8 +474,23 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-        </motion.section>
-      )}
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 p-6 text-center">
+            <UserX className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+              No physicians found near you yet
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5 max-w-sm mx-auto">
+              Our clinical team continuously verifies registered healthcare specialists.
+            </p>
+            <div className="mt-3">
+              <Button asChild variant="outline" size="sm" className="text-xs">
+                <Link href="/find-doctor">Explore Directory</Link>
+              </Button>
+            </div>
+          </div>
+        )}
+      </motion.section>
     </div>
   );
 }

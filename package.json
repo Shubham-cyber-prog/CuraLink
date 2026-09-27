@@ -19,9 +19,6 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:cleanup-seed": "tsx scripts/cleanup-seed.ts"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.49",
     "@ai-sdk/react": "^4.0.96",

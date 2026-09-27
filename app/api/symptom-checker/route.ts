@@ -288,8 +288,7 @@ export async function POST(req: Request) {
     try {
       const { text: responseText, modelUsed, attempts } = await callGeminiWithRetry(
         latestMessage,
-        SYMPTOM_CHECKER_SYSTEM_PROMPT,
-        2
+        SYMPTOM_CHECKER_SYSTEM_PROMPT
       );
 
       const parsed = parseGeminiJson(responseText);

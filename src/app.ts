@@ -37,8 +37,15 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile native apps), dev mode origins, or explicit allowed list
-    if (!origin || allowedOrigins.includes(origin) || env.NODE_ENV === 'development' || process.env.NODE_ENV === 'development') {
+    // Allow requests with no origin (mobile native apps), dev mode origins, Render/Vercel preview domains, or explicit allowed list
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.onrender.com') ||
+      origin.endsWith('.vercel.app') ||
+      env.NODE_ENV === 'development' ||
+      process.env.NODE_ENV === 'development'
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -90,6 +97,26 @@ app.use('/api/risk', riskRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
+
+// Root endpoint
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({
+    name: 'CuraLink Health Backend API',
+    status: 'online',
+    version: '1.0.0',
+    documentation: 'https://github.com/Shubham-cyber-prog/CuraLink',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      doctors: '/api/doctors',
+      appointments: '/api/appointments',
+      consultations: '/api/consultations',
+      messages: '/api/messages',
+      symptomChecker: '/api/symptom-checker',
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

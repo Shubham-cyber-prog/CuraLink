@@ -192,7 +192,11 @@ export default function MobileConsultationScreen() {
     setCompleted(true);
     if (id) {
       try {
-        await api.post(`/consultations/${id}/complete`);
+        await api.patch(`/appointments/${id}/complete`).catch(async () => {
+          return await api.patch(`/appointments/${id}/status`, { status: 'COMPLETED' }).catch(async () => {
+            return await api.post(`/consultations/${id}/complete`);
+          });
+        });
       } catch (err) {
         console.warn('Could not complete consultation on server:', err);
       }
@@ -254,7 +258,9 @@ export default function MobileConsultationScreen() {
             height: "100%",
             parentNode: document.querySelector('#meet'),
             userInfo: {
-              displayName: "${userName.replace(/"/g, '\\"')}"
+              displayName: "${userName.replace(/"/g, '\\"')}",
+              role: "moderator",
+              isModerator: true
             },
             configOverwrite: {
               disableDeepLinking: true,
@@ -268,6 +274,15 @@ export default function MobileConsultationScreen() {
               disableInviteFunctions: true,
               hideConferenceSubject: true,
               hideConferenceTimer: true,
+              enableLobby: false,
+              hideLoginButton: true,
+              waitingForModerator: false,
+              disableModeratorIndicator: true,
+              lobby: {
+                enable: false,
+                autoKnock: false
+              },
+              isModerator: true,
               notifications: [],
               toolbarButtons: [
                 'microphone',
@@ -282,6 +297,7 @@ export default function MobileConsultationScreen() {
               SHOW_WATERMARK_FOR_GUESTS: false,
               SHOW_BRAND_WATERMARK: false,
               BRAND_WATERMARK_LINK: "",
+              JITSI_WATERMARK_LINK: "",
               SHOW_POWERED_BY: false,
               SHOW_PROMOTIONAL_CLOSE_PAGE: false,
               MOBILE_APP_PROMO: false,
@@ -294,6 +310,11 @@ export default function MobileConsultationScreen() {
 
           api.addEventListeners({
             readyToClose: function() {
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CALL_ENDED' }));
+              }
+            },
+            videoConferenceLeft: function() {
               if (window.ReactNativeWebView) {
                 window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CALL_ENDED' }));
               }

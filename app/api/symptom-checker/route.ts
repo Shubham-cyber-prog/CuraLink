@@ -135,7 +135,8 @@ async function fetchMLUrgency(symptomText: string) {
  */
 async function callGeminiWithRetry(
   prompt: string,
-  systemInstruction: string
+  systemInstruction: string,
+  maxRetries: number = 2
 ): Promise<{ text: string; modelUsed: string; attempts: number }> {
   const apiKey = process.env.GEMINI_API_KEY!.trim();
   const configuredModel = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
@@ -158,11 +159,11 @@ async function callGeminiWithRetry(
       },
     });
 
-    for (let retry = 0; retry < 2; retry++) {
+    for (let retry = 0; retry < maxRetries; retry++) {
       totalAttempts++;
       const callStartTime = Date.now();
       console.log(
-        `\n[Symptom Checker API] [${candidate}] Attempt ${retry + 1}/2 calling Gemini...`
+        `\n[Symptom Checker API] [${candidate}] Attempt ${retry + 1}/${maxRetries} calling Gemini...`
       );
 
       try {
@@ -288,7 +289,8 @@ export async function POST(req: Request) {
     try {
       const { text: responseText, modelUsed, attempts } = await callGeminiWithRetry(
         latestMessage,
-        SYMPTOM_CHECKER_SYSTEM_PROMPT
+        SYMPTOM_CHECKER_SYSTEM_PROMPT,
+        2
       );
 
       const parsed = parseGeminiJson(responseText);

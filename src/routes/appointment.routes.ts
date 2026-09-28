@@ -15,6 +15,8 @@ router.get('/my-appointments', authorize(Role.PATIENT, Role.DOCTOR), (req, res, 
 router.get('/me', authorize(Role.PATIENT, Role.DOCTOR), (req, res, next) => appointmentController.getMyAppointments(req, res, next));
 router.post('/:id/create-room', (req, res, next) => appointmentController.createRoom(req, res, next));
 router.get('/:id/join', (req, res, next) => appointmentController.join(req, res, next));
+router.patch('/:id/complete', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), (req, res, next) => appointmentController.complete(req, res, next));
+router.post('/:id/complete', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), (req, res, next) => appointmentController.complete(req, res, next));
 router.patch('/:id/status', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), async (req, res, next) => {
   try {
     const id = String(req.params.id);
@@ -33,6 +35,11 @@ router.patch('/:id/status', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), as
     const { default: prisma } = await import('../lib/prisma');
     const appointment = await prisma.appointment.findUnique({
       where: { id },
+      include: {
+        doctor: {
+          select: { id: true, userId: true },
+        },
+      },
     });
 
     if (!appointment) {
@@ -41,8 +48,16 @@ router.patch('/:id/status', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), as
     }
 
     const user = req.user!;
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: user.id },
+    });
+    const doctorIds = [user.id];
+    if (doctorProfile) doctorIds.push(doctorProfile.id);
+
     const isPatient = appointment.userId === user.id;
-    const isDoctor = appointment.doctorId === user.id || user.role === Role.DOCTOR;
+    const isDoctor =
+      doctorIds.includes(appointment.doctorId) ||
+      (appointment.doctor && (appointment.doctor.userId === user.id || appointment.doctor.id === doctorProfile?.id));
     const isAdmin = user.role === Role.ADMIN;
 
     if (!isPatient && !isDoctor && !isAdmin) {
@@ -50,9 +65,9 @@ router.patch('/:id/status', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), as
       return;
     }
 
-    // Patient can only cancel their own appointment
-    if (isPatient && !isDoctor && !isAdmin && upperStatus !== 'CANCELLED') {
-      res.status(403).json({ success: false, message: 'Patients can only cancel appointments' });
+    // Patient can cancel or complete their own appointment (e.g. at the conclusion of consultation)
+    if (isPatient && !isDoctor && !isAdmin && upperStatus !== 'CANCELLED' && upperStatus !== 'COMPLETED') {
+      res.status(403).json({ success: false, message: 'Patients can only cancel or complete appointments' });
       return;
     }
 

@@ -14,7 +14,13 @@ router.get('/verified', (req, res, next) => doctorController.getVerifiedDoctors(
 router.get('/me', authenticate, authorize(Role.DOCTOR), (req, res, next) =>
   doctorController.getMyProfile(req, res, next)
 );
+router.get('/me/profile', authenticate, authorize(Role.DOCTOR), (req, res, next) =>
+  doctorController.getMyProfile(req, res, next)
+);
 router.patch('/me/profile', authenticate, authorize(Role.DOCTOR), (req, res, next) =>
+  doctorController.updateMyProfile(req, res, next)
+);
+router.put('/me/profile', authenticate, authorize(Role.DOCTOR), (req, res, next) =>
   doctorController.updateMyProfile(req, res, next)
 );
 

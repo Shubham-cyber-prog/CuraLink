@@ -66,7 +66,14 @@ export function TopNavbar() {
     const fetchUser = async () => {
       try {
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        const res = await fetch(`${apiBase}/auth/me`, { credentials: "include" });
+        const token =
+          typeof window !== "undefined"
+            ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
+            : null;
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${apiBase}/auth/me`, { headers, credentials: "include" });
         const data = await res.json();
         if (data.success && data.data) {
           const user = data.data.user || data.data;
@@ -131,9 +138,16 @@ export function TopNavbar() {
   const navLinks = isDoctor ? DOCTOR_NAV : PATIENT_NAV;
 
   const isActive = (href: string) => {
-    if (href === "/dashboard") return pathname === "/dashboard";
-    if (href === "/doctor-dashboard") return pathname === "/doctor-dashboard";
-    return pathname.startsWith(href);
+    // Strip hash for comparison — hash anchors are on the same page
+    const basePath = href.split("#")[0] || href;
+    if (basePath === "/dashboard") return pathname === "/dashboard";
+    if (basePath === "/doctor-dashboard") {
+      // The "Dashboard" link (no hash) is only active on the exact route
+      if (!href.includes("#")) return pathname === "/doctor-dashboard";
+      // Hash-anchored links are "active" when we're on the doctor-dashboard page
+      return pathname === "/doctor-dashboard" || pathname.startsWith("/doctor-dashboard/");
+    }
+    return pathname.startsWith(basePath);
   };
 
   return (
@@ -353,12 +367,26 @@ export function TopNavbar() {
                     </p>
                     {userRole && (
                       <span className="mt-1 inline-block rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
-                        {userRole === "DOCTOR" ? "Licensed Physician" : "Verified Patient"}
+                        {userRole === "ADMIN"
+                          ? "System Administrator"
+                          : userRole === "DOCTOR"
+                          ? "Licensed Physician"
+                          : "Verified Patient"}
                       </span>
                     )}
                   </div>
 
                   <div className="py-1">
+                    {userRole === "ADMIN" && (
+                      <Link
+                        href="/admin-dashboard"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Admin Control Center</span>
+                      </Link>
+                    )}
                     <Link
                       href="/profile"
                       onClick={() => setProfileOpen(false)}

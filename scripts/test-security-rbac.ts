@@ -112,6 +112,41 @@ async function runAuthRbacTests() {
     failed++;
   }
 
+  // TEST 6: Doctor without consultation relationship cannot access patient vitals
+  try {
+    const res = await fetch(`${BASE_URL}/api/vitals/patient/patient-b-uuid`, {
+      headers: { Authorization: `Bearer ${doctorToken}` }
+    });
+    if (res.status === 403) {
+      console.log('✅ TEST 6 PASSED: Doctor without consultation relationship blocked from patient vitals with HTTP 403.');
+      passed++;
+    } else {
+      console.error(`❌ TEST 6 FAILED: Expected 403, got ${res.status}`);
+      failed++;
+    }
+  } catch (err: any) {
+    console.error('❌ TEST 6 ERROR:', err.message);
+    failed++;
+  }
+
+  // TEST 7: Doctor without consultation relationship cannot access patient dashboard profile
+  try {
+    const res = await fetch(`${BASE_URL}/api/doctor/me/patients/patient-b-uuid`, {
+      headers: { Authorization: `Bearer ${doctorToken}` }
+    });
+    // Should be 404 (patient not in DB) or 403 (unauthorized consultation relationship)
+    if (res.status === 403 || res.status === 404) {
+      console.log(`✅ TEST 7 PASSED: Doctor without consultation relationship blocked from patient profile with HTTP ${res.status}.`);
+      passed++;
+    } else {
+      console.error(`❌ TEST 7 FAILED: Expected 403 or 404, got ${res.status}`);
+      failed++;
+    }
+  } catch (err: any) {
+    console.error('❌ TEST 7 ERROR:', err.message);
+    failed++;
+  }
+
   console.log(`\n========================================`);
   console.log(`Security Test Summary: ${passed} PASSED, ${failed} FAILED`);
   console.log(`========================================\n`);

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { doctorVerificationService } from '../services/doctor-verification.service';
-import { submitVerificationSchema, updateVerificationStatusSchema } from '../validators/doctor.validator';
+import { submitVerificationSchema, updateVerificationStatusSchema, updateDoctorProfileSchema } from '../validators/doctor.validator';
 import { auditService, AuditAction } from '../services/audit.service';
 
 export class DoctorController {
@@ -61,10 +61,16 @@ export class DoctorController {
 
   async getVerifiedDoctors(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { city, specialty } = req.query;
+      const { city, specialty, consultationMode, page, limit } = req.query;
+      const parsedPage = typeof page === 'string' && !isNaN(parseInt(page, 10)) ? parseInt(page, 10) : undefined;
+      const parsedLimit = typeof limit === 'string' && !isNaN(parseInt(limit, 10)) ? parseInt(limit, 10) : undefined;
+
       const doctors = await doctorVerificationService.getVerifiedDoctors({
         city: typeof city === 'string' ? city : undefined,
         specialty: typeof specialty === 'string' ? specialty : undefined,
+        consultationMode: typeof consultationMode === 'string' ? consultationMode : undefined,
+        page: parsedPage,
+        limit: parsedLimit,
       });
       res.status(200).json({
         success: true,
@@ -78,7 +84,8 @@ export class DoctorController {
   async updateMyProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = req.user!.id;
-      const profile = await doctorVerificationService.updateDoctorProfile(userId, req.body);
+      const validated = updateDoctorProfileSchema.parse(req.body);
+      const profile = await doctorVerificationService.updateDoctorProfile(userId, validated);
 
       res.status(200).json({
         success: true,

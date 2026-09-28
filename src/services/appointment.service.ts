@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
 import { BadRequestError } from '../utils/errors';
+import { invalidateDoctorsCache } from '../lib/cache/doctors.cache';
 
 export interface CreateAppointmentInput {
   doctorId: string;
@@ -79,13 +80,14 @@ export class AppointmentService {
           doctorId: resolvedDoctorId,
           date,
           time,
-          status: 'CONFIRMED',
+          status: 'PENDING',
         },
       });
 
       return created;
     });
 
+    invalidateDoctorsCache();
     return appointment;
   }
 

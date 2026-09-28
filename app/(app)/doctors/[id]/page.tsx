@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, Star, Clock, Video, User, CheckCircle2, RefreshCw, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Star, Clock, Video, User, CheckCircle2, RefreshCw, AlertTriangle, MapPin, UserCheck } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -130,16 +130,33 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
             <h1 className="text-3xl font-bold text-slate-900">{doctor.name}</h1>
             <p className="text-lg text-slate-500">{doctor.specialty}</p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-700 ring-1 ring-amber-200">
-                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                {doctor.rating.toFixed(2)} ({doctor.reviewCount} reviews)
-              </span>
+              {doctor.rating != null && Number(doctor.rating) > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-700 ring-1 ring-amber-200">
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  {Number(doctor.rating).toFixed(1)} ({doctor.reviewCount || 0} reviews)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-sm font-semibold text-teal-700 ring-1 ring-teal-200">
+                  <Star className="h-4 w-4 text-teal-500" />
+                  New Clinician (0 reviews)
+                </span>
+              )}
               <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-600">
                 <CheckCircle2 className="h-4 w-4 text-teal-600" /> {doctor.experience}
               </span>
+              {doctor.city && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-600">
+                  <MapPin className="h-4 w-4 text-teal-600" /> {doctor.city}
+                </span>
+              )}
               {doctor.videoConsultation && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-600">
                   <Video className="h-4 w-4 text-teal-600" /> Video consults
+                </span>
+              )}
+              {doctor.inPersonConsultation && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-sm text-slate-600">
+                  <UserCheck className="h-4 w-4 text-emerald-600" /> In-Person visits
                 </span>
               )}
             </div>
@@ -169,9 +186,15 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
           <motion.section variants={fadeInUp}>
             <h2 className="mb-4 text-xl font-semibold text-slate-900">Patient Reviews</h2>
             <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
-              {doctor.reviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
-              ))}
+              {doctor.reviews && doctor.reviews.length > 0 ? (
+                doctor.reviews.map((review) => (
+                  <ReviewCard key={review.id} review={review} />
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">
+                  No patient reviews yet. Be the first to leave a verified consultation review!
+                </p>
+              )}
             </div>
           </motion.section>
         </motion.div>

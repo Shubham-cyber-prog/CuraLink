@@ -291,11 +291,34 @@ router.get('/ai-insights', async (req: Request, res: Response, next: NextFunctio
  */
 router.get('/patient/:patientId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { patientId } = req.params;
+    const patientId = String(req.params.patientId);
     const requestingUser = req.user!;
     if (requestingUser.role === Role.PATIENT && requestingUser.id !== patientId) {
       res.status(403).json({ success: false, message: 'You are not authorized to view another patient\'s vitals.' });
       return;
+    }
+
+    if (requestingUser.role === Role.DOCTOR) {
+      const doctorProfile = await prisma.doctorProfile.findUnique({
+        where: { userId: requestingUser.id },
+      });
+      const doctorIds = [requestingUser.id];
+      if (doctorProfile) doctorIds.push(doctorProfile.id);
+
+      const hasConsultation = await prisma.appointment.findFirst({
+        where: {
+          userId: patientId,
+          doctorId: { in: doctorIds },
+        },
+      });
+
+      if (!hasConsultation) {
+        res.status(403).json({
+          success: false,
+          message: 'You are not authorized to access this patient\'s vitals because you have no clinical consultations with them.',
+        });
+        return;
+      }
     }
 
     const { days = '30' } = req.query;

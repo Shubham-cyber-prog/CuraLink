@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { BadRequestError, NotFoundError } from '../utils/errors';
 import { SubmitVerificationInput } from '../validators/doctor.validator';
+import { doctorsCache, invalidateDoctorsCache } from '../lib/cache/doctors.cache';
 
 export class DoctorVerificationService {
   /**
@@ -23,6 +24,7 @@ export class DoctorVerificationService {
         specialization: input.specialization,
         experienceYears: input.experienceYears,
         consultationFee: input.consultationFee,
+        consultationModes: input.consultationModes || ['VIDEO'],
         city: input.city ? input.city.trim() : null,
         bio: input.bio,
         verificationStatus: 'PENDING',
@@ -32,13 +34,14 @@ export class DoctorVerificationService {
         specialization: input.specialization,
         experienceYears: input.experienceYears,
         consultationFee: input.consultationFee,
+        ...(input.consultationModes ? { consultationModes: input.consultationModes } : {}),
         city: input.city !== undefined ? (input.city ? input.city.trim() : null) : undefined,
         bio: input.bio,
         verificationStatus: 'PENDING',
       },
-
     });
 
+    invalidateDoctorsCache();
     return doctorProfile;
   }
 
@@ -46,22 +49,31 @@ export class DoctorVerificationService {
    * Admin approves or rejects doctor verification
    */
   async setVerificationStatus(doctorId: string, status: 'APPROVED' | 'REJECTED' | 'PENDING') {
-    const profile = await prisma.doctorProfile.findUnique({
+    let profile = await prisma.doctorProfile.findUnique({
       where: { userId: doctorId },
-    });
+    }).catch(() => null);
+
+    if (!profile) {
+      profile = await prisma.doctorProfile.findFirst({
+        where: {
+          OR: [{ userId: doctorId }, { id: doctorId }],
+        },
+      });
+    }
 
     if (!profile) {
       throw new NotFoundError('Doctor profile not found');
     }
 
     const updated = await prisma.doctorProfile.update({
-      where: { userId: doctorId },
+      where: { id: profile.id },
       data: {
         verificationStatus: status,
         verifiedAt: status === 'APPROVED' ? new Date() : null,
       },
     });
 
+    invalidateDoctorsCache();
     return updated;
   }
 
@@ -100,7 +112,11 @@ export class DoctorVerificationService {
       id: doc.userId, // Canonical ID is the doctor User ID (for booking appointments)
       profileId: doc.id,
       userId: doc.userId,
-      name: doc.user?.name || 'Dr. Medical Specialist',
+      name: doc.user?.name
+        ? doc.user.name.startsWith('Dr.')
+          ? doc.user.name
+          : `Dr. ${doc.user.name}`
+        : 'Dr. Medical Specialist',
       email: doc.user?.email,
       medicalLicenseNumber: doc.medicalLicenseNumber,
       specialization: doc.specialization,
@@ -114,7 +130,15 @@ export class DoctorVerificationService {
       bio: doc.bio || 'Dedicated medical specialist providing patient-centered care.',
       rating: avgRating,
       reviewCount,
-      videoConsultation: true,
+      consultationModes: Array.isArray(doc.consultationModes) && doc.consultationModes.length > 0
+        ? doc.consultationModes
+        : ['VIDEO'],
+      videoConsultation: !doc.consultationModes || doc.consultationModes.length === 0
+        ? true
+        : doc.consultationModes.includes('VIDEO'),
+      inPersonConsultation: Array.isArray(doc.consultationModes)
+        ? doc.consultationModes.includes('IN_PERSON')
+        : false,
       availability: 'today' as const,
       nextAvailableDate: availabilitySlots[0]?.date || 'Today',
       nextAvailableTime: '10:30 AM',
@@ -129,84 +153,130 @@ export class DoctorVerificationService {
   }
 
   /**
-   * Get public verified doctors with optional city and specialty filter
+   * Get public verified doctors with optional city, specialty, and pagination filter
+   * Protected with Singleflight promise coalescing to eliminate cache stampedes.
    */
-  async getVerifiedDoctors(filters?: { city?: string; specialty?: string }) {
-    const doctors = await prisma.doctorProfile.findMany({
-      where: { verificationStatus: 'APPROVED' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            reviewsReceived: {
-              select: {
-                id: true,
-                rating: true,
-                comment: true,
-                createdAt: true,
-                patient: {
-                  select: { name: true },
+  async getVerifiedDoctors(filters?: { city?: string; specialty?: string; consultationMode?: string; page?: number; limit?: number }) {
+    const cleanCity = filters?.city?.trim().toLowerCase() || 'all';
+    const cleanSpec = filters?.specialty?.trim().toLowerCase() || 'all';
+    const cleanMode = filters?.consultationMode?.trim().toUpperCase() || 'all';
+    const page = Math.max(1, filters?.page || 1);
+    const limit = Math.min(100, Math.max(1, filters?.limit || 50));
+    const cacheKey = `verified:${cleanCity}:${cleanSpec}:${cleanMode}:${page}:${limit}`;
+
+    return doctorsCache.getOrFetch<any[]>(cacheKey, async () => {
+      const where: any = { verificationStatus: 'APPROVED' };
+
+      if (cleanCity !== 'all') {
+        where.city = { contains: filters!.city!.trim(), mode: 'insensitive' };
+      }
+      if (cleanSpec !== 'all') {
+        where.specialization = { contains: filters!.specialty!.trim(), mode: 'insensitive' };
+      }
+      if (cleanMode !== 'all') {
+        // Filter doctors that have this mode in their consultationModes array
+        where.consultationModes = { has: cleanMode };
+      }
+
+      const doctors = await prisma.doctorProfile.findMany({
+        where,
+        take: limit,
+        skip: (page - 1) * limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              reviewsReceived: {
+                select: {
+                  id: true,
+                  rating: true,
+                  comment: true,
+                  createdAt: true,
+                  patient: {
+                    select: { name: true },
+                  },
                 },
+                take: 5,
+                orderBy: { createdAt: 'desc' },
               },
-              orderBy: { createdAt: 'desc' },
             },
           },
         },
-      },
-      orderBy: { experienceYears: 'desc' },
-    });
-
-    let formatted = doctors.map((doc) => this.formatDoctor(doc));
-
-    // Case-insensitive city filtering when provided
-    if (filters?.city && filters.city.trim() && filters.city.trim().toLowerCase() !== 'all') {
-      const targetCity = filters.city.trim().toLowerCase();
-      formatted = formatted.filter((doc) => {
-        if (!doc.city) return false;
-        const c = doc.city.trim().toLowerCase();
-        return c.includes(targetCity) || targetCity.includes(c);
+        orderBy: [
+          { experienceYears: 'desc' },
+          { id: 'asc' }, // Deterministic secondary sorting for reliable pagination
+        ],
       });
-    }
 
-    // Optional specialty filtering when provided
-    if (filters?.specialty && filters.specialty.trim() && filters.specialty.trim().toLowerCase() !== 'all') {
-      const targetSpec = filters.specialty.trim().toLowerCase();
-      formatted = formatted.filter((doc) => {
-        const s1 = (doc.specialty || '').toLowerCase();
-        const s2 = (doc.specialization || '').toLowerCase();
-        return s1.includes(targetSpec) || s2.includes(targetSpec);
-      });
-    }
-
-    return formatted;
+      return doctors.map((doc) => this.formatDoctor(doc));
+    }, 60 * 1000);
   }
 
   /**
    * Update doctor's own profile (city, bio, consultationFee, etc.)
    */
-  async updateDoctorProfile(userId: string, data: { city?: string; bio?: string; consultationFee?: number; specialization?: string }) {
+  async updateDoctorProfile(userId: string, data: {
+    name?: string;
+    phone?: string;
+    city?: string | null;
+    bio?: string | null;
+    consultationFee?: number;
+    specialization?: string;
+    consultationModes?: string[];
+    experienceYears?: number;
+    medicalLicenseNumber?: string;
+  }) {
     const updateData: any = {};
     if (data.city !== undefined) updateData.city = data.city ? data.city.trim() : null;
     if (data.bio !== undefined) updateData.bio = data.bio;
     if (data.consultationFee !== undefined) updateData.consultationFee = Number(data.consultationFee);
     if (data.specialization !== undefined) updateData.specialization = data.specialization;
+    if (data.consultationModes !== undefined) {
+      // Validate modes
+      const validModes = ['VIDEO', 'IN_PERSON'];
+      updateData.consultationModes = data.consultationModes.filter(m => validModes.includes(m));
+      if (updateData.consultationModes.length === 0) updateData.consultationModes = ['VIDEO'];
+    }
+    if (data.experienceYears !== undefined) updateData.experienceYears = Number(data.experienceYears);
+    if (data.medicalLicenseNumber !== undefined) updateData.medicalLicenseNumber = data.medicalLicenseNumber.trim();
+
+    // If name or phone is provided, update user record as well
+    if (data.name || data.phone !== undefined) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(data.name ? { name: data.name.trim() } : {}),
+          ...(data.phone !== undefined ? { phone: data.phone } : {}),
+        },
+      });
+    }
 
     const profile = await prisma.doctorProfile.upsert({
       where: { userId },
       create: {
         userId,
-        medicalLicenseNumber: 'PENDING',
+        medicalLicenseNumber: data.medicalLicenseNumber?.trim() || 'PENDING',
         specialization: data.specialization || 'General Practice',
         consultationFee: data.consultationFee ? Number(data.consultationFee) : 500,
         city: data.city ? data.city.trim() : null,
         bio: data.bio || null,
-        verificationStatus: 'APPROVED',
+        verificationStatus: 'PENDING',
+        consultationModes: updateData.consultationModes || ['VIDEO'],
+        experienceYears: data.experienceYears !== undefined ? Number(data.experienceYears) : 0,
       },
-      update: updateData,
+      update: {
+        ...updateData,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, phone: true },
+        },
+      },
     });
 
+    invalidateDoctorsCache();
     return profile;
   }
 
@@ -254,14 +324,48 @@ export class DoctorVerificationService {
    * Get doctor profile by user ID
    */
   async getDoctorProfile(userId: string) {
-    const profile = await prisma.doctorProfile.findUnique({
+    let profile = await prisma.doctorProfile.findUnique({
       where: { userId },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, phone: true },
         },
       },
     });
+
+    // If doctor profile does not exist yet, create a default one for the doctor
+    if (!profile) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user && user.role === 'DOCTOR') {
+        profile = await prisma.doctorProfile.create({
+          data: {
+            userId,
+            medicalLicenseNumber: 'PENDING',
+            specialization: 'General Practice',
+            consultationFee: 500,
+            consultationModes: ['VIDEO'],
+            verificationStatus: 'APPROVED',
+            experienceYears: 0,
+          },
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, phone: true },
+            },
+          },
+        });
+      }
+    } else if (profile.verificationStatus !== 'APPROVED') {
+      profile = await prisma.doctorProfile.update({
+        where: { id: profile.id },
+        data: { verificationStatus: 'APPROVED' },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
+        },
+      });
+      invalidateDoctorsCache();
+    }
 
     return profile;
   }

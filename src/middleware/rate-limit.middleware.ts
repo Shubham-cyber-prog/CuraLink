@@ -11,8 +11,8 @@ function createRateLimiter(windowMs: number, maxRequests: number, message: strin
   const store: RateLimitStore = {};
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    // Only skip rate limiting during automated tests
-    if (process.env.NODE_ENV === 'test') {
+    // Only skip rate limiting during automated tests or with verified load-test key
+    if (process.env.NODE_ENV === 'test' || (process.env.LOAD_TEST_KEY && req.headers['x-load-test-key'] === process.env.LOAD_TEST_KEY)) {
       return next();
     }
 

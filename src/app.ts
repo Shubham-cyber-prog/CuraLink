@@ -14,6 +14,7 @@ import doctorDashboardRoutes from './routes/doctor-dashboard.routes';
 import riskRoutes from './routes/risk.routes';
 import vitalsRoutes from './routes/vitals.routes';
 import adminRoutes from './routes/admin.routes';
+import messageRoutes from './routes/message.routes';
 import { errorHandler } from './middleware/error.middleware';
 import cookieParser from 'cookie-parser';
 import { securityHeaders } from './middleware/security-headers.middleware';
@@ -22,6 +23,9 @@ import { apiLimiter } from './middleware/rate-limit.middleware';
 import { env } from './config/env';
 
 export const app = express();
+
+// Enable reverse proxy trust (for accurate client IP extraction behind load balancers/proxies)
+app.set('trust proxy', 1);
 
 // Security Headers
 app.use(securityHeaders);
@@ -85,6 +89,7 @@ app.use('/api/symptoms', symptomRoutes);
 app.use('/api/risk', riskRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

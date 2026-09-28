@@ -113,7 +113,7 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
       return;
     }
 
-    console.log(`\n[Express Symptom Route] Incoming request for: "${symptoms}"`);
+    console.log(`\n[Express Symptom Route] Incoming triage request (length: ${symptoms.length} chars)`);
 
     // STEP 1: Check emergency short-circuit
     const emergency = checkEmergencyKeywords(symptoms);

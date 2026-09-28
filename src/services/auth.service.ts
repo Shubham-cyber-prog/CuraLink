@@ -87,6 +87,7 @@ export class AuthService {
             specialization: 'General Practice',
             medicalLicenseNumber: 'PENDING',
             verificationStatus: 'PENDING',
+            consultationModes: ['VIDEO'],
           },
         });
       }

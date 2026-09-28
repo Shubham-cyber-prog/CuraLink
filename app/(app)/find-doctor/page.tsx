@@ -115,16 +115,20 @@ export default function FindDoctorPage() {
         (availability === "today" && doc.availability === "today") ||
         (availability === "this-week" &&
           (doc.availability === "today" || doc.availability === "this-week"));
-      const matchesRating = rating === "all" || doc.rating >= parseFloat(rating);
+      // Rating filter: null/0 rating doctors are excluded from star filters (expected — no reviews yet)
+      const matchesRating =
+        rating === "all" || (doc.rating != null && Number(doc.rating) >= parseFloat(rating));
 
       let matchesVisitMode = true;
       if (visitType === "video") {
-        matchesVisitMode = doc.videoConsultation;
+        // Use real consultationModes array if available, fall back to videoConsultation bool
+        matchesVisitMode = Array.isArray(doc.consultationModes)
+          ? doc.consultationModes.includes("VIDEO")
+          : doc.videoConsultation;
       } else if (visitType === "in-person") {
         matchesVisitMode =
-          (doc.city && doc.city.toLowerCase() === userLocation.city.toLowerCase()) ||
-          doc.specialty.includes("General") ||
-          doc.specialty.includes("Pediatrics");
+          Boolean(doc.inPersonConsultation) ||
+          (Array.isArray(doc.consultationModes) && doc.consultationModes.includes("IN_PERSON"));
       }
 
       return (

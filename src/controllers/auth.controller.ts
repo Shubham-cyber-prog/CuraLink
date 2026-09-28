@@ -6,6 +6,7 @@ import { registerSchema, loginSchema, googleLoginSchema, forgotPasswordSchema, r
 import { profileSchema } from '../validators/profile.validator';
 import { UnauthorizedError } from '../utils/errors';
 import { setAuthCookies, clearAuthCookies } from '../utils/cookie';
+import { notificationService } from '../services/notification.service';
 import { z } from 'zod';
 
 export class AuthController {
@@ -192,6 +193,20 @@ export class AuthController {
     try {
       const validatedInput = forgotPasswordSchema.parse(req.body);
       const token = await authService.forgotPassword(validatedInput.email);
+
+      if (token) {
+        const frontendUrl = process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:3000';
+        const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+        await notificationService.send({
+          recipientId: validatedInput.email,
+          recipientEmail: validatedInput.email,
+          subject: 'CuraLink Password Reset Request',
+          body: `We received a request to reset your CuraLink account password.<br/><br/>Click the secure link below to reset your password (valid for 1 hour):<br/><a href="${resetLink}" style="display:inline-block;padding:10px 20px;background-color:#0D9488;color:#ffffff;text-decoration:none;border-radius:6px;margin:15px 0;font-weight:600;">Reset Password</a><br/><br/>If the button does not work, copy and paste this link into your browser:<br/><span style="color:#6B7280;word-break:break-all;">${resetLink}</span><br/><br/>If you did not request a password reset, you can safely ignore this email. Your password will not change.`,
+          channels: ['EMAIL'],
+        }).catch((err) => {
+          console.error('[forgotPassword] Failed to dispatch password reset email:', err);
+        });
+      }
 
       res.status(200).json({
         success: true,

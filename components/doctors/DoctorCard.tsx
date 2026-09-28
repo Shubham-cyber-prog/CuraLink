@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, Calendar, Clock, MapPin, Video, CheckCircle2 } from "lucide-react";
+import { Star, Calendar, Clock, MapPin, Video, CheckCircle2, UserCheck } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Doctor } from "@/types/doctor";
 import { Badge } from "@/components/ui/Badge";
@@ -34,9 +34,10 @@ export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
   }, [userCity]);
 
   const isLocalInPersonAvailable =
-    Boolean(doctor.city && doctor.city.toLowerCase() === activeLocation.toLowerCase()) ||
-    doctor.specialty?.includes("General") ||
-    doctor.specialty?.includes("Pediatrics");
+    Boolean(doctor.inPersonConsultation) ||
+    Boolean(doctor.consultationModes?.includes('IN_PERSON'));
+
+  const hasRating = doctor.rating != null && Number(doctor.rating) > 0;
 
   return (
     <motion.div
@@ -72,12 +73,16 @@ export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
               <span>Verified</span>
             </Badge>
 
-            {doctor.rating ? (
+            {hasRating ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40">
                 <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                 {Number(doctor.rating).toFixed(1)} {doctor.reviewCount ? `(${doctor.reviewCount})` : ""}
               </span>
-            ) : null}
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700/40">
+                New
+              </span>
+            )}
           </div>
 
           <p className="text-xs font-medium text-[#0D9488] dark:text-[#14B8A6]">
@@ -98,7 +103,14 @@ export function DoctorCard({ doctor, userCity = "Hisar" }: DoctorCardProps) {
             {doctor.videoConsultation && (
               <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 dark:bg-teal-950/50 px-2.5 py-0.5 text-[11px] font-medium text-[#0F766E] dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40">
                 <Video className="h-3 w-3 text-[#0D9488]" />
-                Video Available
+                Video
+              </span>
+            )}
+
+            {isLocalInPersonAvailable && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-0.5 text-[11px] font-medium text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/40">
+                <UserCheck className="h-3 w-3 text-indigo-600" />
+                In-Person
               </span>
             )}
 

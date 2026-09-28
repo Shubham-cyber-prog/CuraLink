@@ -50,11 +50,11 @@ router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFun
     });
 
     const todayAppointments = allAppointments.filter(
-      (a) => a.date === todayStr || a.status === 'CONFIRMED'
+      (a) => a.date === todayStr && a.status !== 'CANCELLED'
     ).length;
 
     const uniquePatients = new Set(allAppointments.map((a) => a.userId)).size;
-    const pendingRequests = allAppointments.filter((a) => a.status === 'CONFIRMED').length;
+    const pendingRequests = allAppointments.filter((a) => a.status === 'PENDING').length;
     const completedConsultations = allAppointments.filter((a) => a.status === 'COMPLETED').length;
 
     const doctorProfile = await prisma.doctorProfile.findUnique({
@@ -71,6 +71,8 @@ router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFun
         consultationFee: doctorProfile?.consultationFee || 500,
         specialization: doctorProfile?.specialization || 'General Practice',
         verificationStatus: doctorProfile?.verificationStatus || 'APPROVED',
+        consultationModes: doctorProfile?.consultationModes || ['VIDEO'],
+        city: doctorProfile?.city || null,
       },
     });
   } catch (error) {

@@ -76,6 +76,14 @@ export function checkConsultationEligibility(
     };
   }
 
+  if (upperStatus === 'PENDING') {
+    return {
+      canJoin: false,
+      status: 'UPCOMING',
+      reason: 'This appointment is awaiting confirmation from the doctor. You can join once they accept.',
+    };
+  }
+
   if (upperStatus === 'COMPLETED') {
     return {
       canJoin: false,

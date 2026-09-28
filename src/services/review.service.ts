@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { CreateReviewInput } from '../validators/review.validator';
 import { BadRequestError, NotFoundError } from '../utils/errors';
+import { invalidateDoctorsCache } from '../lib/cache/doctors.cache';
 
 export class ReviewService {
   async createReview(patientId: string, input: CreateReviewInput) {
@@ -72,6 +73,7 @@ export class ReviewService {
       },
     });
 
+    invalidateDoctorsCache();
     return review;
   }
 

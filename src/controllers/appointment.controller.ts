@@ -63,8 +63,14 @@ export class AppointmentController {
       }
 
       // Check authorization
+      const doctorProfile = await prisma.doctorProfile.findUnique({
+        where: { userId: req.user.id },
+      });
+      const doctorIds = [req.user.id];
+      if (doctorProfile) doctorIds.push(doctorProfile.id);
+
       const isPatient = appointment.userId === req.user.id;
-      const isDoctor = appointment.doctorId === req.user.id || req.user.role === 'DOCTOR';
+      const isDoctor = doctorIds.includes(appointment.doctorId);
       const isAdmin = req.user.role === 'ADMIN';
 
       if (!isPatient && !isDoctor && !isAdmin) {
@@ -120,11 +126,14 @@ export class AppointmentController {
       });
 
       // 1. Role-based authorization & IDOR check
+      const requestingDoctorProfile = await prisma.doctorProfile.findUnique({
+        where: { userId: req.user.id },
+      });
+      const doctorIds = [req.user.id];
+      if (requestingDoctorProfile) doctorIds.push(requestingDoctorProfile.id);
+
       const isPatient = appointment.userId === req.user.id;
-      const isDoctor =
-        appointment.doctorId === req.user.id ||
-        (doctorProfile && doctorProfile.userId === req.user.id) ||
-        req.user.role === 'DOCTOR';
+      const isDoctor = doctorIds.includes(appointment.doctorId);
       const isAdmin = req.user.role === 'ADMIN';
 
       if (!isPatient && !isDoctor && !isAdmin) {
@@ -194,6 +203,9 @@ export class AppointmentController {
           roomUrl,
           userName,
           isDoctor,
+          isModerator: isDoctor,
+          isOwner: isDoctor,
+          role: isDoctor ? 'moderator' : 'participant',
           doctor: doctorInfo,
           appointment: {
             id: appointment.id,
@@ -205,6 +217,32 @@ export class AppointmentController {
             consultationStatus: eligibility.status,
           },
         },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async complete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const id = String(req.params.id);
+      const userRole = req.user.role;
+
+      const { consultationService } = await import('../services/consultation.service');
+      const updated = await consultationService.completeConsultation(
+        req.user.id,
+        userRole,
+        id
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Appointment consultation marked as completed',
+        data: updated,
       });
     } catch (error) {
       next(error);

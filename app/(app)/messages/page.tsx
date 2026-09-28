@@ -32,12 +32,22 @@ export default function MessagesPage() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
+  const getHeaders = () => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
+        : null;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  };
+
   // 1. Fetch Auth & Contacts (Doctors or Patients based on role)
   useEffect(() => {
     async function loadContacts() {
       try {
         setIsLoading(true);
-        const meRes = await fetch(`${API_BASE}/auth/me`, { credentials: "include" });
+        const meRes = await fetch(`${API_BASE}/auth/me`, { headers: getHeaders(), credentials: "include" });
         if (!meRes.ok) return;
         const meData = await meRes.json();
         const user = meData.data?.user || meData.data;
@@ -45,7 +55,7 @@ export default function MessagesPage() {
 
         if (user.role === "DOCTOR") {
           // Fetch Doctor's appointments to get patients
-          const apptRes = await fetch(`${API_BASE}/doctor/me/appointments`, { credentials: "include" });
+          const apptRes = await fetch(`${API_BASE}/doctor/me/appointments`, { headers: getHeaders(), credentials: "include" });
           if (apptRes.ok) {
             const apptData = await apptRes.json();
             if (apptData.success && Array.isArray(apptData.data)) {
@@ -71,8 +81,8 @@ export default function MessagesPage() {
         } else {
           // Patient: fetch appointments & doctors
           const [apptRes, docRes] = await Promise.all([
-            fetch(`${API_BASE}/appointments/my-appointments`, { credentials: "include" }),
-            fetch(`${API_BASE}/doctors/verified`),
+            fetch(`${API_BASE}/appointments/my-appointments`, { headers: getHeaders(), credentials: "include" }),
+            fetch(`${API_BASE}/doctors/verified`, { headers: getHeaders() }),
           ]);
 
           const docMap: Record<string, any> = {};
@@ -120,42 +130,72 @@ export default function MessagesPage() {
     loadContacts();
   }, []);
 
-  // 2. Load stored conversation for selected contact
+  // 2. Load live messages for selected contact with polling
   useEffect(() => {
-    if (!selectedContact || !currentUser) return;
-    const storageKey = `curalink_chat_${currentUser.id}_${selectedContact.id}`;
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        setMessages(JSON.parse(stored));
-      } else {
-        setMessages([]);
+    if (!selectedContact?.appointmentId || !currentUser) return;
+    const apptId = selectedContact.appointmentId;
+    let isMounted = true;
+
+    async function fetchMessages() {
+      try {
+        const res = await fetch(`${API_BASE}/messages?appointmentId=${apptId}`, {
+          headers: getHeaders(),
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && isMounted) {
+          const mapped: ChatMessage[] = data.data.map((m: any) => ({
+            id: m.id,
+            sender: m.senderId === currentUser.id ? "self" : "other",
+            text: m.content,
+            time: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          }));
+          setMessages(mapped);
+        }
+      } catch (err) {
+        console.warn("Error polling messages:", err);
       }
-    } catch {
-      setMessages([]);
     }
-  }, [selectedContact, currentUser]);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !selectedContact || !currentUser) return;
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
 
-    const newMsg: ChatMessage = {
-      id: `m_${Date.now()}`,
-      sender: "self",
-      text: input.trim(),
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
     };
+  }, [selectedContact?.appointmentId, currentUser?.id]);
 
-    const updated = [...messages, newMsg];
-    setMessages(updated);
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !selectedContact?.appointmentId || !currentUser) return;
+
+    const content = input.trim();
     setInput("");
 
     try {
-      const storageKey = `curalink_chat_${currentUser.id}_${selectedContact.id}`;
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      const res = await fetch(`${API_BASE}/messages`, {
+        method: "POST",
+        headers: getHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          appointmentId: selectedContact.appointmentId,
+          content,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const newMsg: ChatMessage = {
+          id: data.data.id,
+          sender: "self",
+          text: data.data.content,
+          time: new Date(data.data.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((prev) => [...prev, newMsg]);
+      }
     } catch (err) {
-      console.warn("Failed to persist message:", err);
+      console.warn("Failed to send message:", err);
     }
   };
 

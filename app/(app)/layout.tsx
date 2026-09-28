@@ -20,7 +20,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     let mounted = true;
     const checkAuth = async () => {
       try {
+        const token =
+          typeof window !== "undefined"
+            ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
+            : null;
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const res = await fetch(`${API_BASE}/auth/me`, {
+          headers,
           credentials: "include",
         });
         if (!res.ok) throw new Error("Not auth");

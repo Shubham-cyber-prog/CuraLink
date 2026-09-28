@@ -20,6 +20,7 @@ import {
   FileText,
   Home,
   Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -251,13 +252,21 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
     setHasJoinedCall(true);
   };
 
-  // 6. Complete Consultation Callback
+  // 6. Complete Consultation Callback (Triggers DB update to COMPLETED)
   const handleCallCompletion = useCallback(async () => {
     setIsEndingCall(true);
     setShowEndModal(false);
 
     try {
-      await api.post(`/consultations/${appointmentId}/complete`).catch(() => {});
+      // Primary: PATCH /api/appointments/:id/complete
+      await api.patch(`/appointments/${appointmentId}/complete`).catch(async (err) => {
+        console.warn("PATCH /complete failed, trying fallback /status:", err);
+        // Fallback 1: PATCH /api/appointments/:id/status
+        return await api.patch(`/appointments/${appointmentId}/status`, { status: "COMPLETED" }).catch(async () => {
+          // Fallback 2: POST /api/consultations/:id/complete
+          return await api.post(`/consultations/${appointmentId}/complete`);
+        });
+      });
     } catch (err) {
       console.warn("Could not mark consultation complete on server:", err);
     } finally {
@@ -271,6 +280,14 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
       setIsCompleted(true);
     }
   }, [appointmentId]);
+
+  // 6B. Pop Out Ongoing Meeting into a Separate Window (Exact Active Room)
+  const handlePopOut = () => {
+    if (!roomData?.roomName) return;
+    const cleanRoom = encodeURIComponent(roomData.roomName);
+    const targetUrl = `https://meet.jit.si/${cleanRoom}#config.prejoinPageEnabled=false&config.enableLobby=false&config.hideLoginButton=true`;
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  };
 
   // 7. Initialize JitsiMeetExternalAPI inside CuraLink
   useEffect(() => {
@@ -296,6 +313,8 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
       parentNode: jitsiContainerRef.current,
       userInfo: {
         displayName: userName,
+        role: "moderator",
+        isModerator: true,
       },
       configOverwrite: {
         disableDeepLinking: true,
@@ -309,6 +328,16 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         disableInviteFunctions: true,
         hideConferenceSubject: true,
         hideConferenceTimer: false,
+        enableLobby: false,
+        hideLoginButton: true,
+        waitingForModerator: false,
+        disableModeratorIndicator: true,
+        lobby: {
+          enable: false,
+          autoKnock: false,
+        },
+        readOnlyName: true,
+        isModerator: true,
         notifications: [],
         toolbarButtons: [
           "microphone",
@@ -328,6 +357,8 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         SHOW_PROMOTIONAL_CLOSE_PAGE: false,
         MOBILE_APP_PROMO: false,
         HIDE_DEEP_LINKING_LOGO: true,
+        BRAND_WATERMARK_LINK: "",
+        JITSI_WATERMARK_LINK: "",
         APP_NAME: "CuraLink Telehealth",
       },
     };
@@ -357,6 +388,10 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
       });
 
       api.addListener("readyToClose", () => {
+        handleCallCompletion();
+      });
+
+      api.addListener("videoConferenceLeft", () => {
         handleCallCompletion();
       });
     } catch (err) {
@@ -761,6 +796,18 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
           </button>
 
           <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handlePopOut}
+            className="h-9 px-3 rounded-xl border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            title="Pop out ongoing consultation into a separate window"
+          >
+            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+            Pop Out
+          </Button>
+
+          <Button
             onClick={() => setShowEndModal(true)}
             variant="default"
             className="h-9 px-3.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-semibold shadow-xs text-white"
@@ -773,16 +820,16 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
 
       {/* Participant Presence Banner */}
       {!hasRemoteParticipant && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/90 dark:bg-amber-950/40 p-3 px-4 text-xs text-amber-800 dark:text-amber-300">
+        <div className="flex items-center justify-between rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/90 dark:bg-teal-950/40 p-3 px-4 text-xs text-teal-900 dark:text-teal-200">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <Users className="h-4 w-4 shrink-0 text-[#0F9D8C] dark:text-teal-400" />
             <span>
               {roomData.isDoctor
                 ? "Waiting for the patient to connect to this consultation room..."
-                : `Waiting for ${doctorName} to connect. Your presence has been logged and the doctor will join shortly.`}
+                : `Waiting for ${doctorName} to join the consultation. Your presence has been logged and the doctor will connect shortly.`}
             </span>
           </div>
-          <span className="font-mono text-amber-700 dark:text-amber-400">{formatTimer(callDuration)}</span>
+          <span className="font-mono text-[#0F9D8C] dark:text-teal-400">{formatTimer(callDuration)}</span>
         </div>
       )}
 

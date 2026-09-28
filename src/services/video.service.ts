@@ -8,7 +8,9 @@ export interface VideoRoomResult {
 }
 
 export class VideoService {
-  private readonly jitsiDomain = 'meet.jit.si';
+  private get jitsiDomain(): string {
+    return process.env.JITSI_DOMAIN || 'meet.jit.si';
+  }
 
   /**
    * Generates a unique, collision-resistant room name for Jitsi Meet,
@@ -26,7 +28,7 @@ export class VideoService {
 
     // Reuse existing Jitsi roomName if already set and valid
     if (appointment.roomName && appointment.roomName.startsWith('curalink-')) {
-      const roomUrl = `https://${this.jitsiDomain}/${appointment.roomName}`;
+      const roomUrl = `https://${this.jitsiDomain}/${appointment.roomName}#config.prejoinPageEnabled=false&config.enableLobby=false&config.hideLoginButton=true`;
       if (appointment.roomUrl !== roomUrl) {
         await prisma.appointment.update({
           where: { id: appointmentId },
@@ -43,7 +45,7 @@ export class VideoService {
     const cleanId = appointmentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
     const randomSuffix = crypto.randomBytes(6).toString('hex');
     const roomName = `curalink-${cleanId}-${randomSuffix}`;
-    const roomUrl = `https://${this.jitsiDomain}/${roomName}`;
+    const roomUrl = `https://${this.jitsiDomain}/${roomName}#config.prejoinPageEnabled=false&config.enableLobby=false&config.hideLoginButton=true`;
 
     // Persist to Appointment in database
     await prisma.appointment.update({

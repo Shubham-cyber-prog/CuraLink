@@ -29,6 +29,8 @@ export interface Doctor {
   experience: string;
   experienceYears?: number;
   videoConsultation: boolean;
+  inPersonConsultation?: boolean;
+  consultationModes?: string[]; // ['VIDEO', 'IN_PERSON']
   bio: string;
   qualifications: string[];
   availabilitySlots: DaySlot[];

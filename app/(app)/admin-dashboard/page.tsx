@@ -19,6 +19,8 @@ import {
   Trash2,
   ChevronRight,
   Activity,
+  Lock,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -101,6 +103,9 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"overview" | "doctors" | "users" | "appointments" | "erasure" | "audit">("overview");
   const [loading, setLoading] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [redirectTarget, setRedirectTarget] = useState<string>("/login");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
@@ -116,26 +121,46 @@ export default function AdminDashboardPage() {
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
   const getHeaders = () => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("curalink_token") : null;
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
+        : null;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     return headers;
   };
 
   const loadData = async () => {
-    setLoading(true);
     try {
-      // 1. Verify user is ADMIN
+      // 1. Verify user is authenticated and has strictly ADMIN role
       const meRes = await fetch(`${apiBase}/auth/me`, {
         headers: getHeaders(),
         credentials: "include",
       });
-      const meData = await meRes.json();
+      const meData = await meRes.json().catch(() => null);
 
-      if (!meRes.ok || meData.data?.user?.role !== "ADMIN") {
-        router.push("/login?error=admin_required");
+      if (!meRes.ok || !meData?.data?.user) {
+        setAuthChecking(false);
+        setIsAuthorized(false);
+        setRedirectTarget("/login?redirect=/admin-dashboard");
+        router.replace("/login?error=admin_required");
         return;
       }
+
+      const userRole = meData.data.user.role;
+      if (userRole !== "ADMIN") {
+        setAuthChecking(false);
+        setIsAuthorized(false);
+        const destination = userRole === "DOCTOR" ? "/doctor-dashboard" : "/dashboard";
+        setRedirectTarget(destination);
+        router.replace(`${destination}?error=admin_access_denied`);
+        return;
+      }
+
+      // Validated administrator credentials
+      setIsAuthorized(true);
+      setAuthChecking(false);
+      setLoading(true);
 
       // 2. Fetch admin stats
       const [statsRes, doctorsRes, usersRes, apptsRes, erasureRes, auditRes] = await Promise.all([
@@ -175,6 +200,7 @@ export default function AdminDashboardPage() {
       console.error("Failed to load admin data:", err);
       setActionMessage({ text: "Failed to connect to administrative server.", type: "error" });
     } finally {
+      setAuthChecking(false);
       setLoading(false);
     }
   };
@@ -252,6 +278,53 @@ export default function AdminDashboardPage() {
       u.email.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesRole && matchesSearch;
   });
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="flex flex-col items-center gap-4 text-center max-w-md">
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-950/50 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 animate-pulse">
+            <ShieldCheck className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+              Verifying Administrative Credentials
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Securing clinical compliance & access control...
+            </p>
+          </div>
+          <Loader2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 animate-spin mt-2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl max-w-md w-full text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              This area is strictly restricted to CuraLink System Administrators. Non-admin accounts cannot view or modify clinical administration data.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Button
+              onClick={() => router.replace(redirectTarget)}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-xl"
+            >
+              Return to Authorized Portal
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 px-4 sm:px-6 lg:px-8">

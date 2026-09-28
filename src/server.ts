@@ -30,9 +30,32 @@ const server = HOST
       console.log(`🤖 GEMINI_MODEL: ${process.env.GEMINI_MODEL?.trim() || '(default: gemini-3.6-flash)'}`);
     });
 
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    console.log('HTTP server closed');
+import prisma from './lib/prisma';
+
+let isShuttingDown = false;
+async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\n🛑 ${signal} received: closing CuraLink HTTP server...`);
+
+  server.close(async () => {
+    console.log('✅ HTTP server closed. Disconnecting database connections...');
+    try {
+      await prisma.$disconnect();
+      console.log('✅ Database connections cleanly closed.');
+    } catch (err) {
+      console.error('⚠️ Error during database disconnect:', err);
+    }
+    process.exit(0);
   });
-});
+
+  // Force exit after 10s if connections do not close cleanly
+  setTimeout(() => {
+    console.error('⚠️ Forcefully terminating process after 10s shutdown timeout.');
+    process.exit(1);
+  }, 10000).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+

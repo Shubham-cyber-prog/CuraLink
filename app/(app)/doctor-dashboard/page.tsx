@@ -18,8 +18,8 @@ import {
   Loader2,
   Stethoscope,
   Activity,
-  ArrowUpRight,
   RefreshCw,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -34,6 +34,8 @@ interface DoctorStats {
   consultationFee: number;
   specialization: string;
   verificationStatus: string;
+  consultationModes?: string[];
+  city?: string | null;
 }
 
 interface TrustCardData {
@@ -100,7 +102,7 @@ export default function DoctorDashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filters
-  const [apptFilter, setApptFilter] = useState<"ALL" | "CONFIRMED" | "COMPLETED" | "CANCELLED">("ALL");
+  const [apptFilter, setApptFilter] = useState<"ALL" | "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED">("ALL");
   const [patientSearch, setPatientSearch] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -141,21 +143,30 @@ export default function DoctorDashboardPage() {
   }, []);
 
   const handleUpdateStatus = async (apptId: string, newStatus: "CONFIRMED" | "CANCELLED" | "COMPLETED") => {
-    try {
-      const res = await api.patch(`/doctor/me/appointments/${apptId}`, { status: newStatus }).catch(() => null);
-
-      if (res?.success) {
-        setStatusMessage(`Appointment marked as ${newStatus.toLowerCase()}.`);
-        setTimeout(() => setStatusMessage(null), 3000);
-      }
-    } catch (err) {
-      console.error("Status update error:", err);
-    }
-
-    // Optimistically update local state
+    // Optimistically update local state immediately for snappy UI
     setAppointments((prev) =>
       prev.map((a) => (a.id === apptId ? { ...a, status: newStatus } : a))
     );
+
+    try {
+      const res = await api.patch(`/doctor/me/appointments/${apptId}`, { status: newStatus });
+
+      if (res?.success) {
+        setStatusMessage(`Appointment ${newStatus === "CONFIRMED" ? "accepted" : newStatus === "CANCELLED" ? "rejected" : "completed"} successfully.`);
+        setTimeout(() => setStatusMessage(null), 3500);
+        // Re-fetch stats so the summary cards (Pending Action count etc.) stay accurate
+        fetchDashboardData();
+      } else {
+        // Revert optimistic update if server rejected
+        setAppointments((prev) =>
+          prev.map((a) => (a.id === apptId ? { ...a, status: a.status } : a))
+        );
+      }
+    } catch (err: any) {
+      console.error("Status update error:", err);
+      setStatusMessage(`Failed to update appointment: ${err?.message || "Unknown error"}`);
+      setTimeout(() => setStatusMessage(null), 4000);
+    }
   };
 
   const filteredAppointments = appointments.filter((a) => {
@@ -169,7 +180,7 @@ export default function DoctorDashboardPage() {
   });
 
   return (
-    <div className="space-y-8 pb-12">
+    <div id="dashboard" className="space-y-8 pb-12">
       {/* ── HEADER & PRACTICE INFO ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div>
@@ -187,7 +198,14 @@ export default function DoctorDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <Link
+            href="/settings?tab=practice"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/60 px-3 py-2 text-xs font-semibold text-[#0D9488] dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors"
+          >
+            <Stethoscope className="h-3.5 w-3.5" />
+            Practice Profile
+          </Link>
           <button
             onClick={fetchDashboardData}
             disabled={isRefreshing}
@@ -199,6 +217,47 @@ export default function DoctorDashboardPage() {
           <div className="rounded-lg bg-[#0D9488] text-white px-3.5 py-2 text-xs font-semibold shadow-xs">
             Fee: ₹{stats.consultationFee} / session
           </div>
+        </div>
+      </div>
+
+      {/* Practice Discovery Overview Bar */}
+      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-[#151B2E]/70 px-4 py-3 text-xs flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-slate-500 dark:text-slate-400">
+            Public Practice:
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 dark:bg-teal-950/60 px-2 py-0.5 font-bold text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40">
+            <Stethoscope className="h-3 w-3" /> {stats.specialization || "General Practice"}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-700 dark:text-slate-300">
+            <MapPin className="h-3 w-3 text-slate-400" /> {stats.city || "National Telehealth"}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 font-medium text-slate-700 dark:text-slate-300">
+            {stats.consultationModes?.includes("VIDEO") && stats.consultationModes?.includes("IN_PERSON")
+              ? "🎥 Video & 🏥 In-Person"
+              : stats.consultationModes?.includes("IN_PERSON")
+              ? "🏥 In-Person Only"
+              : "🎥 Video Call"}
+          </span>
+          <span className="text-slate-400">•</span>
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            ₹{stats.consultationFee} / session
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/settings?tab=practice"
+            className="font-semibold text-[#0D9488] dark:text-teal-400 hover:underline inline-flex items-center gap-1 text-xs"
+          >
+            Edit Practice Settings →
+          </Link>
+          <span className="text-slate-300 dark:text-slate-700">|</span>
+          <Link
+            href="/find-doctor"
+            className="text-slate-500 hover:text-slate-900 dark:hover:text-white inline-flex items-center gap-1 text-xs"
+          >
+            Find Doctor View
+          </Link>
         </div>
       </div>
 
@@ -306,20 +365,28 @@ export default function DoctorDashboardPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-[#070b14] p-1">
-            {(["ALL", "CONFIRMED", "COMPLETED", "CANCELLED"] as const).map((filterKey) => (
-              <button
-                key={filterKey}
-                onClick={() => setApptFilter(filterKey)}
-                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer ${
-                  apptFilter === filterKey
-                    ? "bg-white dark:bg-[#151B2E] text-slate-900 dark:text-white shadow-xs"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                }`}
-              >
-                {filterKey === "ALL" ? "All" : filterKey.charAt(0) + filterKey.slice(1).toLowerCase()}
-              </button>
-            ))}
+          <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/70 dark:bg-[#070b14] p-1 flex-wrap">
+            {(["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"] as const).map((filterKey) => {
+              const pendingCount = filterKey === "PENDING" ? appointments.filter(a => a.status === "PENDING").length : 0;
+              return (
+                <button
+                  key={filterKey}
+                  onClick={() => setApptFilter(filterKey)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
+                    apptFilter === filterKey
+                      ? "bg-white dark:bg-[#151B2E] text-slate-900 dark:text-white shadow-xs"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  {filterKey === "ALL" ? "All" : filterKey.charAt(0) + filterKey.slice(1).toLowerCase()}
+                  {filterKey === "PENDING" && pendingCount > 0 && (
+                    <span className="ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
+                      {pendingCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -345,6 +412,7 @@ export default function DoctorDashboardPage() {
                   </tr>
                 ) : (
                   filteredAppointments.map((appt) => {
+                    const isPending = appt.status === "PENDING";
                     const isConfirmed = appt.status === "CONFIRMED";
                     const isCompleted = appt.status === "COMPLETED";
                     const isCancelled = appt.status === "CANCELLED";
@@ -455,7 +523,9 @@ export default function DoctorDashboardPage() {
                         <td className="px-4 py-3.5">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${
-                              isConfirmed
+                              isPending
+                                ? "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                : isConfirmed
                                 ? "bg-teal-50 dark:bg-teal-950/50 text-[#0D9488] dark:text-teal-300 border border-teal-200 dark:border-teal-800"
                                 : isCompleted
                                 ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
@@ -484,7 +554,29 @@ export default function DoctorDashboardPage() {
 
                         {/* Actions */}
                         <td className="px-5 py-3.5 text-right">
-                          <div className="inline-flex items-center gap-1.5 justify-end">
+                          <div className="inline-flex items-center gap-1.5 justify-end flex-wrap">
+                            {/* PENDING: Accept / Reject buttons */}
+                            {isPending && (
+                              <>
+                                <button
+                                  onClick={() => handleUpdateStatus(appt.id, "CONFIRMED")}
+                                  title="Accept appointment"
+                                  className="inline-flex items-center gap-1 rounded-md border border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-950/50 px-2.5 py-1.5 text-xs font-semibold text-[#0D9488] dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-950 transition-colors cursor-pointer"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  Accept
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateStatus(appt.id, "CANCELLED")}
+                                  title="Reject appointment"
+                                  className="inline-flex items-center gap-1 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-2.5 py-1.5 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-950 transition-colors cursor-pointer"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  Reject
+                                </button>
+                              </>
+                            )}
+
                             {/* Join Telehealth Video Consultation */}
                             {isConfirmed && (
                               <Link
@@ -661,6 +753,64 @@ export default function DoctorDashboardPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. SCHEDULE / AVAILABILITY SECTION ── */}
+      <section id="schedule" className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Weekly Practice Schedule</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Your configured availability windows for patient booking. Contact admin to update slots.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#151B2E] shadow-xs p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              { day: "Monday", slots: ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM"] },
+              { day: "Tuesday", slots: ["10:00 AM", "10:30 AM", "03:00 PM", "04:15 PM"] },
+              { day: "Wednesday", slots: ["09:00 AM", "10:00 AM", "02:00 PM"] },
+              { day: "Thursday", slots: ["10:00 AM", "11:00 AM", "03:00 PM"] },
+              { day: "Friday", slots: ["09:00 AM", "10:30 AM", "02:00 PM", "04:15 PM"] },
+              { day: "Saturday", slots: ["10:00 AM", "11:00 AM"] },
+              { day: "Sunday", slots: [] },
+            ].map(({ day, slots }) => (
+              <div
+                key={day}
+                className={`rounded-xl border p-3.5 ${
+                  slots.length === 0
+                    ? "border-slate-100 dark:border-slate-800/50 bg-slate-50 dark:bg-slate-900/50 opacity-50"
+                    : "border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a]"
+                }`}
+              >
+                <p className="text-xs font-bold text-slate-900 dark:text-white mb-2">{day}</p>
+                {slots.length === 0 ? (
+                  <p className="text-[11px] text-slate-400">Day off</p>
+                ) : (
+                  <div className="flex flex-col gap-1">
+                    {slots.map((slot) => (
+                      <span
+                        key={slot}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-[#0D9488] dark:text-teal-300"
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        {slot}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/40 dark:bg-teal-950/20 p-3.5 text-xs text-teal-800 dark:text-teal-300">
+            <p className="font-semibold mb-0.5">Consultation Fee: ₹{stats.consultationFee} / session</p>
+            <p className="text-teal-700/80 dark:text-teal-400/80">
+              Specialization: {stats.specialization} · Status:{" "}
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">{stats.verificationStatus}</span>
+            </p>
           </div>
         </div>
       </section>

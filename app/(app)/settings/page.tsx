@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   User,
   Shield,
@@ -25,6 +26,12 @@ import {
   Mail,
   Heart,
   FileText,
+  Stethoscope,
+  MapPin,
+  Video,
+  Sparkles,
+  ExternalLink,
+  Award,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -45,7 +52,7 @@ interface UserProfile {
   createdAt: string;
 }
 
-type TabType = "general" | "notifications" | "security" | "appearance" | "privacy";
+type TabType = "general" | "practice" | "notifications" | "security" | "appearance" | "privacy";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -54,6 +61,22 @@ export default function SettingsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("general");
+
+  // Doctor Practice Profile State
+  const [doctorProfile, setDoctorProfile] = useState({
+    specialization: "General Practice",
+    city: "",
+    consultationFee: 500,
+    consultationModes: ["VIDEO"] as string[],
+    experienceYears: 5,
+    medicalLicenseNumber: "",
+    bio: "",
+    verificationStatus: "APPROVED",
+  });
+  const [isSavingDoctor, setIsSavingDoctor] = useState(false);
+  const [doctorSaveSuccess, setDoctorSaveSuccess] = useState(false);
+  const [doctorSaveError, setDoctorSaveError] = useState<string | null>(null);
+  const [isLoadingDoctorProfile, setIsLoadingDoctorProfile] = useState(false);
 
   // General Profile Form State
   const [formData, setFormData] = useState({
@@ -131,6 +154,14 @@ export default function SettingsPage() {
       if (savedPhone) setFormData((prev) => ({ ...prev, phone: savedPhone }));
       if (savedBlood) setFormData((prev) => ({ ...prev, bloodGroup: savedBlood }));
       if (savedEmerg) setFormData((prev) => ({ ...prev, emergencyContact: savedEmerg }));
+
+      // Check URL query parameters for direct tab navigation
+      const tabParam = new URLSearchParams(window.location.search).get("tab");
+      if (tabParam === "practice" || tabParam === "doctor") {
+        setActiveTab("practice");
+      } else if (tabParam && ["general", "notifications", "security", "appearance", "privacy"].includes(tabParam)) {
+        setActiveTab(tabParam as TabType);
+      }
     }
   }, []);
 
@@ -158,6 +189,33 @@ export default function SettingsPage() {
             age: user.age !== undefined && user.age !== null ? String(user.age) : "32",
             gender: user.gender || "Male",
           }));
+
+          // If logged-in user is a DOCTOR, load clinical practice details
+          if (user.role === "DOCTOR") {
+            try {
+              setIsLoadingDoctorProfile(true);
+              const docRes = await api.get("/doctors/me");
+              if (docRes?.success && docRes.data) {
+                const doc = docRes.data;
+                setDoctorProfile({
+                  specialization: doc.specialization || "General Practice",
+                  city: doc.city || "",
+                  consultationFee: doc.consultationFee ?? 500,
+                  consultationModes: Array.isArray(doc.consultationModes) && doc.consultationModes.length > 0
+                    ? doc.consultationModes
+                    : ["VIDEO"],
+                  experienceYears: doc.experienceYears ?? 5,
+                  medicalLicenseNumber: doc.medicalLicenseNumber || "",
+                  bio: doc.bio || "",
+                  verificationStatus: doc.verificationStatus || "APPROVED",
+                });
+              }
+            } catch (docErr) {
+              console.warn("Could not load doctor practice profile:", docErr);
+            } finally {
+              setIsLoadingDoctorProfile(false);
+            }
+          }
         }
       } catch (err) {
         console.error("Settings page fetch error:", err);
@@ -168,6 +226,56 @@ export default function SettingsPage() {
 
     fetchProfile();
   }, [router]);
+
+  const handleSaveDoctorProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingDoctor(true);
+    setDoctorSaveSuccess(false);
+    setDoctorSaveError(null);
+
+    try {
+      if (!doctorProfile.consultationModes || doctorProfile.consultationModes.length === 0) {
+        throw new Error("Please select at least one consultation mode (Video Call or In-Person).");
+      }
+
+      const res = await api.patch("/doctors/me/profile", {
+        name: formData.name,
+        phone: formData.phone,
+        specialization: doctorProfile.specialization,
+        city: doctorProfile.city ? doctorProfile.city.trim() : null,
+        consultationFee: Number(doctorProfile.consultationFee) || 500,
+        consultationModes: doctorProfile.consultationModes,
+        experienceYears: Number(doctorProfile.experienceYears) || 0,
+        medicalLicenseNumber: doctorProfile.medicalLicenseNumber || "PENDING",
+        bio: doctorProfile.bio || "",
+      });
+
+      if (!res.success) {
+        throw new Error(res.message || "Failed to update doctor practice profile");
+      }
+
+      setDoctorSaveSuccess(true);
+      setTimeout(() => setDoctorSaveSuccess(false), 5000);
+    } catch (err: any) {
+      setDoctorSaveError(err.message || "An unexpected error occurred while saving practice profile");
+    } finally {
+      setIsSavingDoctor(false);
+    }
+  };
+
+  const toggleConsultationMode = (mode: "VIDEO" | "IN_PERSON") => {
+    setDoctorProfile((prev) => {
+      const exists = prev.consultationModes.includes(mode);
+      let newModes: string[];
+      if (exists) {
+        if (prev.consultationModes.length === 1) return prev; // Keep at least one mode
+        newModes = prev.consultationModes.filter((m) => m !== mode);
+      } else {
+        newModes = [...prev.consultationModes, mode];
+      }
+      return { ...prev, consultationModes: newModes };
+    });
+  };
 
   const handleVerifyPhone = async () => {
     setIsVerifyingPhone(true);
@@ -386,7 +494,10 @@ export default function SettingsPage() {
             aria-label="Settings navigation"
           >
             {[
-              { id: "general", label: "Profile & Vitals", icon: User },
+              ...(profile?.role === "DOCTOR"
+                ? [{ id: "practice", label: "Practice Profile", icon: Stethoscope }]
+                : []),
+              { id: "general", label: profile?.role === "DOCTOR" ? "Personal Account" : "Profile & Vitals", icon: User },
               { id: "notifications", label: "Notifications", icon: Bell },
               { id: "security", label: "Password & Security", icon: Shield },
               { id: "appearance", label: "Appearance", icon: Palette },
@@ -411,28 +522,75 @@ export default function SettingsPage() {
             })}
           </nav>
 
-          {/* Quick Health Status Card */}
+          {/* Quick Health / Practice Status Card */}
           <div className="mt-6 hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] p-4 shadow-xs">
-            <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">
-              <Heart className="h-3.5 w-3.5" />
-              Patient Health Card
-            </div>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Blood Type:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{formData.bloodGroup}</span>
-              </div>
-              <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Role:</span>
-                <span className="font-semibold text-teal-700 dark:text-teal-400">{profile?.role || "PATIENT"}</span>
-              </div>
-              <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Status:</span>
-                <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
-                </span>
-              </div>
-            </div>
+            {profile?.role === "DOCTOR" ? (
+              <>
+                <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">
+                  <Stethoscope className="h-3.5 w-3.5" />
+                  Physician Practice
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Specialty:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-right truncate max-w-[120px]">
+                      {doctorProfile.specialization}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Location:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {doctorProfile.city || "Not Set"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Session Fee:</span>
+                    <span className="font-semibold text-teal-700 dark:text-teal-400">
+                      ₹{doctorProfile.consultationFee}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Active Modes:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {doctorProfile.consultationModes.includes("VIDEO") && doctorProfile.consultationModes.includes("IN_PERSON")
+                        ? "Video + Clinic"
+                        : doctorProfile.consultationModes.includes("VIDEO")
+                        ? "Video Call"
+                        : "Clinic Visit"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span>License:</span>
+                    <span className="font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                      {doctorProfile.medicalLicenseNumber || "PENDING"}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">
+                  <Heart className="h-3.5 w-3.5" />
+                  Patient Health Card
+                </div>
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Blood Type:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formData.bloodGroup}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Role:</span>
+                    <span className="font-semibold text-teal-700 dark:text-teal-400">{profile?.role || "PATIENT"}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
+                    <span>Status:</span>
+                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </aside>
 
@@ -450,6 +608,31 @@ export default function SettingsPage() {
                     Update your registered telehealth account and contact details.
                   </p>
                 </div>
+
+                {profile?.role === "DOCTOR" && (
+                  <div className="m-6 mb-0 rounded-2xl border border-teal-200 dark:border-teal-800 bg-teal-50/70 dark:bg-teal-950/40 p-4 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-xl bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center text-teal-700 dark:text-teal-300 shrink-0">
+                        <Stethoscope className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">
+                          Doctor Practice Profile Available
+                        </p>
+                        <p className="text-slate-600 dark:text-slate-300 mt-0.5">
+                          Configure your consultation modes (Video & Clinic Visit), practice city, fees, and specialty for patients to find you.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("practice")}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#0D9488] px-3.5 py-2 font-semibold text-white hover:bg-[#0B7267] transition-colors shrink-0 text-xs shadow-xs cursor-pointer"
+                    >
+                      Configure Practice Profile →
+                    </button>
+                  </div>
+                )}
 
                 <form onSubmit={handleSaveProfile} className="p-6 space-y-6">
                   {/* Avatar Upload */}
@@ -609,6 +792,417 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 </form>
+              </section>
+            </div>
+          )}
+
+          {/* TAB: DOCTOR PRACTICE PROFILE */}
+          {activeTab === "practice" && (
+            <div className="space-y-6">
+              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xs overflow-hidden">
+                {/* Header */}
+                <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                        Doctor Practice & Discovery Settings
+                      </h2>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {doctorProfile.verificationStatus || "APPROVED"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Set your medical specialty, consultation modes (Video Call & In-Person), practice city, and consultation fee. These fields directly control your visibility on the patient-facing Find Doctor page.
+                    </p>
+                  </div>
+                  <Link
+                    href="/find-doctor"
+                    className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
+                  >
+                    <span>View Find Doctor Portal</span>
+                    <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
+                  </Link>
+                </div>
+
+                {isLoadingDoctorProfile ? (
+                  <div className="flex min-h-[300px] items-center justify-center p-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-teal-600 dark:text-teal-400" />
+                  </div>
+                ) : (
+                  <form onSubmit={handleSaveDoctorProfile} className="p-6 space-y-6">
+                    {/* Alerts */}
+                    {doctorSaveSuccess && (
+                      <div className="rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 p-4 text-xs font-medium text-teal-900 dark:text-teal-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0" />
+                          <span>
+                            Practice profile updated successfully! Your clinical settings are now live for patient search and booking.
+                          </span>
+                        </div>
+                        <Link
+                          href="/find-doctor"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[#0D9488] dark:text-teal-300 hover:underline shrink-0"
+                        >
+                          Verify on Find Doctor →
+                        </Link>
+                      </div>
+                    )}
+
+                    {doctorSaveError && (
+                      <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-4 text-xs font-medium text-rose-900 dark:text-rose-200 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                        <span>{doctorSaveError}</span>
+                      </div>
+                    )}
+
+                    {/* Section 1: Consultation Modes (Video Call & In-Person) */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                            Consultation Modes Offered <span className="text-rose-500">*</span>
+                          </label>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            Patients filtering by &ldquo;Video Call&rdquo; or &ldquo;In-Person / Home&rdquo; on the Find Doctor page will match based on these selections. Select all that apply.
+                          </p>
+                        </div>
+                        <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400">
+                          {doctorProfile.consultationModes.length === 2
+                            ? "✓ Both Modes Active"
+                            : doctorProfile.consultationModes.includes("VIDEO")
+                            ? "Video Only"
+                            : "In-Person Only"}
+                        </span>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {/* Video Call Mode Card */}
+                        <div
+                          onClick={() => toggleConsultationMode("VIDEO")}
+                          className={`relative flex items-start gap-3.5 rounded-2xl border p-4 transition-all duration-150 cursor-pointer select-none ${
+                            doctorProfile.consultationModes.includes("VIDEO")
+                              ? "border-teal-500/80 bg-teal-50/60 dark:bg-teal-950/30 ring-2 ring-teal-500/20 shadow-xs"
+                              : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                          }`}
+                        >
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                            doctorProfile.consultationModes.includes("VIDEO")
+                              ? "bg-teal-600 text-white shadow-xs"
+                              : "bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                          }`}>
+                            <Video className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                Video Call (Telehealth)
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={doctorProfile.consultationModes.includes("VIDEO")}
+                                onChange={() => toggleConsultationMode("VIDEO")}
+                                className="h-4 w-4 rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+                              />
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                              Encrypted remote video sessions with integrated EHR, clinical notes, and digital prescriptions.
+                            </p>
+                            <span className="mt-2 inline-flex items-center rounded-md bg-teal-100/70 dark:bg-teal-900/50 px-2 py-0.5 text-[10px] font-semibold text-teal-800 dark:text-teal-200">
+                              Matches &ldquo;Video Call&rdquo; filter
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* In-Person Mode Card */}
+                        <div
+                          onClick={() => toggleConsultationMode("IN_PERSON")}
+                          className={`relative flex items-start gap-3.5 rounded-2xl border p-4 transition-all duration-150 cursor-pointer select-none ${
+                            doctorProfile.consultationModes.includes("IN_PERSON")
+                              ? "border-emerald-500/80 bg-emerald-50/60 dark:bg-emerald-950/30 ring-2 ring-emerald-500/20 shadow-xs"
+                              : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                          }`}
+                        >
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                            doctorProfile.consultationModes.includes("IN_PERSON")
+                              ? "bg-emerald-600 text-white shadow-xs"
+                              : "bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                          }`}>
+                            <MapPin className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-bold text-slate-900 dark:text-white">
+                                In-Person Clinic Visit
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={doctorProfile.consultationModes.includes("IN_PERSON")}
+                                onChange={() => toggleConsultationMode("IN_PERSON")}
+                                className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              />
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                              Physical hospital or clinic examination in your registered practice city.
+                            </p>
+                            <span className="mt-2 inline-flex items-center rounded-md bg-emerald-100/70 dark:bg-emerald-900/50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:text-emerald-200">
+                              Matches &ldquo;In-Person / Home&rdquo; filter
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {/* Specialization */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                          Clinical Specialization <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                          value={doctorProfile.specialization}
+                          onChange={(e) => setDoctorProfile({ ...doctorProfile, specialization: e.target.value })}
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                          required
+                        >
+                          {[
+                            "General Practice",
+                            "Cardiology",
+                            "Dermatology",
+                            "Pediatrics",
+                            "Neurology",
+                            "Psychiatry",
+                            "Orthopedics",
+                            "Oncology",
+                            "Gynecology & Obstetrics",
+                            "Endocrinology",
+                            "Ophthalmology",
+                            "ENT (Otolaryngology)",
+                            "Pulmonology",
+                          ].map((spec) => (
+                            <option key={spec} value={spec}>
+                              {spec}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Matches the Specialty filter chips on the patient-facing Find Doctor page.
+                        </p>
+                      </div>
+
+                      {/* Practice City */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                          Practice City & Location
+                        </label>
+                        <input
+                          type="text"
+                          value={doctorProfile.city}
+                          onChange={(e) => setDoctorProfile({ ...doctorProfile, city: e.target.value })}
+                          placeholder="e.g. Hisar, New Delhi, Mumbai, Bengaluru"
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                        />
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                          <span className="text-[10px] text-slate-400">Quick pick:</span>
+                          {["Hisar", "New Delhi", "Mumbai", "Bengaluru", "Pune", "Chandigarh"].map((quickCity) => (
+                            <button
+                              key={quickCity}
+                              type="button"
+                              onClick={() => setDoctorProfile({ ...doctorProfile, city: quickCity })}
+                              className="rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300 hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-teal-950/60 dark:hover:text-teal-300 transition-colors cursor-pointer"
+                            >
+                              {quickCity}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Consultation Fee */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                          Consultation Fee (₹ INR) <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-2.5 text-slate-400 font-semibold text-sm">
+                            ₹
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="50"
+                            value={doctorProfile.consultationFee}
+                            onChange={(e) => setDoctorProfile({ ...doctorProfile, consultationFee: Number(e.target.value) })}
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] pl-8 pr-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                            required
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                          <span className="text-[10px] text-slate-400">Presets:</span>
+                          {[500, 750, 1000, 1500].map((fee) => (
+                            <button
+                              key={fee}
+                              type="button"
+                              onClick={() => setDoctorProfile({ ...doctorProfile, consultationFee: fee })}
+                              className="rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300 hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-teal-950/60 dark:hover:text-teal-300 transition-colors cursor-pointer"
+                            >
+                              ₹{fee}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Experience Years */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                          Clinical Experience (Years)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="65"
+                          value={doctorProfile.experienceYears}
+                          onChange={(e) => setDoctorProfile({ ...doctorProfile, experienceYears: Number(e.target.value) })}
+                          placeholder="e.g. 8"
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                        />
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Appears as &ldquo;{doctorProfile.experienceYears}+ years experience&rdquo; on your public profile card.
+                        </p>
+                      </div>
+
+                      {/* Medical License */}
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                          Medical Registration / License Number
+                        </label>
+                        <input
+                          type="text"
+                          value={doctorProfile.medicalLicenseNumber}
+                          onChange={(e) => setDoctorProfile({ ...doctorProfile, medicalLicenseNumber: e.target.value })}
+                          placeholder="e.g. MCI-48291-MH or State Medical Council ID"
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white font-mono focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                        />
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Official state or national medical board registration credential.
+                        </p>
+                      </div>
+
+                      {/* Bio */}
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <label className="text-xs font-semibold text-slate-900 dark:text-white">
+                          Professional Bio & Approach to Patient Care
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={doctorProfile.bio}
+                          onChange={(e) => setDoctorProfile({ ...doctorProfile, bio: e.target.value })}
+                          placeholder="Share your clinical background, medical qualifications, hospital affiliations, and approach to compassionate patient care..."
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#070b14] px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-teal-500 focus:bg-white dark:focus:bg-[#070b14] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* LIVE PATIENT SEARCH PREVIEW CARD */}
+                    <div className="rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-gradient-to-br from-teal-50/50 via-white to-slate-50/50 dark:from-teal-950/20 dark:via-[#0f172a] dark:to-[#0f172a] p-5 shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-teal-100 dark:border-teal-900/40">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900 dark:text-teal-200">
+                            Live Patient Search Preview
+                          </h4>
+                        </div>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Real-time rendering of your card on Find Doctor
+                        </span>
+                      </div>
+
+                      {/* Mock DoctorCard Preview */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm">
+                        <div className="flex gap-3.5 items-start sm:items-center">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6] font-bold text-lg border border-teal-100 dark:border-teal-900/60">
+                            {formData.name ? formData.name.charAt(0).toUpperCase() : "D"}
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h5 className="font-semibold text-slate-900 dark:text-white text-sm">
+                                {formData.name ? (formData.name.startsWith("Dr.") ? formData.name : `Dr. ${formData.name}`) : "Dr. Medical Specialist"}
+                              </h5>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
+                                <CheckCircle2 className="h-3 w-3" /> Verified
+                              </span>
+                              <span className="inline-flex items-center rounded-full bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40">
+                                New Clinician
+                              </span>
+                            </div>
+                            <p className="text-xs font-medium text-[#0D9488] dark:text-teal-400">
+                              {doctorProfile.specialization} • {doctorProfile.experienceYears}+ years exp
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-slate-400" />
+                              {doctorProfile.city ? `${doctorProfile.city}, India` : "CuraLink Telehealth"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+                          <div className="text-left sm:text-right">
+                            <span className="text-xs text-slate-400">Consultation</span>
+                            <p className="text-base font-bold text-slate-900 dark:text-white">
+                              ₹{doctorProfile.consultationFee}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {doctorProfile.consultationModes.includes("VIDEO") && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 dark:bg-teal-950/50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40">
+                                <Video className="h-2.5 w-2.5" /> Video
+                              </span>
+                            )}
+                            {doctorProfile.consultationModes.includes("IN_PERSON") && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40">
+                                <MapPin className="h-2.5 w-2.5" /> In-Person
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Search Filter Compatibility Checklist */}
+                      <div className="mt-4 pt-3 border-t border-teal-100 dark:border-teal-900/40 grid gap-2 sm:grid-cols-3 text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                          <span>Specialty: <strong>{doctorProfile.specialization}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                          <span>Modes: <strong>{doctorProfile.consultationModes.join(" + ")}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                          <span>City: <strong>{doctorProfile.city || "All Cities"}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Submit Bar */}
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800">
+                      <div className="text-xs text-slate-500 dark:text-slate-400">
+                        All changes take effect immediately on patient search.
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href="/find-doctor"
+                          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          Preview Search
+                        </Link>
+                        <Button type="submit" disabled={isSavingDoctor}>
+                          {isSavingDoctor && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                          Save Practice Profile
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                )}
               </section>
             </div>
           )}

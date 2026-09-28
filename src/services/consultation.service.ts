@@ -110,9 +110,15 @@ export class ConsultationService {
       throw new NotFoundError('Appointment not found');
     }
 
-    // RBAC Check: Must be patient, doctor, or admin
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId },
+    });
+    const doctorIds = [userId];
+    if (doctorProfile) doctorIds.push(doctorProfile.id);
+
+    // RBAC Check: Must be patient, assigned doctor, or admin
     const isPatient = appointment.userId === userId;
-    const isDoctor = appointment.doctorId === userId || userRole === 'DOCTOR';
+    const isDoctor = doctorIds.includes(appointment.doctorId);
     const isAdmin = userRole === 'ADMIN';
 
     if (!isPatient && !isDoctor && !isAdmin) {
@@ -216,14 +222,27 @@ export class ConsultationService {
   async completeConsultation(userId: string, userRole: string, appointmentId: string) {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
+      include: {
+        doctor: {
+          select: { id: true, userId: true },
+        },
+      },
     });
 
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
     }
 
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId },
+    });
+    const doctorIds = [userId];
+    if (doctorProfile) doctorIds.push(doctorProfile.id);
+
     const isPatient = appointment.userId === userId;
-    const isDoctor = appointment.doctorId === userId || userRole === 'DOCTOR';
+    const isDoctor =
+      doctorIds.includes(appointment.doctorId) ||
+      Boolean(appointment.doctor && (appointment.doctor.userId === userId || appointment.doctor.id === doctorProfile?.id));
     const isAdmin = userRole === 'ADMIN';
 
     if (!isPatient && !isDoctor && !isAdmin) {

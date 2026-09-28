@@ -25,6 +25,12 @@ jest.mock('../../src/lib/prisma', () => ({
         specialization: 'General Physician',
         user: { name: 'Dr. Marcus Vance', email: 'marcus.vance@curalink.com' },
       }),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'doc-profile-1',
+        userId: 'doc-uuid-200',
+        specialization: 'General Physician',
+        user: { name: 'Dr. Marcus Vance', email: 'marcus.vance@curalink.com' },
+      }),
     },
   },
 }));

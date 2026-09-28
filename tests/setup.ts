@@ -15,3 +15,8 @@ process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123
 process.env.TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
 process.env.TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
 process.env.GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'test-google-client-id.apps.googleusercontent.com';
+process.env.RESEND_API_KEY = process.env.RESEND_API_KEY || 're_test_mock_key';
+process.env.EMAIL_FROM = process.env.EMAIL_FROM || 'CuraLink <notifications@curalink.health>';
+process.env.EMAIL_ENABLED = 'true';
+process.env.RESEND_WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET || 'whsec_test_secret_12345';
+

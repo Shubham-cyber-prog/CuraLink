@@ -88,6 +88,17 @@ export class AppointmentService {
     });
 
     invalidateDoctorsCache();
+
+    // Asynchronously dispatch booking confirmation emails to patient and doctor
+    try {
+      const { emailService } = await import('./email/email.service');
+      emailService.sendAppointmentBookedEmails(appointment.id).catch((err) => {
+        console.error('[AppointmentService] Failed to dispatch booking emails:', err?.message || err);
+      });
+    } catch (err) {
+      console.error('[AppointmentService] Error importing email service:', err);
+    }
+
     return appointment;
   }
 

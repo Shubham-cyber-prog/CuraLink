@@ -24,6 +24,31 @@ jest.mock('../../src/lib/prisma', () => ({
     auditLog: {
       create: jest.fn().mockResolvedValue({}),
     },
+    emailVerificationToken: {
+      create: jest.fn().mockResolvedValue({ id: 'evt-1' }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({}),
+    },
+    passwordResetToken: {
+      create: jest.fn().mockResolvedValue({ id: 'prt-1' }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      findFirst: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({}),
+    },
+    notificationLog: {
+      create: jest.fn().mockResolvedValue({ id: 'nl-1' }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({}),
+    },
+    doctorProfile: {
+      create: jest.fn().mockResolvedValue({ id: 'dp-1' }),
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+    },
     $transaction: jest.fn((callback) => typeof callback === 'function' ? callback(require('../../src/lib/prisma').default) : Promise.all(callback)),
   },
 }));

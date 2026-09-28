@@ -194,24 +194,10 @@ export class AuthController {
       const validatedInput = forgotPasswordSchema.parse(req.body);
       const token = await authService.forgotPassword(validatedInput.email);
 
-      if (token) {
-        const frontendUrl = process.env.ALLOWED_ORIGINS?.split(',')[0] || 'http://localhost:3000';
-        const resetLink = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
-        await notificationService.send({
-          recipientId: validatedInput.email,
-          recipientEmail: validatedInput.email,
-          subject: 'CuraLink Password Reset Request',
-          body: `We received a request to reset your CuraLink account password.<br/><br/>Click the secure link below to reset your password (valid for 1 hour):<br/><a href="${resetLink}" style="display:inline-block;padding:10px 20px;background-color:#0D9488;color:#ffffff;text-decoration:none;border-radius:6px;margin:15px 0;font-weight:600;">Reset Password</a><br/><br/>If the button does not work, copy and paste this link into your browser:<br/><span style="color:#6B7280;word-break:break-all;">${resetLink}</span><br/><br/>If you did not request a password reset, you can safely ignore this email. Your password will not change.`,
-          channels: ['EMAIL'],
-        }).catch((err) => {
-          console.error('[forgotPassword] Failed to dispatch password reset email:', err);
-        });
-      }
-
       res.status(200).json({
         success: true,
         message: 'If that email address is registered, a password reset link has been sent.',
-        ...(token && process.env.NODE_ENV !== 'production' ? { data: { token } } : {}) // Only send token in dev mode
+        ...(token && process.env.NODE_ENV !== 'production' ? { data: { token } } : {}) // Only send token in dev/test mode
       });
     } catch (error) {
       next(error);
@@ -221,16 +207,49 @@ export class AuthController {
   async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validatedInput = resetPasswordSchema.parse(req.body);
-      await authService.resetPassword(validatedInput.token, validatedInput.password);
+      await authService.resetPassword(validatedInput.token, validatedInput.password, req.ip);
 
-      // We can't log the user ID easily here without decoding the token again, 
-      // but it's a security best practice to log password resets
       await auditService.logAction(AuditAction.PASSWORD_RESET, undefined, undefined, undefined, req.ip, req.headers['user-agent']);
 
       res.status(200).json({
         success: true,
         message: 'Password reset successful',
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const token = String(req.body?.token || req.query?.token || '');
+      if (!token) {
+        res.status(400).json({ success: false, message: 'Verification token is required' });
+        return;
+      }
+
+      const result = await authService.verifyEmail(token);
+      if (!result.success) {
+        res.status(400).json(result);
+        return;
+      }
+
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async resendVerification(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const email = String(req.body?.email || req.user?.email || '').trim().toLowerCase();
+      if (!email) {
+        res.status(400).json({ success: false, message: 'Email address is required' });
+        return;
+      }
+
+      const result = await authService.resendVerification(email);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

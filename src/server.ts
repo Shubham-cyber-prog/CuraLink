@@ -31,12 +31,18 @@ const server = HOST
     });
 
 import prisma from './lib/prisma';
+import { appointmentReminderWorker } from './jobs/appointment-reminder.worker';
+
+// Start scheduled background jobs
+appointmentReminderWorker.start();
 
 let isShuttingDown = false;
 async function gracefulShutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   console.log(`\n🛑 ${signal} received: closing CuraLink HTTP server...`);
+
+  appointmentReminderWorker.stop();
 
   server.close(async () => {
     console.log('✅ HTTP server closed. Disconnecting database connections...');

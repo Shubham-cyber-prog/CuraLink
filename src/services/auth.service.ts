@@ -8,6 +8,8 @@ import { Role } from '../types/role';
 import { OAuth2Client } from 'google-auth-library';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
+import { authTokenService } from './auth-token.service';
+import { emailService } from './email/email.service';
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -18,6 +20,8 @@ export interface SafeUser {
   role: Role;
   phone?: string | null;
   phoneVerified?: boolean;
+  emailVerified?: boolean;
+  emailVerifiedAt?: Date | null;
   age?: number | null;
   gender?: string | null;
   profileCompletedAt?: Date | null;
@@ -91,20 +95,23 @@ export class AuthService {
           },
         });
       }
+      // Send Doctor Registration email (pending review notice)
+      emailService.sendDoctorRegistrationEmail(user, {
+        specialization: 'General Practice',
+        medicalLicenseNumber: 'PENDING',
+      }).catch((err) => console.error('[AuthService] Failed to dispatch doctor registration email:', err?.message || err));
+    } else {
+      // Patient: Generate email verification token & dispatch email
+      const rawToken = await authTokenService.createEmailVerificationToken(user.id);
+      emailService.sendVerificationEmail(user, rawToken)
+        .catch((err) => console.error('[AuthService] Failed to dispatch verification email:', err?.message || err));
     }
 
     const tokens = await this.createTokens(user);
 
     return {
       ...tokens,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role as Role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+      user: this.toSafeUser(user),
     };
   }
 
@@ -393,6 +400,8 @@ export class AuthService {
       role: user.role as Role,
       phone: user.phone || null,
       phoneVerified: Boolean(user.phoneVerified),
+      emailVerified: Boolean(user.emailVerified),
+      emailVerifiedAt: user.emailVerifiedAt || null,
       age: user.age || null,
       gender: user.gender || null,
       profileCompletedAt: user.profileCompletedAt || null,
@@ -456,32 +465,22 @@ export class AuthService {
     if (!user || !user.passwordHash) {
       return null;
     }
-    return generateResetToken(user.id, user.passwordHash);
+    const token = await authTokenService.createPasswordResetToken(user.id);
+    emailService.sendPasswordResetEmail(user, token).catch((err) => {
+      console.error('[AuthService] Failed to send password reset email:', err?.message || err);
+    });
+    return token;
   }
 
-  async resetPassword(token: string, password: string): Promise<void> {
-    const decoded = decodeToken(token) as { id?: string } | null;
-    if (!decoded || !decoded.id) {
-      throw new BadRequestError('Invalid reset token');
-    }
+  async resetPassword(token: string, password: string, ipAddress?: string): Promise<void> {
+    const userId = await authTokenService.consumePasswordResetToken(token);
 
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
+      where: { id: userId },
     });
 
     if (!user) {
-      throw new BadRequestError('Invalid reset token');
-    }
-
-    if (!user.passwordHash) {
-      throw new BadRequestError('Account uses Google login');
-    }
-
-    try {
-      verifyResetToken(token, user.passwordHash);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Invalid or expired reset token';
-      throw new BadRequestError(message);
+      throw new BadRequestError('User associated with this reset link no longer exists.');
     }
 
     const passwordHash = await hashPassword(password);
@@ -497,6 +496,74 @@ export class AuthService {
         data: { revokedAt: new Date() }
       })
     ]);
+
+    // Send account security notification
+    emailService.sendPasswordChangedEmail(user, ipAddress).catch((err) => {
+      console.error('[AuthService] Failed to send password changed email:', err?.message || err);
+    });
+  }
+
+  /**
+   * Verify email address using a single-use token
+   */
+  async verifyEmail(token: string): Promise<{ success: boolean; reason?: string; message: string }> {
+    const result = await authTokenService.verifyEmailToken(token);
+
+    if (!result.valid || !result.userId) {
+      if (result.reason === 'EXPIRED') {
+        return {
+          success: false,
+          reason: 'EXPIRED',
+          message: 'This email verification link has expired (valid for 30 minutes). Please request a new verification link.',
+        };
+      }
+      if (result.reason === 'ALREADY_USED') {
+        return {
+          success: false,
+          reason: 'ALREADY_USED',
+          message: 'This email verification link has already been used. Your email is already verified.',
+        };
+      }
+      return {
+        success: false,
+        reason: 'NOT_FOUND',
+        message: 'Invalid verification link. Please check your email or request a new link.',
+      };
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: result.userId } });
+    if (user && user.role === Role.PATIENT) {
+      emailService.sendPatientWelcomeEmail(user).catch((err) => {
+        console.error('[AuthService] Failed to send welcome email:', err?.message || err);
+      });
+    }
+
+    return {
+      success: true,
+      message: 'Your email address has been successfully verified! You now have full access to CuraLink healthcare services.',
+    };
+  }
+
+  /**
+   * Resend verification email with rate limiting
+   */
+  async resendVerification(email: string): Promise<{ success: boolean; message: string }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (user && !user.emailVerified) {
+      const rawToken = await authTokenService.createEmailVerificationToken(user.id);
+      await emailService.sendVerificationEmail(user, rawToken).catch((err) => {
+        console.error('[AuthService] Failed to resend verification email:', err?.message || err);
+      });
+    }
+
+    return {
+      success: true,
+      message: 'If an account exists with this email and is pending verification, a new link has been sent.',
+    };
   }
 }
 

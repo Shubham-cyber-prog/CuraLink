@@ -252,6 +252,14 @@ router.patch('/appointments/:id', async (req: Request, res: Response, next: Next
       },
     });
 
+    // Dispatch status change emails (CONFIRMED / CANCELLED)
+    if (status === 'CONFIRMED' || status === 'CANCELLED') {
+      const { emailService } = await import('../services/email/email.service');
+      emailService.sendAppointmentStatusEmail(id, status, req.body.reason).catch((err) =>
+        console.error('[DoctorDashboard] Failed to dispatch appointment status email:', err?.message || err)
+      );
+    }
+
     res.status(200).json({
       success: true,
       message: `Appointment updated to ${status}`,

@@ -34,9 +34,15 @@ const envSchema = z.object({
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
-  // Real Email Notifications (Resend/SendGrid)
+  // Real Email Notifications (Resend)
   EMAIL_API_KEY: z.string().optional(),
   EMAIL_FROM_ADDRESS: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  APP_URL: z.string().default('http://localhost:3000'),
+  API_URL: z.string().default('http://localhost:5000'),
+  EMAIL_ENABLED: z.string().default('true').transform((val) => val === 'true' || val === '1'),
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
 
   // Real SMS Notifications (MSG91/Twilio)
   SMS_API_KEY: z.string().optional(),

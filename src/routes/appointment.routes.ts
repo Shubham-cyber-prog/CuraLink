@@ -76,6 +76,13 @@ router.patch('/:id/status', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), as
       data: { status: upperStatus },
     });
 
+    if (upperStatus === 'CONFIRMED' || upperStatus === 'CANCELLED') {
+      const { emailService } = await import('../services/email/email.service');
+      emailService.sendAppointmentStatusEmail(id, upperStatus, req.body.reason).catch((e) =>
+        console.error('[AppointmentRoutes] Failed to dispatch appointment status email:', e?.message || e)
+      );
+    }
+
     res.status(200).json({ success: true, data: updated });
   } catch (err) {
     next(err);

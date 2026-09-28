@@ -71,7 +71,23 @@ export class DoctorVerificationService {
         verificationStatus: status,
         verifiedAt: status === 'APPROVED' ? new Date() : null,
       },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+      },
     });
+
+    if (updated.user) {
+      const { emailService } = await import('./email/email.service');
+      if (status === 'APPROVED') {
+        emailService.sendDoctorApprovedEmail(updated.user).catch((err) =>
+          console.error('[DoctorVerificationService] Failed to send approval email:', err?.message || err)
+        );
+      } else if (status === 'REJECTED') {
+        emailService.sendDoctorRejectedEmail(updated.user).catch((err) =>
+          console.error('[DoctorVerificationService] Failed to send rejection email:', err?.message || err)
+        );
+      }
+    }
 
     invalidateDoctorsCache();
     return updated;

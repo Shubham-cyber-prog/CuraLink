@@ -16,6 +16,8 @@ model User {
   role         String   @default("PATIENT")
   phone        String?
   phoneVerified Boolean  @default(false)
+  emailVerified Boolean  @default(false)
+  emailVerifiedAt DateTime?
   age          Int?
   gender       String?
   profileCompletedAt DateTime?
@@ -35,6 +37,8 @@ model User {
   vitalLogs       VitalLog[]
   sentMessages     Message[]       @relation("SentMessages")
   receivedMessages Message[]       @relation("ReceivedMessages")
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
 
   @@map("users")
 }
@@ -80,6 +84,7 @@ model Appointment {
   prescription Prescription?
   review       Review?
   messages     Message[]
+  reminders    AppointmentReminder[]
 
   @@index([doctorId, date])
   @@index([userId, status])
@@ -219,6 +224,73 @@ model Message {
   @@index([appointmentId, createdAt])
   @@index([senderId, receiverId])
   @@map("messages")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model NotificationLog {
+  id                String    @id @default(uuid())
+  recipientId       String?
+  recipientEmail    String
+  subject           String
+  eventType         String    // VERIFICATION, WELCOME, DOCTOR_REGISTRATION, DOCTOR_APPROVED, DOCTOR_REJECTED, APPOINTMENT_BOOKED, APPOINTMENT_CONFIRMED, APPOINTMENT_CANCELLED, APPOINTMENT_RESCHEDULED, APPOINTMENT_REMINDER, PASSWORD_RESET, PASSWORD_CHANGED
+  status            String    @default("PENDING") // PENDING, SENT, FAILED, DELIVERED, BOUNCED, COMPLAINED
+  provider          String    @default("RESEND")
+  providerMessageId String?   @unique
+  errorMessage      String?
+  idempotencyKey    String?   @unique
+  metadata          String?   // JSON string
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([recipientEmail])
+  @@index([eventType, status])
+  @@index([createdAt])
+  @@map("notification_logs")
+}
+
+model AppointmentReminder {
+  id            String    @id @default(uuid())
+  appointmentId String
+  reminderType  String    // '24H' | '1H'
+  scheduledFor  DateTime
+  sentAt        DateTime?
+  status        String    @default("PENDING") // PENDING, SENT, FAILED, CANCELLED
+  createdAt     DateTime  @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@unique([appointmentId, reminderType])
+  @@index([status, scheduledFor])
+  @@map("appointment_reminders")
 }
 
 

@@ -17,6 +17,8 @@ router.get('/google/callback', (req, res, next) => authController.googleMobileCa
 router.post('/logout', (req, res, next) => authController.logout(req, res, next));
 router.post('/forgot-password', authLimiter, verifyTurnstile, (req, res, next) => authController.forgotPassword(req, res, next));
 router.post('/reset-password', authLimiter, (req, res, next) => authController.resetPassword(req, res, next));
+router.post('/verify-email', (req, res, next) => authController.verifyEmail(req, res, next));
+router.post('/resend-verification', authLimiter, (req, res, next) => authController.resendVerification(req, res, next));
 
 // Token refresh (uses curalink_refresh cookie)
 router.post('/refresh', (req, res, next) => authController.refresh(req, res, next));

@@ -15,6 +15,7 @@ import riskRoutes from './routes/risk.routes';
 import vitalsRoutes from './routes/vitals.routes';
 import adminRoutes from './routes/admin.routes';
 import messageRoutes from './routes/message.routes';
+import webhookRoutes from './routes/webhook.routes';
 import { errorHandler } from './middleware/error.middleware';
 import cookieParser from 'cookie-parser';
 import { securityHeaders } from './middleware/security-headers.middleware';
@@ -68,8 +69,12 @@ app.use(cors({
   ],
 }));
 
-// Body parsing and cookies
-app.use(express.json());
+// Body parsing and cookies (preserve rawBody for webhook signature verification)
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf.toString('utf-8');
+  }
+}));
 app.use(cookieParser());
 
 // CSRF Protection (applied after cookie-parser)
@@ -97,6 +102,7 @@ app.use('/api/risk', riskRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

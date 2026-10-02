@@ -58,7 +58,7 @@ export function verifyResendWebhook(
  * Handles webhook notifications from Resend for delivery, bounce, and complaint events.
  */
 router.post('/resend', async (req: Request, res: Response): Promise<void> => {
-  const webhookSecret = env.RESEND_WEBHOOK_SECRET || process.env.RESEND_WEBHOOK_SECRET;
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
 
   const svixId = req.headers['svix-id'] as string | undefined;
   const svixTimestamp = req.headers['svix-timestamp'] as string | undefined;
@@ -66,19 +66,22 @@ router.post('/resend', async (req: Request, res: Response): Promise<void> => {
 
   let rawBody = (req as any).rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
 
-  // If secret configured, verify signature
-  if (webhookSecret) {
-    const isValid = verifyResendWebhook(
-      rawBody,
-      { id: svixId, timestamp: svixTimestamp, signature: svixSignature },
-      webhookSecret
-    );
+  if (!webhookSecret) {
+    console.error('[ResendWebhook] ❌ RESEND_WEBHOOK_SECRET is not configured on the server. Rejecting webhook request.');
+    res.status(500).json({ success: false, message: 'Webhook verification secret is not configured on server' });
+    return;
+  }
 
-    if (!isValid) {
-      console.warn('[ResendWebhook] ❌ Rejected invalid webhook signature');
-      res.status(401).json({ success: false, message: 'Invalid webhook signature' });
-      return;
-    }
+  const isValid = verifyResendWebhook(
+    rawBody,
+    { id: svixId, timestamp: svixTimestamp, signature: svixSignature },
+    webhookSecret
+  );
+
+  if (!isValid) {
+    console.warn('[ResendWebhook] ❌ Rejected invalid webhook signature');
+    res.status(401).json({ success: false, message: 'Invalid webhook signature' });
+    return;
   }
 
   try {

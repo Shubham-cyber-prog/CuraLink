@@ -16,5 +16,17 @@ export const createPrescriptionSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const issuePrescriptionSchema = z.object({
+  patientId: z.string().min(1, 'Patient ID is required'),
+  appointmentId: z.string().optional(),
+  diagnosis: z.string().min(3, 'Diagnosis must be at least 3 characters'),
+  medications: z.union([
+    z.string().min(1, 'At least one medication is required'),
+    z.array(z.any()).min(1, 'At least one medication is required'),
+  ]),
+  notes: z.string().optional(),
+});
+
 export type MedicationInput = z.infer<typeof medicationSchema>;
 export type CreatePrescriptionInput = z.infer<typeof createPrescriptionSchema>;
+export type IssuePrescriptionInput = z.infer<typeof issuePrescriptionSchema>;

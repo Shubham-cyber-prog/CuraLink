@@ -3,34 +3,27 @@ import { appointmentController } from '../controllers/appointment.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { Role } from '../types/role';
+import { validateRequest } from '../middleware/validate.middleware';
+import { bookAppointmentSchema, updateAppointmentStatusSchema } from '../validators/appointment.validator';
 
 const router = Router();
 
 // Protect all appointment routes
 router.use(authenticate);
 
-router.post('/book', authorize(Role.PATIENT), (req, res, next) => appointmentController.book(req, res, next));
-router.post('/', authorize(Role.PATIENT), (req, res, next) => appointmentController.book(req, res, next));
+router.post('/book', authorize(Role.PATIENT), validateRequest({ body: bookAppointmentSchema }), (req, res, next) => appointmentController.book(req, res, next));
+router.post('/', authorize(Role.PATIENT), validateRequest({ body: bookAppointmentSchema }), (req, res, next) => appointmentController.book(req, res, next));
 router.get('/my-appointments', authorize(Role.PATIENT, Role.DOCTOR), (req, res, next) => appointmentController.getMyAppointments(req, res, next));
 router.get('/me', authorize(Role.PATIENT, Role.DOCTOR), (req, res, next) => appointmentController.getMyAppointments(req, res, next));
 router.post('/:id/create-room', (req, res, next) => appointmentController.createRoom(req, res, next));
 router.get('/:id/join', (req, res, next) => appointmentController.join(req, res, next));
 router.patch('/:id/complete', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), (req, res, next) => appointmentController.complete(req, res, next));
 router.post('/:id/complete', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), (req, res, next) => appointmentController.complete(req, res, next));
-router.patch('/:id/status', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), async (req, res, next) => {
+router.patch('/:id/status', authorize(Role.DOCTOR, Role.PATIENT, Role.ADMIN), validateRequest({ body: updateAppointmentStatusSchema }), async (req, res, next) => {
   try {
     const id = String(req.params.id);
     const { status } = req.body;
-    if (!status) {
-      res.status(400).json({ success: false, message: 'Status is required' });
-      return;
-    }
-
     const upperStatus = String(status).toUpperCase();
-    if (!['CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(upperStatus)) {
-      res.status(400).json({ success: false, message: 'Invalid appointment status' });
-      return;
-    }
 
     const { default: prisma } = await import('../lib/prisma');
     const appointment = await prisma.appointment.findUnique({

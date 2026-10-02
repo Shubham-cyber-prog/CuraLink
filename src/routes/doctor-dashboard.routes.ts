@@ -5,6 +5,8 @@ import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { Role } from '../types/role';
 import { VitalsAiService } from '../services/vitals-ai.service';
+import { validateRequest } from '../middleware/validate.middleware';
+import { issuePrescriptionSchema } from '../validators/prescription.validator';
 
 const router = Router();
 
@@ -559,25 +561,15 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
  * POST /api/doctor/me/prescriptions
  * Issue a digital prescription
  */
-router.post('/prescriptions', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const doctorUserId = req.user!.id;
-    const { patientId, appointmentId, diagnosis, medications, notes } = req.body;
+router.post(
+  '/prescriptions',
+  validateRequest({ body: issuePrescriptionSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const doctorUserId = req.user!.id;
+      const { patientId, appointmentId, diagnosis, medications, notes } = req.body;
 
-    if (!patientId) {
-      res.status(400).json({ success: false, message: 'Patient ID is required' });
-      return;
-    }
-    if (!diagnosis || String(diagnosis).trim().length < 3) {
-      res.status(400).json({ success: false, message: 'Valid diagnosis is required' });
-      return;
-    }
-    if (!medications || (Array.isArray(medications) && medications.length === 0)) {
-      res.status(400).json({ success: false, message: 'At least one medication is required' });
-      return;
-    }
-
-    const doctorIds = await getDoctorIds(doctorUserId);
+      const doctorIds = await getDoctorIds(doctorUserId);
 
     // Check appointment and verify ownership & state
     let appointment;

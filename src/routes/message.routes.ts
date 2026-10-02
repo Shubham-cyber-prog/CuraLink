@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth.middleware';
 import { Role } from '../types/role';
+import { validateRequest } from '../middleware/validate.middleware';
+import { sendMessageSchema, getMessagesQuerySchema } from '../validators/message.validator';
 
 const router = Router();
 
@@ -63,56 +65,55 @@ async function getAppointmentAndCheckAccess(appointmentId: string, userId: strin
  * GET /api/messages?appointmentId=...
  * Retrieve all messages for a specific consultation/appointment
  */
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const appointmentId = String(req.query.appointmentId || '');
-    if (!appointmentId) {
-      res.status(400).json({ success: false, message: 'appointmentId is required' });
-      return;
-    }
+router.get(
+  '/',
+  validateRequest({ query: getMessagesQuerySchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const appointmentId = String(req.query.appointmentId);
 
-    const access = await getAppointmentAndCheckAccess(appointmentId, req.user!.id, req.user!.role);
-    if (!access.appointment) {
-      res.status(access.status).json({ success: false, message: access.error });
-      return;
-    }
+      const access = await getAppointmentAndCheckAccess(appointmentId, req.user!.id, req.user!.role);
+      if (!access.appointment) {
+        res.status(access.status).json({ success: false, message: access.error });
+        return;
+      }
 
-    const messages = await prisma.message.findMany({
-      where: { appointmentId },
-      orderBy: { createdAt: 'asc' },
-      include: {
-        sender: {
-          select: { id: true, name: true, role: true },
+      const messages = await prisma.message.findMany({
+        where: { appointmentId },
+        orderBy: { createdAt: 'asc' },
+        include: {
+          sender: {
+            select: { id: true, name: true, role: true },
+          },
         },
-      },
-    });
+      });
 
-    res.status(200).json({
-      success: true,
-      data: messages,
-    });
-  } catch (error) {
-    next(error);
+      res.status(200).json({
+        success: true,
+        data: messages,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 /**
  * POST /api/messages
  * Send a message within an established appointment
  */
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { appointmentId, content } = req.body;
-    if (!appointmentId || !content || typeof content !== 'string' || !content.trim()) {
-      res.status(400).json({ success: false, message: 'appointmentId and non-empty content are required' });
-      return;
-    }
+router.post(
+  '/',
+  validateRequest({ body: sendMessageSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { appointmentId, content } = req.body;
 
-    const access = await getAppointmentAndCheckAccess(appointmentId, req.user!.id, req.user!.role);
-    if (!access.appointment) {
-      res.status(access.status).json({ success: false, message: access.error });
-      return;
-    }
+      const access = await getAppointmentAndCheckAccess(appointmentId, req.user!.id, req.user!.role);
+      if (!access.appointment) {
+        res.status(access.status).json({ success: false, message: access.error });
+        return;
+      }
 
     const currentUserId = req.user!.id;
     let receiverId = '';

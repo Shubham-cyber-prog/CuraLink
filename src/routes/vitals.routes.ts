@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate } from '../middleware/auth.middleware';
-import { VitalsAiService, VitalRecord } from '../services/vitals-ai.service';
+import { VitalsAiService } from '../services/vitals-ai.service';
 import { Role } from '../types/role';
+import { validateRequest } from '../middleware/validate.middleware';
+import { createVitalLogSchema } from '../validators/vitals.validator';
 
 const router = Router();
 
@@ -13,131 +15,40 @@ router.use(authenticate);
  * POST /api/vitals
  * Log new patient vital reading
  */
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user!.id;
-    const {
-      systolicBp,
-      diastolicBp,
-      bloodGlucose,
-      glucoseType = 'FASTING',
-      weight,
-      heartRate,
-      spO2,
-      temperature,
-      notes,
-      recordedAt,
-    } = req.body;
+router.post(
+  '/',
+  validateRequest({ body: createVitalLogSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user!.id;
+      const {
+        systolicBp,
+        diastolicBp,
+        bloodGlucose,
+        glucoseType = 'FASTING',
+        weight,
+        heartRate,
+        spO2,
+        temperature,
+        notes,
+        recordedAt,
+      } = req.body;
 
-    // Validate that at least one primary metric is provided
-    if (
-      bloodGlucose == null &&
-      systolicBp == null &&
-      weight == null &&
-      heartRate == null &&
-      spO2 == null &&
-      temperature == null
-    ) {
-      res.status(400).json({
-        success: false,
-        message: 'Please provide at least one vital metric (Blood Glucose, Blood Pressure, Weight, Heart Rate).',
+      const newLog = await (prisma as any).vitalLog.create({
+        data: {
+          userId,
+          systolicBp: systolicBp != null ? Number(systolicBp) : null,
+          diastolicBp: diastolicBp != null ? Number(diastolicBp) : null,
+          bloodGlucose: bloodGlucose != null ? Number(bloodGlucose) : null,
+          glucoseType,
+          weight: weight != null ? Number(weight) : null,
+          heartRate: heartRate != null ? Number(heartRate) : null,
+          spO2: spO2 != null ? Number(spO2) : null,
+          temperature: temperature != null ? Number(temperature) : null,
+          notes: notes || null,
+          recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
+        },
       });
-      return;
-    }
-
-    // Validate physiological limits to reject impossible values
-    if (systolicBp != null) {
-      const s = parseInt(systolicBp);
-      if (isNaN(s) || s < 40 || s > 300) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid systolic blood pressure: value must be between 40 and 300 mmHg.',
-        });
-        return;
-      }
-    }
-
-    if (diastolicBp != null) {
-      const d = parseInt(diastolicBp);
-      if (isNaN(d) || d < 20 || d > 200) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid diastolic blood pressure: value must be between 20 and 200 mmHg.',
-        });
-        return;
-      }
-    }
-
-    if (bloodGlucose != null) {
-      const g = parseFloat(bloodGlucose);
-      if (isNaN(g) || g < 20 || g > 1000) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid blood glucose level: value must be between 20 and 1000 mg/dL.',
-        });
-        return;
-      }
-    }
-
-    if (spO2 != null) {
-      const o2 = parseInt(spO2);
-      if (isNaN(o2) || o2 < 50 || o2 > 100) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid oxygen saturation (SpO2): percentage must be between 50% and 100%.',
-        });
-        return;
-      }
-    }
-
-    if (heartRate != null) {
-      const hr = parseInt(heartRate);
-      if (isNaN(hr) || hr < 25 || hr > 300) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid heart rate: value must be between 25 and 300 bpm.',
-        });
-        return;
-      }
-    }
-
-    if (weight != null) {
-      const w = parseFloat(weight);
-      if (isNaN(w) || w < 1 || w > 500) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid weight: value must be between 1 and 500 kg.',
-        });
-        return;
-      }
-    }
-
-    if (temperature != null) {
-      const t = parseFloat(temperature);
-      if (isNaN(t) || t < 85 || t > 115) {
-        res.status(400).json({
-          success: false,
-          message: 'Invalid temperature: value must be between 85°F and 115°F.',
-        });
-        return;
-      }
-    }
-
-    const newLog = await (prisma as any).vitalLog.create({
-      data: {
-        userId,
-        systolicBp: systolicBp != null ? parseInt(systolicBp) : null,
-        diastolicBp: diastolicBp != null ? parseInt(diastolicBp) : null,
-        bloodGlucose: bloodGlucose != null ? parseFloat(bloodGlucose) : null,
-        glucoseType,
-        weight: weight != null ? parseFloat(weight) : null,
-        heartRate: heartRate != null ? parseInt(heartRate) : null,
-        spO2: spO2 != null ? parseInt(spO2) : null,
-        temperature: temperature != null ? parseFloat(temperature) : null,
-        notes: notes || null,
-        recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
-      },
-    });
 
     // Run AI analysis on recent logs to provide immediate trend feedback
     const recentLogs = await (prisma as any).vitalLog.findMany({

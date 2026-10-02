@@ -23,12 +23,16 @@ import cookieParser from 'cookie-parser';
 import { securityHeaders } from './middleware/security-headers.middleware';
 import { csrfProtection } from './middleware/csrf.middleware';
 import { apiLimiter, aiLimiter } from './middleware/rate-limit.middleware';
+import { requestId } from './middleware/request-id.middleware';
 import { env } from './config/env';
 
 export const app = express();
 
 // Enable reverse proxy trust (for accurate client IP extraction behind load balancers/proxies)
 app.set('trust proxy', 1);
+
+// Unique Request ID propagation and tracing
+app.use(requestId);
 
 // HTTP Compression (gzip / deflate for responses)
 app.use(compression());

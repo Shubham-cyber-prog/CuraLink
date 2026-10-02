@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
+import { env } from '../config/env';
 import { BadRequestError, NotFoundError } from '../utils/errors';
 import { CreateOrderInput, VerifyPaymentInput } from '../validators/payment.validator';
 
@@ -22,7 +23,6 @@ export class PaymentService {
       throw new BadRequestError('You can only create payment orders for your own appointments.');
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET || 'dev_razorpay_secret_key';
     const razorpayOrderId = `order_${crypto.randomBytes(10).toString('hex')}`;
 
     const payment = await prisma.payment.upsert({
@@ -48,7 +48,7 @@ export class PaymentService {
       razorpayOrderId: payment.razorpayOrderId,
       amount: payment.amount,
       currency: payment.currency,
-      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_curalink_dev',
+      keyId: env.RAZORPAY_KEY_ID,
     };
   }
 
@@ -56,7 +56,7 @@ export class PaymentService {
    * Helper to verify raw HMAC SHA256 signature
    */
   verifyHMACSignature(razorpayOrderId: string, razorpayPaymentId: string, razorpaySignature: string, customSecret?: string): boolean {
-    const secret = customSecret || process.env.RAZORPAY_KEY_SECRET || 'dev_razorpay_secret_key';
+    const secret = customSecret || env.RAZORPAY_KEY_SECRET;
     const generatedSignature = crypto
       .createHmac('sha256', secret)
       .update(`${razorpayOrderId}|${razorpayPaymentId}`)

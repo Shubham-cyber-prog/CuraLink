@@ -3,10 +3,11 @@ import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../lib/prisma';
+import { env } from '../config/env';
 import { CreatePrescriptionInput } from '../validators/prescription.validator';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
 
-const PRESCRIPTION_SECRET = process.env.PRESCRIPTION_SECRET || 'curalink-rx-secure-signature-key-2026';
+const PRESCRIPTION_SECRET = env.PRESCRIPTION_SECRET;
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'prescriptions');
 
 // Ensure upload directory exists

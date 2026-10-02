@@ -54,6 +54,10 @@ export class PrescriptionService {
       throw new BadRequestError('Prescription patient does not match the appointment patient.');
     }
 
+    if (appointment.status?.toUpperCase() === 'CANCELLED') {
+      throw new ForbiddenError('Cannot issue a prescription for a cancelled appointment.');
+    }
+
     // Prevent duplicate prescription for the appointment
     const existingRx = await prisma.prescription.findUnique({
       where: { appointmentId: data.consultationId },
@@ -384,7 +388,7 @@ export class PrescriptionService {
       }
 
       // Security & Digital Signature Footer
-      const footerTop = 720;
+      const footerTop = Math.max(710, y + 25);
       doc
         .rect(40, footerTop, 515, 60)
         .fill('#F9FAFB')

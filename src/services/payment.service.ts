@@ -83,10 +83,10 @@ export class PaymentService {
       throw new BadRequestError('You are not authorized to verify payment for this appointment.');
     }
 
-    const isSignatureValid =
-      this.verifyHMACSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature) ||
-      razorpaySignature.startsWith('test_sig_') ||
-      process.env.NODE_ENV === 'development';
+    const isDev = process.env.NODE_ENV === 'development';
+    const isSignatureValid = isDev
+      ? (this.verifyHMACSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature) || razorpaySignature.startsWith('test_sig_'))
+      : this.verifyHMACSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
 
     if (!isSignatureValid) {
       await prisma.payment.update({

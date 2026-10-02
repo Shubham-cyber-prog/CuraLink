@@ -1,7 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { mlServiceClient } from '../services/ml-service.client';
-import { symptomCheckerLimiter } from '../middleware/rate-limit.middleware';
+import { authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -13,6 +13,91 @@ interface AnalysisResult {
   recommendedSpecialist: string;
   possibleCauses: string[];
   recommendedAction: string;
+}
+
+interface SymptomUserTracker {
+  windowStart: number;
+  windowCount: number;
+  dayStart: number;
+  dayCount: number;
+}
+
+export const SYMPTOM_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+export const SYMPTOM_MAX_PER_WINDOW = 5; // 5 assessments per 15 minutes
+export const SYMPTOM_DAILY_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const SYMPTOM_MAX_DAILY = 15; // 15 assessments per 24 hours
+export const TOTAL_GEMINI_BUDGET_MS = 20000; // Hard cap of 20s total per request (Render gateway limit is 30s)
+
+const symptomUserStore = new Map<string, SymptomUserTracker>();
+
+export function resetSymptomUserStore(): void {
+  symptomUserStore.clear();
+}
+
+/**
+ * Strict per-user rate limit and daily cap middleware for symptom routes.
+ */
+export function symptomUserRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  // Allow skipping in tests unless explicitly testing rate limits
+  if (process.env.NODE_ENV === 'test' && !req.headers['x-test-rate-limit']) {
+    return next();
+  }
+
+  const userId = req.user?.id || req.ip || 'anonymous';
+  const now = Date.now();
+
+  let tracker = symptomUserStore.get(userId);
+
+  if (!tracker) {
+    tracker = {
+      windowStart: now,
+      windowCount: 1,
+      dayStart: now,
+      dayCount: 1,
+    };
+    symptomUserStore.set(userId, tracker);
+    return next();
+  }
+
+  // Check and roll daily window
+  if (now - tracker.dayStart >= SYMPTOM_DAILY_WINDOW_MS) {
+    tracker.dayStart = now;
+    tracker.dayCount = 0;
+  }
+
+  // Check and roll short window
+  if (now - tracker.windowStart >= SYMPTOM_RATE_LIMIT_WINDOW_MS) {
+    tracker.windowStart = now;
+    tracker.windowCount = 0;
+  }
+
+  // Check daily limit first
+  if (tracker.dayCount >= SYMPTOM_MAX_DAILY) {
+    const retryAfterSec = Math.ceil((tracker.dayStart + SYMPTOM_DAILY_WINDOW_MS - now) / 1000);
+    res.setHeader('Retry-After', retryAfterSec.toString());
+    res.status(429).json({
+      success: false,
+      message: `Daily symptom assessment limit reached (${SYMPTOM_MAX_DAILY} assessments per 24 hours). Please consult a doctor on CuraLink directly if your condition persists or worsens.`,
+      retryAfter: retryAfterSec,
+    });
+    return;
+  }
+
+  // Check short-window limit
+  if (tracker.windowCount >= SYMPTOM_MAX_PER_WINDOW) {
+    const retryAfterSec = Math.ceil((tracker.windowStart + SYMPTOM_RATE_LIMIT_WINDOW_MS - now) / 1000);
+    res.setHeader('Retry-After', retryAfterSec.toString());
+    res.status(429).json({
+      success: false,
+      message: 'Too many symptom check requests. Please wait a few minutes before trying again.',
+      retryAfter: retryAfterSec,
+    });
+    return;
+  }
+
+  tracker.dayCount++;
+  tracker.windowCount++;
+  next();
 }
 
 const SYMPTOM_SYSTEM_PROMPT = `You are a clinical AI triage assistant for CuraLink.
@@ -95,6 +180,7 @@ function checkEmergencyKeywords(text: string): AnalysisResult | null {
 
 const handleSymptomAnalysis = async (req: Request, res: Response) => {
   const startTime = Date.now();
+  const geminiDeadline = startTime + TOTAL_GEMINI_BUDGET_MS;
 
   try {
     const rawSymptoms =
@@ -136,7 +222,7 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
       return;
     }
 
-    // STEP 2: Call Gemini with Retry and Model Fallbacks
+    // STEP 2: Call Gemini with strict total deadline of ~20s (Render gateway limit is 30s)
     const geminiKey = process.env.GEMINI_API_KEY?.trim();
     if (!geminiKey) {
       console.error('[Express Symptom Route] GEMINI_API_KEY is not configured');
@@ -147,15 +233,20 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
       return;
     }
 
-    const modelChain = Array.from(
-      new Set([process.env.GEMINI_MODEL?.trim() || 'gemini-3.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.5-flash'])
-    );
+    const configuredModel = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
+    const modelChain = Array.from(new Set([configuredModel, 'gemini-2.5-flash-lite'])).slice(0, 2);
     const genAI = new GoogleGenerativeAI(geminiKey);
 
     let parsedResult: AnalysisResult | null = null;
     let lastError: any = null;
 
     for (const candidate of modelChain) {
+      const remainingTotal = geminiDeadline - Date.now();
+      if (remainingTotal < 2500) {
+        console.warn(`[Express Symptom Route] Skipping model ${candidate}: total time budget exhausted (${remainingTotal}ms remaining)`);
+        break;
+      }
+
       const model = genAI.getGenerativeModel({
         model: candidate,
         systemInstruction: SYMPTOM_SYSTEM_PROMPT,
@@ -166,16 +257,29 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
       });
 
       for (let retry = 0; retry < 2; retry++) {
-        const attemptStart = Date.now();
-        console.log(`[Express Symptom Route] [${candidate}] Attempt ${retry + 1}/2 calling Gemini...`);
+        const remainingForAttempt = geminiDeadline - Date.now();
+        if (remainingForAttempt < 2500) {
+          console.warn(`[Express Symptom Route] Aborting retries for ${candidate}: time budget exhausted (${remainingForAttempt}ms remaining)`);
+          break;
+        }
 
+        // Cap each individual call to either 9s or the remaining total budget (whichever is smaller)
+        const callTimeoutMs = Math.min(remainingForAttempt, 9000);
+        const attemptStart = Date.now();
+        console.log(`[Express Symptom Route] [${candidate}] Attempt ${retry + 1}/2 calling Gemini (budget: ${callTimeoutMs}ms)...`);
+
+        let timer: NodeJS.Timeout | null = null;
         try {
-          const result = await Promise.race([
+          const timeoutPromise = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`Gemini call timed out after ${callTimeoutMs}ms`)), callTimeoutMs);
+          });
+
+          const result = (await Promise.race([
             model.generateContent(symptoms),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error(`Gemini call timed out after 50s`)), 50000)
-            ),
-          ]) as any;
+            timeoutPromise,
+          ])) as any;
+
+          if (timer) clearTimeout(timer);
 
           const text = result.response.text();
           const callDuration = Date.now() - attemptStart;
@@ -188,12 +292,16 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
           parsedResult = JSON.parse(cleanText) as AnalysisResult;
           break; // Success!
         } catch (err: any) {
+          if (timer) clearTimeout(timer);
           lastError = err;
           const status = err?.status || err?.code;
           console.warn(`[Express Symptom Route] ⚠️ ${candidate} attempt ${retry + 1} failed:`, err?.message || err);
 
-          if (status === 503 || status === 429 || err?.message?.includes('503') || err?.message?.includes('429')) {
-            await new Promise((r) => setTimeout(r, 2500));
+          const isTransient = status === 503 || status === 429 || err?.message?.includes('503') || err?.message?.includes('429');
+          const timeLeft = geminiDeadline - Date.now();
+
+          if (isTransient && retry === 0 && timeLeft > 4000) {
+            await new Promise((r) => setTimeout(r, 1000));
           } else {
             break;
           }
@@ -205,7 +313,7 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
 
     if (!parsedResult) {
       const totalDuration = Date.now() - startTime;
-      console.error(`[Express Symptom Route] ❌ All 3 Gemini attempts failed after ${totalDuration}ms`);
+      console.error(`[Express Symptom Route] ❌ All Gemini attempts failed or budget exceeded after ${totalDuration}ms`);
       res.status(503).json({
         success: false,
         message: 'Our clinical AI engine is temporarily unavailable. Please try again in a few moments, or consult a doctor on CuraLink directly.',
@@ -243,7 +351,11 @@ const handleSymptomAnalysis = async (req: Request, res: Response) => {
   }
 };
 
-router.post('/', symptomCheckerLimiter, handleSymptomAnalysis);
-router.post('/analyze', symptomCheckerLimiter, handleSymptomAnalysis);
+// Require authentication for all symptom routes
+router.use(authenticate);
+
+// Mount authenticated endpoints with strict rate limiting and daily cap
+router.post('/', symptomUserRateLimiter, handleSymptomAnalysis);
+router.post('/analyze', symptomUserRateLimiter, handleSymptomAnalysis);
 
 export default router;

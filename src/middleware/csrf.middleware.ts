@@ -14,6 +14,8 @@ const EXEMPT_PATHS = [
   '/api/webhooks/resend',
   '/api/symptom-checker',
   '/api/symptom-checker/analyze',
+  '/api/symptoms',
+  '/api/symptoms/analyze',
   '/api/risk/predict',
   '/api/risk/diabetes',
   '/api/risk/heart',

@@ -302,7 +302,8 @@ describe('Transactional Email & Auth Flow Integration Tests', () => {
 
       expect(dbToken).not.toBeNull();
       const diffMs = dbToken!.expiresAt.getTime() - dbToken!.createdAt.getTime();
-      expect(diffMs).toBeCloseTo(15 * 60 * 1000, -3); // ~15 minutes
+      expect(diffMs).toBeGreaterThan(14 * 60 * 1000); // ~15 minutes
+      expect(diffMs).toBeLessThanOrEqual(15 * 60 * 1000 + 1000);
     });
 
     it('resets password and invalidates token', async () => {

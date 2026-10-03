@@ -5,11 +5,31 @@ dotenv.config();
 process.env.PORT = '5000';
 Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', writable: true });
 
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/curalink_test';
-}
-if (!process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = process.env.TEST_DIRECT_URL || process.env.DATABASE_URL;
+// Enforce isolated test database connection — never run integration tests against production DB
+const testDbUrl =
+  process.env.TEST_DATABASE_URL ||
+  (process.env.DATABASE_URL
+    ? process.env.DATABASE_URL.replace(/\/curalink-health(\?|$)/, '/curalink_test$1')
+    : 'postgresql://postgres:postgres@localhost:5432/curalink_test');
+
+const testDirectUrl =
+  process.env.TEST_DIRECT_URL ||
+  (process.env.DIRECT_URL
+    ? process.env.DIRECT_URL.replace(/\/curalink-health(\?|$)/, '/curalink_test$1')
+    : testDbUrl);
+
+// Explicitly configure test database connections
+process.env.DATABASE_URL = testDbUrl;
+process.env.DIRECT_URL = testDirectUrl;
+
+// Safety check: fail-fast guard to ensure tests never touch production database
+if (
+  process.env.DATABASE_URL.includes('/curalink-health') ||
+  process.env.DIRECT_URL.includes('/curalink-health')
+) {
+  throw new Error(
+    'CRITICAL SAFETY ERROR: Integration tests detected production database connection (/curalink-health). Tests must run against a separate test database or branch.'
+  );
 }
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'db3d76e73c8d19ab42668fc1ec50efdbf5d8e137f8469e32a24fa68b9cf19a3b6807eb8e2a33ffb909f2b3e85e4a838be812d45a90d859fa3b16dbb67cf9d564';

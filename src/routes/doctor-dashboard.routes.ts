@@ -5,6 +5,8 @@ import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { Role } from '../types/role';
 import { VitalsAiService } from '../services/vitals-ai.service';
+import { validateRequest } from '../middleware/validate.middleware';
+import { issuePrescriptionSchema } from '../validators/prescription.validator';
 
 const router = Router();
 
@@ -559,42 +561,68 @@ router.get('/patients/:id', async (req: Request, res: Response, next: NextFuncti
  * POST /api/doctor/me/prescriptions
  * Issue a digital prescription
  */
-router.post('/prescriptions', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const doctorUserId = req.user!.id;
-    const { patientId, appointmentId, diagnosis, medications, notes } = req.body;
+router.post(
+  '/prescriptions',
+  validateRequest({ body: issuePrescriptionSchema }),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const doctorUserId = req.user!.id;
+      const { patientId, appointmentId, diagnosis, medications, notes } = req.body;
 
-    if (!patientId) {
-      res.status(400).json({ success: false, message: 'Patient ID is required' });
-      return;
-    }
-    if (!diagnosis || String(diagnosis).trim().length < 3) {
-      res.status(400).json({ success: false, message: 'Valid diagnosis is required' });
-      return;
-    }
-    if (!medications || (Array.isArray(medications) && medications.length === 0)) {
-      res.status(400).json({ success: false, message: 'At least one medication is required' });
-      return;
-    }
-
-    // Check appointment
-    let validApptId = appointmentId;
-    if (!validApptId) {
       const doctorIds = await getDoctorIds(doctorUserId);
-      const latestAppt = await prisma.appointment.findFirst({
+
+    // Check appointment and verify ownership & state
+    let appointment;
+    if (appointmentId) {
+      appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+      });
+      if (!appointment) {
+        res.status(404).json({ success: false, message: 'Appointment not found' });
+        return;
+      }
+    } else {
+      appointment = await prisma.appointment.findFirst({
         where: {
           userId: patientId,
           doctorId: { in: doctorIds },
         },
         orderBy: { createdAt: 'desc' },
       });
-      if (latestAppt) {
-        validApptId = latestAppt.id;
-      } else {
+      if (!appointment) {
         res.status(400).json({ success: false, message: 'Appointment ID is required to associate prescription' });
         return;
       }
     }
+
+    // Ownership check: Verify the appointment belongs to the calling doctor
+    if (!doctorIds.includes(appointment.doctorId)) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden: You are not authorized to issue prescriptions for an appointment not assigned to you',
+      });
+      return;
+    }
+
+    // Verify patient matches the appointment
+    if (appointment.userId !== patientId) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden: Patient ID does not match the appointment patient',
+      });
+      return;
+    }
+
+    // State check: Verify the appointment is in a valid state (not CANCELLED)
+    if (appointment.status?.toUpperCase() === 'CANCELLED') {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden: Cannot issue a prescription for a cancelled appointment',
+      });
+      return;
+    }
+
+    const validApptId = appointment.id;
 
     const prescriptionId = `rx_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
     const medsJson = typeof medications === 'string' ? medications : JSON.stringify(medications);

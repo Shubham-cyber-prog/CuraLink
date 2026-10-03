@@ -2,6 +2,20 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
+# Environment variables — NEVER commit secrets
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+.env.staging
+!.env.example
+
+# Uploads and temporary generated files
+public/uploads/
+*.pdf
+
+# dependencies
 /node_modules
 /.pnp
 # Python
@@ -173,6 +187,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

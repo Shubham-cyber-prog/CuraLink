@@ -9,7 +9,7 @@ export interface TurnstileVerificationResult {
 
 export class TurnstileService {
   private get secretKey(): string {
-    return process.env.TURNSTILE_SECRET_KEY || env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
+    return process.env.TURNSTILE_SECRET_KEY || env.TURNSTILE_SECRET_KEY;
   }
 
   /**

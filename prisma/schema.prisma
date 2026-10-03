@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -40,6 +41,8 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
 
+  @@index([role])
+  @@index([createdAt])
   @@map("users")
 }
 
@@ -67,19 +70,23 @@ model DoctorProfile {
 }
 
 model Appointment {
-  id        String   @id @default(uuid())
-  userId    String
-  doctorId  String
-  date      String
-  time      String
-  status    String   @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
-  roomName  String?
-  roomUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String                @id @default(uuid())
+  userId          String
+  doctorId        String
+  date            String                // Legacy date string (e.g. "2026-09-30")
+  time            String                // Legacy time string (e.g. "10:00 AM")
+  scheduledAt     DateTime?             // Source of truth: Start timestamp in UTC
+  endTime         DateTime?             // Source of truth: End timestamp in UTC
+  durationMinutes Int                   @default(30)
+  timezone        String                @default("Asia/Kolkata") // Explicit IANA timezone of appointment
+  status          String                @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
+  roomName        String?
+  roomUrl         String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctor       DoctorProfile @relation(fields: [doctorId], references: [userId], onDelete: Cascade)
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor       DoctorProfile         @relation(fields: [doctorId], references: [userId], onDelete: Cascade)
   payment      Payment?
   prescription Prescription?
   review       Review?
@@ -87,7 +94,10 @@ model Appointment {
   reminders    AppointmentReminder[]
 
   @@index([doctorId, date])
+  @@index([doctorId, scheduledAt])
   @@index([userId, status])
+  @@index([status])
+  @@index([date])
   @@map("appointments")
 }
 
@@ -107,6 +117,8 @@ model Payment {
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([status])
   @@map("payments")
 }
 
@@ -123,6 +135,9 @@ model Prescription {
   appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   patient     User        @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
 
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([createdAt])
   @@map("prescriptions")
 }
 
@@ -140,6 +155,7 @@ model Review {
   doctor      User        @relation("DoctorReviews", fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@index([doctorId, createdAt])
+  @@index([patientId])
   @@map("reviews")
 }
 
@@ -183,6 +199,8 @@ model DataErasureRequest {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([status])
   @@map("data_erasure_requests")
 }
 

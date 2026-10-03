@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-09-28T09:06:29.804Z",
+  "totalAppointments": 1,
+  "appointments": [
+    {
+      "id": "97c057cc-da33-45c2-92f3-c97f381e2fe1",
+      "userId": "02184804-b9c2-44c0-b0f5-2231bc4fd2eb",
+      "doctorId": "102a1de2-7669-46b1-98f1-c384f163ff2d",
+      "date": "2026-09-28",
+      "time": "10:30 AM",
+      "status": "COMPLETED",
+      "roomName": "curalink-room-97c057cc",
+      "roomUrl": "https://meet.jit.si/curalink-room-97c057cc#config.prejoinPageEnabled=false&config.enableLobby=false&config.hideLoginButton=true",
+      "createdAt": "2026-09-28T08:00:32.225Z",
+      "updatedAt": "2026-09-28T08:07:24.315Z",
+      "payment": null,
+      "prescription": {
+        "id": "rx_1790582894806_ffafb1",
+        "appointmentId": "97c057cc-da33-45c2-92f3-c97f381e2fe1",
+        "patientId": "02184804-b9c2-44c0-b0f5-2231bc4fd2eb",
+        "doctorId": "102a1de2-7669-46b1-98f1-c384f163ff2d",
+        "diagnosis": "asthma",
+        "medications": "[{\"name\":\"paracetamol\",\"dosage\":\"250mg\",\"frequency\":\"Once daily\",\"duration\":\"5 days\",\"instructions\":\"\"}]",
+        "notes": "rest",
+        "createdAt": "2026-09-28T08:08:14.809Z"
+      },
+      "review": null
+    }
+  ],
+  "usersCount": 31,
+  "doctorProfilesCount": 1
+}

@@ -3,6 +3,12 @@ import prisma from '../lib/prisma';
 import { doctorVerificationService } from '../services/doctor-verification.service';
 import { submitVerificationSchema, updateVerificationStatusSchema, updateDoctorProfileSchema } from '../validators/doctor.validator';
 import { auditService, AuditAction } from '../services/audit.service';
+import {
+  zonedTimeToUtc,
+  isIntervalOverlapping,
+  DEFAULT_APP_TIMEZONE,
+  isValidIanaTimezone,
+} from '../utils/timezone';
 
 export class DoctorController {
   async submitVerification(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -153,6 +159,11 @@ export class DoctorController {
 
       const doctorUserId = doctorProfile.userId;
 
+      const targetTimezone =
+        typeof req.query.timezone === 'string' && isValidIanaTimezone(req.query.timezone)
+          ? req.query.timezone
+          : DEFAULT_APP_TIMEZONE;
+
       // Default standard clinical schedule slots
       const allSlots = ['09:00 AM', '10:00 AM', '10:30 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:15 PM'];
 
@@ -163,17 +174,39 @@ export class DoctorController {
           date,
           status: { not: 'CANCELLED' },
         },
-        select: { time: true },
+        select: { time: true, scheduledAt: true, endTime: true },
       });
 
-      const bookedSlots = bookedAppointments.map((a) => a.time);
-      const availableSlots = allSlots.filter((slot) => !bookedSlots.includes(slot));
+      const bookedSlots: string[] = [];
+      const availableSlots: string[] = [];
+
+      for (const slot of allSlots) {
+        const slotStartUtc = zonedTimeToUtc(date, slot, targetTimezone);
+        if (!slotStartUtc) {
+          continue;
+        }
+        const slotEndUtc = new Date(slotStartUtc.getTime() + 30 * 60 * 1000);
+
+        const isBooked = bookedAppointments.some((appt) => {
+          if (appt.scheduledAt && appt.endTime) {
+            return isIntervalOverlapping(slotStartUtc, slotEndUtc, appt.scheduledAt, appt.endTime);
+          }
+          return appt.time.toLowerCase() === slot.toLowerCase();
+        });
+
+        if (isBooked) {
+          bookedSlots.push(slot);
+        } else {
+          availableSlots.push(slot);
+        }
+      }
 
       res.status(200).json({
         success: true,
         data: {
           doctorId: doctorUserId,
           date,
+          timezone: targetTimezone,
           slots: availableSlots,
           allSlots,
           bookedSlots,

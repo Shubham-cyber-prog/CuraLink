@@ -17,10 +17,13 @@ import adminRoutes from './routes/admin.routes';
 import messageRoutes from './routes/message.routes';
 import webhookRoutes from './routes/webhook.routes';
 import { errorHandler } from './middleware/error.middleware';
+import helmet from 'helmet';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { securityHeaders } from './middleware/security-headers.middleware';
 import { csrfProtection } from './middleware/csrf.middleware';
-import { apiLimiter } from './middleware/rate-limit.middleware';
+import { apiLimiter, aiLimiter } from './middleware/rate-limit.middleware';
+import { requestId } from './middleware/request-id.middleware';
 import { env } from './config/env';
 
 export const app = express();
@@ -28,46 +31,109 @@ export const app = express();
 // Enable reverse proxy trust (for accurate client IP extraction behind load balancers/proxies)
 app.set('trust proxy', 1);
 
-// Security Headers
+// Unique Request ID propagation and tracing
+app.use(requestId);
+
+// HTTP Compression (gzip / deflate for responses)
+app.use(compression());
+
+// Helmet: standard secure HTTP headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          'https://accounts.google.com',
+          'https://gsi.gstatic.com',
+          'https://apis.google.com',
+          'https://challenges.cloudflare.com',
+          'https://meet.jit.si',
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://accounts.google.com', 'https://fonts.googleapis.com'],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        frameSrc: [
+          "'self'",
+          'https://accounts.google.com',
+          'https://challenges.cloudflare.com',
+          'https://meet.jit.si',
+        ],
+        connectSrc: [
+          "'self'",
+          'http://localhost:5000',
+          'http://127.0.0.1:5000',
+          'ws://localhost:3000',
+          'ws://127.0.0.1:3000',
+          'https://curalink-056t.onrender.com',
+          'https://*.onrender.com',
+          'https://accounts.google.com',
+          'https://oauth2.googleapis.com',
+          'https://www.googleapis.com',
+          'https://nominatim.openstreetmap.org',
+          'https://challenges.cloudflare.com',
+          'https://meet.jit.si',
+          'wss://meet.jit.si',
+          'https://*.sentry.io',
+          'https://*.ingest.sentry.io',
+          'https://*.ingest.us.sentry.io',
+        ],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+// Custom security headers (Permissions-Policy, HSTS)
 app.use(securityHeaders);
 
 // Static uploads serving for E-Prescriptions
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
-// CORS
-const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
-app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile native apps), dev mode origins, Render/Vercel preview domains, or explicit allowed list
-    if (
-      !origin ||
-      allowedOrigins.includes(origin) ||
-      origin.endsWith('.onrender.com') ||
-      origin.endsWith('.vercel.app') ||
-      env.NODE_ENV === 'development' ||
-      process.env.NODE_ENV === 'development'
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-CSRF-Token',
-    'X-Turnstile-Token',
-    'X-Client-Platform',
-    'sentry-trace',
-    'baggage',
-    'traceparent',
-    'tracestate',
-    'X-Requested-With',
-    'Accept',
-  ],
-}));
+// Strict CORS: only allow origins specified in ALLOWED_ORIGINS (or no-origin for mobile apps)
+const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Mobile native apps (Capacitor/React Native) or curl/server-to-server requests have no Origin header
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // In local development or testing, allow localhost/127.0.0.1 origins
+      if (env.NODE_ENV !== 'production' || process.env.NODE_ENV !== 'production') {
+        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+          return callback(null, true);
+        }
+      }
+
+      return callback(new Error(`Origin '${origin}' not allowed by CORS`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-CSRF-Token',
+      'X-Turnstile-Token',
+      'X-Client-Platform',
+      'sentry-trace',
+      'baggage',
+      'traceparent',
+      'tracestate',
+      'X-Requested-With',
+      'Accept',
+    ],
+  })
+);
 
 // Body parsing and cookies (preserve rawBody for webhook signature verification)
 app.use(express.json({
@@ -96,9 +162,9 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/privacy', privacyRoutes);
-app.use('/api/symptom-checker', symptomRoutes);
-app.use('/api/symptoms', symptomRoutes);
-app.use('/api/risk', riskRoutes);
+app.use('/api/symptom-checker', aiLimiter, symptomRoutes);
+app.use('/api/symptoms', aiLimiter, symptomRoutes);
+app.use('/api/risk', aiLimiter, riskRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);

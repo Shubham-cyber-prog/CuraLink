@@ -1,4 +1,4 @@
-import { getToken, removeToken } from './secure-store';
+import { getToken, getRefreshToken, saveTokens, removeToken } from './secure-store';
 import { getApiBaseUrl, getHealthCheckUrl } from './api-config';
 
 export type JsonValue =
@@ -53,6 +53,19 @@ function notifyNetworkStatus(reachable: boolean, targetUrl: string) {
   listeners.forEach((fn) => fn(reachable, targetUrl));
 }
 
+// Global session expired subscriber system
+type SessionExpiredListener = () => void;
+const sessionExpiredListeners = new Set<SessionExpiredListener>();
+
+export function subscribeSessionExpired(listener: SessionExpiredListener): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => sessionExpiredListeners.delete(listener);
+}
+
+function notifySessionExpired() {
+  sessionExpiredListeners.forEach((fn) => fn());
+}
+
 export async function checkServerHealth(): Promise<boolean> {
   const healthUrl = getHealthCheckUrl();
   try {
@@ -80,7 +93,61 @@ function getResponseMessage(data: unknown): string | undefined {
   return typeof message === 'string' ? message : undefined;
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+// In-flight refresh token promise mutex to prevent concurrent refresh calls
+let activeRefreshPromise: Promise<string | null> | null = null;
+
+async function attemptTokenRefresh(): Promise<string | null> {
+  if (activeRefreshPromise) {
+    return activeRefreshPromise;
+  }
+
+  activeRefreshPromise = (async () => {
+    try {
+      const storedRefreshToken = await getRefreshToken();
+      if (!storedRefreshToken) {
+        return null;
+      }
+
+      const baseUrl = getApiBaseUrl();
+      const refreshUrl = `${baseUrl}/auth/refresh`;
+
+      const response = await fetch(refreshUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Client-Platform': 'mobile',
+        },
+        body: JSON.stringify({ refreshToken: storedRefreshToken }),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const resData = await response.json();
+      const newAccessToken = resData?.data?.accessToken || resData?.data?.token;
+      const newRefreshToken = resData?.data?.refreshToken;
+
+      if (newAccessToken) {
+        await saveTokens(newAccessToken, newRefreshToken || storedRefreshToken);
+        return newAccessToken;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      activeRefreshPromise = null;
+    }
+  })();
+
+  return activeRefreshPromise;
+}
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  isRetry = false
+): Promise<ApiResponse<T>> {
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}${endpoint}`;
 
@@ -123,9 +190,26 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
+    // Check if 401 Unauthorized can be refreshed
+    const isAuthEndpoint =
+      endpoint.startsWith('/auth/login') ||
+      endpoint.startsWith('/auth/register') ||
+      endpoint.startsWith('/auth/refresh');
+
+    if (response.status === 401 && !isRetry && !isAuthEndpoint) {
+      const refreshedToken = await attemptTokenRefresh();
+      if (refreshedToken) {
+        // Replay original request once with fresh token
+        return request<T>(endpoint, options, true);
+      } else {
+        // Refresh failed: session definitively expired
+        await removeToken();
+        notifySessionExpired();
+      }
+    } else if (response.status === 401 && isAuthEndpoint) {
       await removeToken();
     }
+
     const message = getResponseMessage(responseData) ?? 'API request failed';
     throw new ApiError(message, response.status, responseData);
   }

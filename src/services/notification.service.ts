@@ -45,8 +45,8 @@ export class NotificationService {
   private async sendEmail(email?: string, subject?: string, body?: string): Promise<void> {
     if (!email) return;
 
-    const emailApiKey = process.env.EMAIL_API_KEY || process.env.RESEND_API_KEY;
-    const fromAddress = process.env.EMAIL_FROM_ADDRESS || 'CuraLink Healthcare <notifications@curalink.health>';
+    const emailApiKey = process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY;
+    const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_FROM_ADDRESS || 'CuraLink Healthcare <notifications@curalink.health>';
 
     // Resend / SMTP / SendGrid integration check
     if (emailApiKey) {

@@ -3,10 +3,11 @@ import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../lib/prisma';
+import { env } from '../config/env';
 import { CreatePrescriptionInput } from '../validators/prescription.validator';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
 
-const PRESCRIPTION_SECRET = process.env.PRESCRIPTION_SECRET || 'curalink-rx-secure-signature-key-2026';
+const PRESCRIPTION_SECRET = env.PRESCRIPTION_SECRET;
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'prescriptions');
 
 // Ensure upload directory exists
@@ -52,6 +53,10 @@ export class PrescriptionService {
 
     if (appointment.userId !== data.patientId) {
       throw new BadRequestError('Prescription patient does not match the appointment patient.');
+    }
+
+    if (appointment.status?.toUpperCase() === 'CANCELLED') {
+      throw new ForbiddenError('Cannot issue a prescription for a cancelled appointment.');
     }
 
     // Prevent duplicate prescription for the appointment
@@ -384,7 +389,7 @@ export class PrescriptionService {
       }
 
       // Security & Digital Signature Footer
-      const footerTop = 720;
+      const footerTop = Math.max(710, y + 25);
       doc
         .rect(40, footerTop, 515, 60)
         .fill('#F9FAFB')

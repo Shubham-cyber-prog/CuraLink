@@ -102,7 +102,7 @@ export default function DoctorProfilePage({ params }: { params: Promise<{ id: st
           <User className="h-8 w-8" />
         </div>
         <h2 className="text-xl font-semibold text-slate-900">Doctor not found</h2>
-        <p className="mt-2 text-slate-500">We couldn't find the doctor you're looking for.</p>
+        <p className="mt-2 text-slate-500">We couldn&apos;t find the doctor you&apos;re looking for.</p>
         <Button asChild variant="outline" className="mt-6">
           <Link href="/find-doctor">← Back to search</Link>
         </Button>

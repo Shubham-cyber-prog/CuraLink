@@ -1,3 +1,5 @@
+import { zonedTimeToUtc, DEFAULT_APP_TIMEZONE } from './timezone';
+
 /**
  * Utilities for calculating appointment timing, consultation windows,
  * and lifecycle status based on server timestamps (Asia/Kolkata timezone).
@@ -56,15 +58,19 @@ export function parseAppointmentDateTime(dateStr: string, timeStr: string): Date
   }
 }
 
+
 /**
  * Validates whether the appointment is currently eligible for joining video.
  * Standard join window: 10 minutes prior to scheduled start until 60 minutes after start.
+ * Pure UTC calculation when scheduledAt is available.
  */
 export function checkConsultationEligibility(
   dateStr: string,
   timeStr: string,
   dbStatus: string,
-  bypassWindow: boolean = false
+  bypassWindow: boolean = false,
+  scheduledAt?: Date | null,
+  timezone?: string
 ): ConsultationWindowResult {
   const upperStatus = (dbStatus || 'CONFIRMED').toUpperCase();
 
@@ -92,8 +98,15 @@ export function checkConsultationEligibility(
     };
   }
 
-  const apptDate = parseAppointmentDateTime(dateStr, timeStr);
-  if (!apptDate) {
+  let apptDate: Date | null = null;
+  if (scheduledAt) {
+    apptDate = new Date(scheduledAt);
+  } else {
+    const tz = timezone || DEFAULT_APP_TIMEZONE;
+    apptDate = zonedTimeToUtc(dateStr, timeStr, tz) || parseAppointmentDateTime(dateStr, timeStr);
+  }
+
+  if (!apptDate || isNaN(apptDate.getTime())) {
     // If date/time cannot be strictly parsed, allow join if confirmed
     return {
       canJoin: true,

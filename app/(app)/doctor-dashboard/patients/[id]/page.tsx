@@ -57,6 +57,38 @@ interface ConsultationRecord {
 
 import { Skeleton } from "@/components/ui/Skeleton";
 
+const CLINICAL_RX_TEMPLATES = [
+  {
+    label: "Acute URTI / Cough",
+    diagnosis: "Acute Upper Respiratory Tract Infection with Pharyngitis (ICD-10: J06.9)",
+    notes: "Warm saline gargle 3-4x daily, steam inhalation, and oral hydration. Avoid chilled beverages.",
+    meds: [
+      { name: "Tab. Augmentin 625 Duo", dosage: "625 mg", duration: "5 days", frequency: "1-0-1 (After Food)", instructions: "Complete full 5-day course" },
+      { name: "Syp. Ascoril-D Plus", dosage: "5 ml", duration: "5 days", frequency: "1-1-1 (After Food)", instructions: "For dry cough relief" },
+      { name: "Tab. Pan-D", dosage: "40 mg", duration: "5 days", frequency: "1-0-0 (Before Breakfast)", instructions: "Take on empty stomach" },
+      { name: "Tab. Dolo 650", dosage: "650 mg", duration: "As needed", frequency: "SOS (After Food)", instructions: "Only if fever > 100°F or severe body ache" },
+    ],
+  },
+  {
+    label: "Hypertension Maintenance",
+    diagnosis: "Primary Essential Hypertension - Maintenance Regimen (ICD-10: I10)",
+    notes: "Low-sodium DASH diet advised. Regular 30-minute brisk walk daily. Weekly home BP charting.",
+    meds: [
+      { name: "Tab. Telma 40", dosage: "40 mg", duration: "30 days", frequency: "1-0-0 (Morning)", instructions: "Take once daily in morning with water" },
+      { name: "Tab. Rosuvas 10", dosage: "10 mg", duration: "30 days", frequency: "0-0-1 (Night)", instructions: "Take at bedtime after food" },
+    ],
+  },
+  {
+    label: "Acute Gastritis / GERD",
+    diagnosis: "Acute Gastritis with Acid Reflux (ICD-10: K29.7)",
+    notes: "Avoid spicy, fried foods, caffeine, and late-night snacking. Eat smaller frequent meals.",
+    meds: [
+      { name: "Cap. Pantocid DSR", dosage: "40/30 mg", duration: "10 days", frequency: "1-0-0 (Morning)", instructions: "30 mins before breakfast" },
+      { name: "Syp. Gelusil MPS", dosage: "10 ml", duration: "7 days", frequency: "1-1-1 (After meals)", instructions: "Take 1 hour after meals and at bedtime" },
+    ],
+  },
+];
+
 export default function DoctorPatientDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -772,6 +804,30 @@ export default function DoctorPatientDetailPage() {
           </div>
 
           <form onSubmit={handleSubmitPrescription} className="p-6 space-y-5">
+            {/* Quick Clinical Rx Presets */}
+            <div className="space-y-1.5 pb-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-[#0D9488]" />
+                1-Click Clinical Rx Templates
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {CLINICAL_RX_TEMPLATES.map((tmpl) => (
+                  <button
+                    key={tmpl.label}
+                    type="button"
+                    onClick={() => {
+                      setDiagnosis(tmpl.diagnosis);
+                      setNotes(tmpl.notes);
+                      setMedications(tmpl.meds);
+                    }}
+                    className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40 hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors cursor-pointer"
+                  >
+                    + {tmpl.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Diagnosis */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-900 dark:text-white">

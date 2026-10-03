@@ -59,6 +59,9 @@ const mockCreate = prisma.user.create as unknown as jest.Mock;
 describe('Authentication API Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (prisma.$transaction as jest.Mock).mockImplementation((callback: any) =>
+      typeof callback === 'function' ? callback(prisma) : Promise.all(callback)
+    );
   });
 
   describe('POST /api/auth/register', () => {

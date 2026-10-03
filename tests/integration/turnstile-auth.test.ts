@@ -36,6 +36,9 @@ describe('Cloudflare Turnstile Bot Protection Integration Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.TURNSTILE_SECRET_KEY = '1x0000000000000000000000000000000AA';
+    (prisma.$transaction as jest.Mock).mockImplementation((callback: any) =>
+      typeof callback === 'function' ? callback(prisma) : Promise.all(callback)
+    );
   });
 
   describe('1. Signup / Registration Protection', () => {

@@ -73,28 +73,57 @@ export class AuthService {
 
     const passwordHash = await hashPassword(input.password);
 
-    const user = await prisma.user.create({
-      data: {
-        name: input.name,
-        email: normalizedEmail,
-        passwordHash,
-        role: input.role,
-      },
-    });
+    const user = typeof prisma.$transaction === 'function'
+      ? await prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              name: input.name,
+              email: normalizedEmail,
+              passwordHash,
+              role: input.role,
+            },
+          });
+
+          if (input.role === Role.DOCTOR) {
+            await tx.doctorProfile.create({
+              data: {
+                userId: newUser.id,
+                specialization: 'General Practice',
+                medicalLicenseNumber: 'PENDING',
+                verificationStatus: 'PENDING',
+                consultationModes: ['VIDEO'],
+              },
+            });
+          }
+
+          return newUser;
+        })
+      : await (async () => {
+          const newUser = await prisma.user.create({
+            data: {
+              name: input.name,
+              email: normalizedEmail,
+              passwordHash,
+              role: input.role,
+            },
+          });
+
+          if (input.role === Role.DOCTOR) {
+            await prisma.doctorProfile.create({
+              data: {
+                userId: newUser.id,
+                specialization: 'General Practice',
+                medicalLicenseNumber: 'PENDING',
+                verificationStatus: 'PENDING',
+                consultationModes: ['VIDEO'],
+              },
+            });
+          }
+
+          return newUser;
+        })();
 
     if (input.role === Role.DOCTOR) {
-      const existingProfile = await prisma.doctorProfile.findUnique({ where: { userId: user.id } });
-      if (!existingProfile) {
-        await prisma.doctorProfile.create({
-          data: {
-            userId: user.id,
-            specialization: 'General Practice',
-            medicalLicenseNumber: 'PENDING',
-            verificationStatus: 'PENDING',
-            consultationModes: ['VIDEO'],
-          },
-        });
-      }
       // Send Doctor Registration email (pending review notice)
       emailService.sendDoctorRegistrationEmail(user, {
         specialization: 'General Practice',

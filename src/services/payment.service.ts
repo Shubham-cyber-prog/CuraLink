@@ -96,20 +96,35 @@ export class PaymentService {
       throw new BadRequestError('Invalid Razorpay payment signature');
     }
 
-    const updatedPayment = await prisma.payment.update({
-      where: { appointmentId },
-      data: {
-        razorpayPaymentId,
-        razorpaySignature,
-        status: 'SUCCESS',
-      },
-    });
-
-    // Mark appointment as confirmed
-    await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { status: 'CONFIRMED' },
-    });
+    const [updatedPayment] = typeof prisma.$transaction === 'function'
+      ? await prisma.$transaction([
+          prisma.payment.update({
+            where: { appointmentId },
+            data: {
+              razorpayPaymentId,
+              razorpaySignature,
+              status: 'SUCCESS',
+            },
+          }),
+          prisma.appointment.update({
+            where: { id: appointmentId },
+            data: { status: 'CONFIRMED' },
+          }),
+        ])
+      : [
+          await prisma.payment.update({
+            where: { appointmentId },
+            data: {
+              razorpayPaymentId,
+              razorpaySignature,
+              status: 'SUCCESS',
+            },
+          }),
+          await prisma.appointment.update({
+            where: { id: appointmentId },
+            data: { status: 'CONFIRMED' },
+          }),
+        ];
 
     return updatedPayment;
   }

@@ -179,24 +179,39 @@ export class PrescriptionService {
     };
   }
 
-  async getPatientPrescriptions(patientId: string) {
-    const prescriptions = await prisma.prescription.findMany({
-      where: { patientId },
-      include: {
-        appointment: {
-          include: {
-            doctor: {
-              include: {
-                user: { select: { id: true, name: true, email: true } },
+  async getPatientPrescriptions(
+    patientId: string,
+    options?: { limit?: number; page?: number; cursor?: string; skip?: number }
+  ) {
+    const limit = options?.limit ?? 20;
+    const page = options?.page ?? 1;
+    const cursor = options?.cursor;
+    const skip = cursor ? 0 : (options?.skip ?? (page - 1) * limit);
+
+    const [total, prescriptions] = await Promise.all([
+      typeof (prisma.prescription as any).count === 'function'
+        ? (prisma.prescription as any).count({ where: { patientId } })
+        : Promise.resolve(0),
+      prisma.prescription.findMany({
+        where: { patientId },
+        include: {
+          appointment: {
+            include: {
+              doctor: {
+                include: {
+                  user: { select: { id: true, name: true, email: true } },
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+        take: limit + 1,
+      }),
+    ]);
 
-    return prescriptions.map((p) => {
+    const mapped = prescriptions.map((p) => {
       const doctorUser = p.appointment?.doctor?.user;
       const doctorProfile = p.appointment?.doctor;
 
@@ -209,9 +224,16 @@ export class PrescriptionService {
           email: doctorUser?.email || '',
           specialization: doctorProfile?.specialization || 'General Practice',
         },
-        parsedMedications: JSON.parse(p.medications),
+        parsedMedications: typeof p.medications === 'string' ? JSON.parse(p.medications) : p.medications,
       };
     });
+
+    return {
+      prescriptions: mapped,
+      total: total || mapped.length,
+      limit,
+      page,
+    };
   }
 
   public async generatePDFFile(data: {

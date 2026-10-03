@@ -5,6 +5,7 @@ import { VitalsAiService } from '../services/vitals-ai.service';
 import { Role } from '../types/role';
 import { validateRequest } from '../middleware/validate.middleware';
 import { createVitalLogSchema } from '../validators/vitals.validator';
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 
 const router = Router();
 
@@ -85,6 +86,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.id;
     const { days } = req.query;
+    const { limit, page, cursor, skip } = parsePaginationParams(req.query);
 
     let dateFilter: any = {};
     if (days && days !== 'all') {
@@ -93,18 +95,24 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       dateFilter = { recordedAt: { gte: cutoff } };
     }
 
-    const vitals = await (prisma as any).vitalLog.findMany({
-      where: {
-        userId,
-        ...dateFilter,
-      },
-      orderBy: { recordedAt: 'desc' },
-      take: 100,
-    });
+    const where = {
+      userId,
+      ...dateFilter,
+    };
+
+    const [total, vitals] = await Promise.all([
+      (prisma as any).vitalLog.count({ where }),
+      (prisma as any).vitalLog.findMany({
+        where,
+        orderBy: { recordedAt: 'desc' },
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+        take: limit + 1,
+      }),
+    ]);
 
     res.status(200).json({
       success: true,
-      data: vitals,
+      ...buildPaginatedResponse(vitals, total, limit, page),
     });
   } catch (error) {
     next(error);
@@ -119,6 +127,7 @@ router.get('/trends', async (req: Request, res: Response, next: NextFunction) =>
   try {
     const userId = req.user!.id;
     const { days = '30' } = req.query;
+    const { limit, page, cursor, skip } = parsePaginationParams(req.query);
 
     let dateFilter: any = {};
     if (days !== 'all') {
@@ -127,13 +136,20 @@ router.get('/trends', async (req: Request, res: Response, next: NextFunction) =>
       dateFilter = { recordedAt: { gte: cutoff } };
     }
 
-    const rawLogs = await (prisma as any).vitalLog.findMany({
-      where: {
-        userId,
-        ...dateFilter,
-      },
-      orderBy: { recordedAt: 'asc' },
-    });
+    const where = {
+      userId,
+      ...dateFilter,
+    };
+
+    const [total, rawLogs] = await Promise.all([
+      (prisma as any).vitalLog.count({ where }),
+      (prisma as any).vitalLog.findMany({
+        where,
+        orderBy: { recordedAt: 'asc' },
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+        take: limit + 1,
+      }),
+    ]);
 
     // Format for charting
     const trendPoints = rawLogs.map((log: any) => {
@@ -155,16 +171,18 @@ router.get('/trends', async (req: Request, res: Response, next: NextFunction) =>
     });
 
     const aiReport = VitalsAiService.analyzeVitals(rawLogs);
+    const paginated = buildPaginatedResponse(trendPoints, total, limit, page);
 
     res.status(200).json({
       success: true,
-      data: {
-        timeSeries: trendPoints,
-        insights: aiReport,
-        overallTrajectory: aiReport.overallTrajectory,
-        alerts: aiReport.alerts,
-        summaryText: aiReport.summaryText,
-      },
+      data: paginated.data,
+      total: paginated.total,
+      nextCursor: paginated.nextCursor,
+      timeSeries: paginated.data,
+      insights: aiReport,
+      overallTrajectory: aiReport.overallTrajectory,
+      alerts: aiReport.alerts,
+      summaryText: aiReport.summaryText,
     });
   } catch (error) {
     next(error);

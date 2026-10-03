@@ -7,6 +7,7 @@ import { Role } from '../types/role';
 import { VitalsAiService } from '../services/vitals-ai.service';
 import { validateRequest } from '../middleware/validate.middleware';
 import { issuePrescriptionSchema } from '../validators/prescription.validator';
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 
 const router = Router();
 
@@ -90,11 +91,13 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
   try {
     const doctorUserId = req.user!.id;
     const doctorIds = await getDoctorIds(doctorUserId);
+    const { limit, page, cursor, skip } = parsePaginationParams(req.query);
+    const whereClause = { doctorId: { in: doctorIds } };
 
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        doctorId: { in: doctorIds },
-      },
+    const [total, appointments] = await Promise.all([
+      prisma.appointment.count({ where: whereClause }),
+      prisma.appointment.findMany({
+        where: whereClause,
       include: {
         user: {
           select: {
@@ -132,7 +135,10 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
         },
       },
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
-    });
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+      take: limit + 1,
+    }),
+  ]);
 
     // Query platform-wide completed appointment counts for all patient users in this list
     const patientIds = Array.from(new Set(appointments.map((a) => a.userId)));
@@ -190,7 +196,7 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
 
     res.status(200).json({
       success: true,
-      data: mapped,
+      ...buildPaginatedResponse(mapped, total, limit, page),
     });
   } catch (error) {
     next(error);
@@ -385,9 +391,13 @@ router.get('/patients', async (req: Request, res: Response, next: NextFunction) 
       }
     }
 
+    const { limit, page, cursor, skip } = parsePaginationParams(req.query);
+    const allPatients = Array.from(patientMap.values());
+    const total = allPatients.length;
+
     res.status(200).json({
       success: true,
-      data: Array.from(patientMap.values()),
+      ...buildPaginatedResponse(allPatients.slice(skip), total, limit, page),
     });
   } catch (error) {
     next(error);

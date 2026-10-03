@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { Role } from '../types/role';
 import { validateRequest } from '../middleware/validate.middleware';
 import { sendMessageSchema, getMessagesQuerySchema } from '../validators/message.validator';
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 
 const router = Router();
 
@@ -71,6 +72,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const appointmentId = String(req.query.appointmentId);
+      const { limit, page, cursor, skip } = parsePaginationParams(req.query);
 
       const access = await getAppointmentAndCheckAccess(appointmentId, req.user!.id, req.user!.role);
       if (!access.appointment) {
@@ -78,19 +80,24 @@ router.get(
         return;
       }
 
-      const messages = await prisma.message.findMany({
-        where: { appointmentId },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          sender: {
-            select: { id: true, name: true, role: true },
+      const [total, messages] = await Promise.all([
+        prisma.message.count({ where: { appointmentId } }),
+        prisma.message.findMany({
+          where: { appointmentId },
+          orderBy: { createdAt: 'asc' },
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+          take: limit + 1,
+          include: {
+            sender: {
+              select: { id: true, name: true, role: true },
+            },
           },
-        },
-      });
+        }),
+      ]);
 
       res.status(200).json({
         success: true,
-        data: messages,
+        ...buildPaginatedResponse(messages, total, limit, page),
       });
     } catch (error) {
       next(error);
@@ -154,6 +161,7 @@ router.get('/conversations', async (req: Request, res: Response, next: NextFunct
   try {
     const userId = req.user!.id;
     const role = req.user!.role;
+    const { limit, page, cursor, skip } = parsePaginationParams(req.query);
 
     const doctorProfile = await prisma.doctorProfile.findUnique({
       where: { userId },
@@ -161,24 +169,31 @@ router.get('/conversations', async (req: Request, res: Response, next: NextFunct
     const doctorIds = [userId];
     if (doctorProfile) doctorIds.push(doctorProfile.id);
 
-    const appointments = await prisma.appointment.findMany({
-      where: role === Role.DOCTOR
-        ? { doctorId: { in: doctorIds } }
-        : { userId },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        doctor: {
-          include: {
-            user: { select: { id: true, name: true, email: true } },
+    const whereClause = role === Role.DOCTOR
+      ? { doctorId: { in: doctorIds } }
+      : { userId };
+
+    const [total, appointments] = await Promise.all([
+      prisma.appointment.count({ where: whereClause }),
+      prisma.appointment.findMany({
+        where: whereClause,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          doctor: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
           },
         },
-        messages: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+        orderBy: { updatedAt: 'desc' },
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+        take: limit + 1,
+      }),
+    ]);
 
     const conversations = appointments.map((appt) => {
       const otherUser =
@@ -198,6 +213,7 @@ router.get('/conversations', async (req: Request, res: Response, next: NextFunct
             };
 
       return {
+        id: appt.id,
         appointmentId: appt.id,
         date: appt.date,
         time: appt.time,
@@ -209,7 +225,7 @@ router.get('/conversations', async (req: Request, res: Response, next: NextFunct
 
     res.status(200).json({
       success: true,
-      data: conversations,
+      ...buildPaginatedResponse(conversations, total, limit, page),
     });
   } catch (error) {
     next(error);

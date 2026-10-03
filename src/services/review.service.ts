@@ -77,18 +77,38 @@ export class ReviewService {
     return review;
   }
 
-  async getDoctorReviews(doctorId: string) {
-    const reviews = await prisma.review.findMany({
-      where: { doctorId },
-      include: {
-        patient: {
-          select: { id: true, name: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  async getDoctorReviews(
+    doctorId: string,
+    options?: { limit?: number; page?: number; cursor?: string; skip?: number }
+  ) {
+    const limit = options?.limit ?? 20;
+    const page = options?.page ?? 1;
+    const cursor = options?.cursor;
+    const skip = cursor ? 0 : (options?.skip ?? (page - 1) * limit);
 
-    return reviews;
+    const [total, reviews] = await Promise.all([
+      typeof (prisma.review as any).count === 'function'
+        ? (prisma.review as any).count({ where: { doctorId } })
+        : Promise.resolve(0),
+      prisma.review.findMany({
+        where: { doctorId },
+        include: {
+          patient: {
+            select: { id: true, name: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+        take: limit + 1,
+      }),
+    ]);
+
+    return {
+      reviews,
+      total: total || reviews.length,
+      limit,
+      page,
+    };
   }
 }
 

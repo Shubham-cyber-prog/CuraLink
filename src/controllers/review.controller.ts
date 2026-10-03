@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { reviewService } from '../services/review.service';
 import { createReviewSchema } from '../validators/review.validator';
 import { auditService, AuditAction } from '../services/audit.service';
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 
 export class ReviewController {
   async createReview(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -34,11 +35,12 @@ export class ReviewController {
   async getDoctorReviews(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const doctorId = String(req.params.doctorId);
-      const reviews = await reviewService.getDoctorReviews(doctorId);
+      const pagination = parsePaginationParams(req.query);
+      const result = await reviewService.getDoctorReviews(doctorId, pagination);
 
       res.status(200).json({
         success: true,
-        data: reviews,
+        ...buildPaginatedResponse(result.reviews, result.total, result.limit, result.page),
       });
     } catch (error) {
       next(error);

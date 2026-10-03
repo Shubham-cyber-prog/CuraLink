@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQuerySchema } from './pagination.validator';
 
 export const sendMessageSchema = z.object({
   appointmentId: z.string().min(1, 'appointmentId is required'),
@@ -7,7 +8,8 @@ export const sendMessageSchema = z.object({
 
 export const getMessagesQuerySchema = z.object({
   appointmentId: z.string().min(1, 'appointmentId is required'),
-});
+}).merge(paginationQuerySchema);
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type GetMessagesQueryInput = z.infer<typeof getMessagesQuerySchema>;
+

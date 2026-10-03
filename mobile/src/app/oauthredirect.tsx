@@ -1,17 +1,17 @@
 import React, { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
 
-/**
- * Root symptom-checker forwarder.
- * Redirects legacy links/navigation to the official AI Health tab screen.
- */
-export default function SymptomCheckerRedirect() {
+export default function OAuthRedirectHandler() {
   const router = useRouter();
+  const params = useLocalSearchParams();
 
   useEffect(() => {
-    router.replace('/(tabs)/symptom-checker');
-  }, [router]);
+    router.replace({
+      pathname: '/auth/callback' as any,
+      params: params as any,
+    });
+  }, [params, router]);
 
   return (
     <View className="flex-1 bg-white dark:bg-[#0B1120] items-center justify-center">

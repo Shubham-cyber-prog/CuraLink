@@ -146,14 +146,15 @@ export class AppointmentController {
       }
 
       // 3. Status and server-side join window validation
-      const bypassWindow =
-        process.env.NODE_ENV === 'test' || req.query.bypassWindow === 'true';
+      const bypassWindow = process.env.NODE_ENV === 'test';
 
       const eligibility = checkConsultationEligibility(
         appointment.date,
         appointment.time,
         appointment.status,
-        bypassWindow
+        bypassWindow,
+        appointment.scheduledAt,
+        appointment.timezone
       );
 
       if (!eligibility.canJoin) {

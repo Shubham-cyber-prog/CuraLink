@@ -143,7 +143,7 @@ export class DoctorVerificationService {
       city: doc.city || null,
       location: doc.city ? `${doc.city}, India` : 'CuraLink Telehealth',
       verificationStatus: doc.verificationStatus,
-      bio: doc.bio || 'Dedicated medical specialist providing patient-centered care.',
+      bio: doc.bio || null,
       rating: avgRating,
       reviewCount,
       consultationModes: Array.isArray(doc.consultationModes) && doc.consultationModes.length > 0
@@ -337,10 +337,13 @@ export class DoctorVerificationService {
   }
 
   /**
-   * Get doctor profile by user ID
+   * Get doctor profile by user ID.
+   * Returns the profile as-is — NEVER auto-creates or auto-approves.
+   * Doctors must submit verification via submitVerification() and be
+   * approved by an admin via setVerificationStatus().
    */
   async getDoctorProfile(userId: string) {
-    let profile = await prisma.doctorProfile.findUnique({
+    const profile = await prisma.doctorProfile.findUnique({
       where: { userId },
       include: {
         user: {
@@ -349,40 +352,8 @@ export class DoctorVerificationService {
       },
     });
 
-    // If doctor profile does not exist yet, create a default one for the doctor
-    if (!profile) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (user && user.role === 'DOCTOR') {
-        profile = await prisma.doctorProfile.create({
-          data: {
-            userId,
-            medicalLicenseNumber: 'PENDING',
-            specialization: 'General Practice',
-            consultationFee: 500,
-            consultationModes: ['VIDEO'],
-            verificationStatus: 'APPROVED',
-            experienceYears: 0,
-          },
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, phone: true },
-            },
-          },
-        });
-      }
-    } else if (profile.verificationStatus !== 'APPROVED') {
-      profile = await prisma.doctorProfile.update({
-        where: { id: profile.id },
-        data: { verificationStatus: 'APPROVED' },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, phone: true },
-          },
-        },
-      });
-      invalidateDoctorsCache();
-    }
-
+    // Return null if the doctor has not submitted verification yet.
+    // The frontend should detect this and show the verification submission form.
     return profile;
   }
 }

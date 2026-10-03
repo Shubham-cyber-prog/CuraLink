@@ -22,7 +22,7 @@ export class AuthController {
       res.status(201).json({
         success: true,
         message: 'User registered successfully',
-        data: { user, token: accessToken },
+        data: { user, token: accessToken, accessToken, refreshToken },
       });
     } catch (error) {
       next(error);
@@ -42,7 +42,7 @@ export class AuthController {
         res.status(200).json({
           success: true,
           message: 'Login successful',
-          data: { user, token: accessToken },
+          data: { user, token: accessToken, accessToken, refreshToken },
         });
       } catch (authError) {
         // Log failed login attempt
@@ -70,7 +70,7 @@ export class AuthController {
       res.status(200).json({
         success: true,
         message: 'Google Login successful',
-        data: { user, token: accessToken },
+        data: { user, token: accessToken, accessToken, refreshToken },
       });
     } catch (error) {
       next(error);
@@ -142,7 +142,7 @@ export class AuthController {
       setAuthCookies(res, accessToken, refreshToken);
       await auditService.logAction(AuditAction.LOGIN, user.id, 'User', user.id, req.ip, req.headers['user-agent'], { method: 'google_mobile', role: user.role });
 
-      const redirectUrl = `curalink://oauthredirect?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+      const redirectUrl = `curalink://oauthredirect?token=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
       res.redirect(redirectUrl);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Google OAuth failed';
@@ -152,7 +152,7 @@ export class AuthController {
 
   async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const refreshToken = req.cookies?.curalink_refresh;
+      const refreshToken = req.cookies?.curalink_refresh || req.body?.refreshToken;
       
       if (!refreshToken) {
         throw new UnauthorizedError('Refresh token missing');
@@ -164,6 +164,11 @@ export class AuthController {
       res.status(200).json({
         success: true,
         message: 'Tokens refreshed successfully',
+        data: {
+          token: tokens.accessToken,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
       });
     } catch (error) {
       // Clear cookies if refresh fails (likely expired or revoked)
@@ -197,7 +202,7 @@ export class AuthController {
       res.status(200).json({
         success: true,
         message: 'If that email address is registered, a password reset link has been sent.',
-        ...(token && process.env.NODE_ENV !== 'production' ? { data: { token } } : {}) // Only send token in dev/test mode
+        ...(token && process.env.NODE_ENV === 'test' ? { data: { token } } : {}) // Only send token in test mode
       });
     } catch (error) {
       next(error);

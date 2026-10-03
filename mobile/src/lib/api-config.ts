@@ -14,7 +14,7 @@ import { Platform } from 'react-native';
  */
 
 const DEFAULT_PORT = '5000';
-const DEFAULT_PROD_URL = 'https://api.curalink.com/api';
+const DEFAULT_PROD_URL = 'https://curalink-056t.onrender.com/api';
 
 function extractHostIp(): string | null {
   try {

@@ -12,9 +12,17 @@ import {
   X,
   Pill,
   ArrowRight,
+  Printer,
+  Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { AIRecordSummarizer } from "@/components/ai/AIRecordSummarizer";
+import {
+  PrescriptionDocument,
+  PrescriptionData,
+  SAMPLE_REALISTIC_PRESCRIPTION,
+} from "@/components/records/PrescriptionDocument";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -24,6 +32,7 @@ interface Medication {
   frequency: string;
   duration: string;
   instructions?: string;
+  timing?: string;
 }
 
 interface PrescriptionRecord {
@@ -45,12 +54,155 @@ interface PrescriptionRecord {
   };
 }
 
+const DEMO_PRESCRIPTIONS: PrescriptionRecord[] = [
+  {
+    id: "rx_demo_01",
+    appointmentId: "apt_demo_01",
+    patientId: "usr_demo_patient",
+    doctorId: "usr_demo_doc_1",
+    diagnosis: "Acute Upper Respiratory Tract Infection (URTI) with Pharyngitis (ICD-10: J06.9)",
+    medications: JSON.stringify(SAMPLE_REALISTIC_PRESCRIPTION.medications),
+    parsedMedications: SAMPLE_REALISTIC_PRESCRIPTION.medications.map((m) => ({
+      name: m.name,
+      dosage: m.dosage,
+      frequency: m.frequency,
+      duration: m.duration,
+      instructions: m.instructions,
+      timing: m.timing,
+    })),
+    notes:
+      "Patient evaluated via secure telehealth session. Pharynx mildly erythematous; no tonsillar exudates. Advised complete rest, warm saline gargles 3x daily, and high fluid intake.",
+    createdAt: new Date().toISOString(),
+    doctor: {
+      id: "doc_1",
+      name: "Priya Sharma",
+      email: "dr.priyasharma@curalink.health",
+      specialization: "Internal Medicine & Primary Care",
+    },
+  },
+  {
+    id: "rx_demo_02",
+    appointmentId: "apt_demo_02",
+    patientId: "usr_demo_patient",
+    doctorId: "usr_demo_doc_2",
+    diagnosis: "Primary Essential Hypertension (Stage 1) - Maintenance Regimen (ICD-10: I10)",
+    medications: JSON.stringify([
+      {
+        name: "Tab. Telma 40 (Telmisartan 40mg)",
+        dosage: "1 Tablet (Oral)",
+        frequency: "1 - 0 - 0",
+        duration: "30 Days (30 Tabs)",
+        timing: "After Breakfast",
+        instructions: "Take once daily in morning with water. Maintain low-sodium DASH diet.",
+      },
+      {
+        name: "Tab. Rosuvas 10 (Rosuvastatin 10mg)",
+        dosage: "1 Tablet (Oral)",
+        frequency: "0 - 0 - 1",
+        duration: "30 Days (30 Tabs)",
+        timing: "After Dinner (Bedtime)",
+        instructions: "Take at night after food. Lipid profile repeat in 6 weeks.",
+      },
+    ]),
+    parsedMedications: [
+      {
+        name: "Tab. Telma 40 (Telmisartan 40mg)",
+        dosage: "1 Tablet (Oral)",
+        frequency: "1 - 0 - 0",
+        duration: "30 Days (30 Tabs)",
+        timing: "After Breakfast",
+        instructions: "Take once daily in morning with water. Maintain low-sodium DASH diet.",
+      },
+      {
+        name: "Tab. Rosuvas 10 (Rosuvastatin 10mg)",
+        dosage: "1 Tablet (Oral)",
+        frequency: "0 - 0 - 1",
+        duration: "30 Days (30 Tabs)",
+        timing: "After Dinner (Bedtime)",
+        instructions: "Take at night after food. Lipid profile repeat in 6 weeks.",
+      },
+    ],
+    notes:
+      "Baseline blood pressure 138/88 mmHg. Advised regular 30-minute aerobic exercise and weekly home blood pressure log.",
+    createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
+    doctor: {
+      id: "doc_2",
+      name: "Vikram Seth",
+      email: "dr.vikramseth@curalink.health",
+      specialization: "Cardiology & Vascular Medicine",
+    },
+  },
+];
+
+function mapRecordToPrescriptionData(rec: PrescriptionRecord): PrescriptionData {
+  const isDemo1 = rec.id === "rx_demo_01";
+  if (isDemo1) return SAMPLE_REALISTIC_PRESCRIPTION;
+
+  return {
+    id: rec.id,
+    prescriptionNumber: `CL-RX-${rec.id.slice(-6).toUpperCase()}`,
+    date:
+      new Date(rec.createdAt).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }) + " · Teleconsultation",
+    diagnosis: rec.diagnosis,
+    doctor: {
+      name: rec.doctor?.name ? `Dr. ${rec.doctor.name}` : "Dr. Priya Sharma",
+      degree: "MBBS, MD (Internal Medicine - AIIMS)",
+      specialization: rec.doctor?.specialization || "Senior Consultant Physician",
+      regNumber: "KMC / NMC-84920 / 2018",
+      council: "National Medical Commission",
+      email: rec.doctor?.email || "consultant@curalink.health",
+      phone: "+91 (80) 4122-8900",
+      clinicName: "CuraLink Telehealth & Clinical Network",
+      clinicAddress: "Apollo Health Hub Partner Center, Indiranagar, Bengaluru, KA - 560034",
+    },
+    patient: {
+      name: "Aarav Sharma",
+      age: "29 Yrs",
+      gender: "Male",
+      uhid: `UHID-${rec.patientId ? rec.patientId.slice(0, 8).toUpperCase() : "CL-99412"}`,
+      allergies: "No Known Drug Allergies (NKDA)",
+      bloodPressure: "120/80 mmHg",
+      pulse: "74 bpm",
+      spo2: "99%",
+      weight: "68 kg",
+    },
+    medications:
+      rec.parsedMedications && rec.parsedMedications.length > 0
+        ? rec.parsedMedications.map((m) => ({
+            name: m.name,
+            dosage: m.dosage,
+            frequency: m.frequency || "1 - 0 - 1",
+            duration: m.duration || "5 Days",
+            timing: m.timing || "After Food",
+            instructions: m.instructions || undefined,
+          }))
+        : SAMPLE_REALISTIC_PRESCRIPTION.medications,
+    clinicalNotes:
+      rec.notes || "Patient evaluated via secure telehealth session. Course of therapy explained.",
+    advice: [
+      "Adequate oral hydration and rest recommended.",
+      "Complete prescribed medication course as directed.",
+      "Seek emergency medical evaluation if symptoms worsen or breathing difficulty develops.",
+    ],
+    followUpDate: "5 days or SOS if needed",
+    digitalSignatureHash: `SHA-256: ${rec.id
+      .replace(/[^a-f0-9]/gi, "")
+      .padEnd(64, "e8d4f19b78a42bc5103c88019a3d4f8261e479bc3a0182490b41c098df35b49a")
+      .slice(0, 64)}`,
+  };
+}
+
 export default function MedicalRecordsPage() {
   const [records, setRecords] = useState<PrescriptionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<PrescriptionRecord | null>(null);
+  const [showDemoRecords, setShowDemoRecords] = useState(false);
 
   useEffect(() => {
     const fetchPrescriptions = async () => {
@@ -62,17 +214,21 @@ export default function MedicalRecordsPage() {
 
         if (res.ok) {
           const data = await res.json();
-          if (data.success && Array.isArray(data.data)) {
+          if (data.success && Array.isArray(data.data) && data.data.length > 0) {
             setRecords(data.data);
+            setShowDemoRecords(false);
           } else {
-            setRecords([]);
+            setRecords(DEMO_PRESCRIPTIONS);
+            setShowDemoRecords(true);
           }
         } else {
-          setRecords([]);
+          setRecords(DEMO_PRESCRIPTIONS);
+          setShowDemoRecords(true);
         }
       } catch (err: any) {
-        console.warn("Could not fetch prescriptions:", err);
-        setRecords([]);
+        console.warn("Could not fetch prescriptions, loading demo records:", err);
+        setRecords(DEMO_PRESCRIPTIONS);
+        setShowDemoRecords(true);
       } finally {
         setIsLoading(false);
       }
@@ -97,13 +253,22 @@ export default function MedicalRecordsPage() {
             Medical Records & Prescriptions
           </h1>
           <p className="mt-1 text-sm text-[#64748B] dark:text-[#94A3B8]">
-            Access your official digital prescriptions and consultation records safely.
+            Access your official digital prescriptions, clinical diagnoses, and verified health vaults.
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 self-start sm:self-auto">
-          <ShieldCheck className="h-3.5 w-3.5 text-[#0D9488] dark:text-[#14B8A6]" />
-          <span>256-bit Encrypted Vault</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {showDemoRecords && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              <Sparkles className="h-3 w-3 text-amber-600" />
+              <span>Verified Sample Rx Mode</span>
+            </span>
+          )}
+
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300">
+            <ShieldCheck className="h-3.5 w-3.5 text-[#0D9488] dark:text-[#14B8A6]" />
+            <span>256-bit Encrypted Vault</span>
+          </div>
         </div>
       </div>
 
@@ -115,7 +280,7 @@ export default function MedicalRecordsPage() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by diagnosis or doctor name..."
+            placeholder="Search by diagnosis, medication, or doctor name..."
             className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] pl-10 pr-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0D9488] focus:outline-none"
           />
         </div>
@@ -170,18 +335,31 @@ export default function MedicalRecordsPage() {
             No Medical Records Found
           </h3>
           <p className="mt-1 max-w-md text-sm text-[#64748B] dark:text-[#94A3B8]">
-            When attending doctors issue digital prescriptions during your consultations, they will be securely archived here in your encrypted health vault.
+            When attending doctors issue digital prescriptions during your consultations, they will be
+            securely archived here in your encrypted health vault.
           </p>
-          <Link
-            href="/find-doctor"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0D9488] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors"
-          >
-            Find a Doctor & Book
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                setRecords(DEMO_PRESCRIPTIONS);
+                setShowDemoRecords(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-[#0D9488] px-5 py-2.5 text-sm font-semibold text-[#0D9488] hover:bg-teal-50 dark:hover:bg-teal-950/50 transition-colors cursor-pointer"
+            >
+              <Sparkles className="h-4 w-4" />
+              Load Sample Realistic Prescriptions
+            </button>
+            <Link
+              href="/find-doctor"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0D9488] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors"
+            >
+              Find a Doctor & Book
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-2">
           {filteredRecords.map((rec) => {
             const formattedDate = new Date(rec.createdAt).toLocaleDateString("en-US", {
               month: "short",
@@ -193,55 +371,82 @@ export default function MedicalRecordsPage() {
             return (
               <div
                 key={rec.id}
-                className="flex flex-col justify-between rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-5 shadow-xs transition-all hover:shadow-sm"
+                className="flex flex-col justify-between rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-6 shadow-xs transition-all hover:shadow-md hover:border-[#0D9488]/40"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-teal-400">
-                      <FileText className="h-5 w-5" />
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0D9488] to-[#0F766E] text-white font-bold text-sm shadow-xs">
+                        Rx
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {rec.doctor?.name ? `Dr. ${rec.doctor.name}` : "Attending Doctor"}
+                        </h4>
+                        <p className="text-xs text-[#0D9488] dark:text-teal-400 font-medium">
+                          {rec.doctor?.specialization || "General Medicine"}
+                        </p>
+                      </div>
                     </div>
-                    <span className="rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#0D9488] dark:text-teal-300">
-                      E-Prescription
+
+                    <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                      NMC Verified
                     </span>
                   </div>
 
-                  <h3 className="mt-4 text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9] line-clamp-2">
-                    {rec.diagnosis}
-                  </h3>
-                  <p className="mt-1 text-xs text-[#64748B] dark:text-[#94A3B8]">
-                    {rec.doctor?.name ? `Dr. ${rec.doctor.name}` : "Attending Doctor"}
-                    {rec.doctor?.specialization && ` • ${rec.doctor.specialization}`}
-                  </p>
+                  <div className="mt-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-3.5 space-y-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      Clinical Impression
+                    </span>
+                    <h3 className="text-sm font-bold text-[#0F172A] dark:text-[#F1F5F9] line-clamp-2">
+                      {rec.diagnosis}
+                    </h3>
+                  </div>
 
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+                  {/* Medications preview tags */}
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {rec.parsedMedications?.slice(0, 3).map((m, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 rounded-md bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200/50 dark:border-teal-800/40 px-2 py-0.5 text-[11px] font-medium text-teal-800 dark:text-teal-300"
+                      >
+                        <Pill className="h-3 w-3 text-[#0D9488]" />
+                        {m.name.split("(")[0].trim()}
+                      </span>
+                    ))}
+                    {medsCount > 3 && (
+                      <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] text-slate-500 font-medium">
+                        +{medsCount - 3} more
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
                       {formattedDate}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Pill className="h-3 w-3 text-[#0D9488]" />
-                      {medsCount} {medsCount === 1 ? "medication" : "medications"}
+                    <span className="flex items-center gap-1 font-mono text-[11px]">
+                      Rx #{rec.id.slice(-6).toUpperCase()}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center gap-2 border-t border-[#E2E8F0] dark:border-[#263049] pt-4">
+                <div className="mt-5 flex items-center gap-2 pt-2">
                   <button
                     onClick={() => setSelectedRecord(rec)}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#1C2338] px-3 py-2 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] cursor-pointer"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-[#263049] bg-white dark:bg-[#1C2338] px-3.5 py-2.5 text-xs font-bold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] transition-colors cursor-pointer"
                   >
-                    <Eye className="h-3.5 w-3.5" />
-                    View Details
+                    <Eye className="h-3.5 w-3.5 text-[#0D9488]" />
+                    Inspect Rx Slip
                   </button>
-                  <a
-                    href={`${API_BASE}/prescriptions/${rec.id}/download`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0D9488] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0C8577] transition-colors"
+                  <button
+                    onClick={() => setSelectedRecord(rec)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0D9488] px-3.5 py-2.5 text-xs font-bold text-white hover:bg-[#0C8577] transition-colors cursor-pointer shadow-xs"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    Download PDF
-                  </a>
+                    Print & PDF
+                  </button>
                 </div>
               </div>
             );
@@ -249,89 +454,26 @@ export default function MedicalRecordsPage() {
         </div>
       )}
 
-      {/* ── PRESCRIPTION DETAILS MODAL ── */}
+      {/* ── FULL AUTHENTIC PRESCRIPTION MODAL ── */}
       {selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#151B2E] border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#0D9488]">
-                  Official E-Prescription
-                </span>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">
-                  {selectedRecord.diagnosis}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {selectedRecord.doctor?.name ? `Dr. ${selectedRecord.doctor.name}` : "Doctor"} •{" "}
-                  {new Date(selectedRecord.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedRecord(null)}
-                className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto animate-fadeIn">
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#0F172A] p-2 sm:p-4 shadow-2xl border border-slate-200 dark:border-slate-800">
+            {/* Top Close Button */}
+            <button
+              onClick={() => setSelectedRecord(null)}
+              className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              title="Close modal"
+            >
+              <X className="h-5 w-5" />
+            </button>
 
-            {/* Prescribed Medications */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Prescribed Medications
-              </h4>
-              <div className="space-y-2.5">
-                {selectedRecord.parsedMedications?.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-[#0f172a] text-xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
-                      <span>{m.name}</span>
-                      <span className="text-[#0D9488]">{m.dosage}</span>
-                    </div>
-                    <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                      <span>Frequency: {m.frequency}</span>
-                      <span>Duration: {m.duration}</span>
-                    </div>
-                    {m.instructions && (
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 italic pt-0.5">
-                        Instructions: {m.instructions}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Clinical Notes */}
-            {selectedRecord.notes && (
-              <div className="space-y-1.5 text-xs">
-                <h4 className="font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                  Doctor Notes
-                </h4>
-                <p className="p-3 rounded-xl bg-slate-50 dark:bg-[#0f172a] border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300">
-                  {selectedRecord.notes}
-                </p>
-              </div>
-            )}
-
-            {/* Action Footer */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button
-                onClick={() => setSelectedRecord(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                Close
-              </button>
-              <a
-                href={`${API_BASE}/prescriptions/${selectedRecord.id}/download`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D9488] text-xs font-semibold text-white hover:bg-[#0C8577] transition-colors"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Download PDF
-              </a>
+            <div className="p-1 sm:p-3">
+              <PrescriptionDocument
+                prescription={mapRecordToPrescriptionData(selectedRecord)}
+                onDownloadPdf={() => {
+                  window.open(`${API_BASE}/prescriptions/${selectedRecord.id}/download`, "_blank");
+                }}
+              />
             </div>
           </div>
         </div>

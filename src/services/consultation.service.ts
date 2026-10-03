@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { dailyService } from './daily.service';
+import { videoService } from './video.service';
 import { auditService, AuditAction } from './audit.service';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
 
@@ -20,69 +20,70 @@ export interface ConsultationRoomResponse {
     userId: string;
     date: string;
     time: string;
+    scheduledAt?: Date | null;
+    endTime?: Date | null;
+    timezone?: string;
     status: string;
   };
 }
 
 export class ConsultationService {
   /**
-   * Validates whether the current time falls within the allowed join window
+   * Validates whether the current UTC time is within the allowed consultation join window
    * (10 minutes before to 60 minutes after scheduled appointment time).
+   *
+   * Pure UTC calculation — completely independent of server local timezone.
    */
-  private isWithinJoinWindow(dateStr: string, timeStr: string): { canJoin: boolean; reason?: string } {
-    // In test environment or development mode, allow flexible joining if date matches or is Today
+  public isWithinJoinWindow(appointment: {
+    scheduledAt?: Date | null;
+    date: string;
+    time: string;
+    timezone?: string;
+  }): { canJoin: boolean; reason?: string } {
+    // In test environment, allow flexible joining
     if (process.env.NODE_ENV === 'test') {
       return { canJoin: true };
     }
 
     try {
-      const now = new Date();
-      let appointmentDate = new Date();
+      const nowMs = Date.now();
+      let scheduledMs: number | null = null;
 
-      if (dateStr.toLowerCase() === 'today') {
-        appointmentDate = new Date();
+      if (appointment.scheduledAt) {
+        scheduledMs = new Date(appointment.scheduledAt).getTime();
       } else {
-        const parsedDate = new Date(dateStr);
-        if (!isNaN(parsedDate.getTime())) {
-          appointmentDate = parsedDate;
+        const { zonedTimeToUtc, DEFAULT_APP_TIMEZONE } = require('../utils/timezone');
+        const tz = appointment.timezone || DEFAULT_APP_TIMEZONE;
+        const parsedUtc = zonedTimeToUtc(appointment.date, appointment.time, tz);
+        if (parsedUtc) {
+          scheduledMs = parsedUtc.getTime();
         }
       }
 
-      // Parse time string (e.g. "4:30 PM", "16:30", "10:00 AM")
-      const timeMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-      if (timeMatch) {
-        let hours = parseInt(timeMatch[1], 10);
-        const minutes = parseInt(timeMatch[2], 10);
-        const meridian = timeMatch[3];
+      if (scheduledMs && !isNaN(scheduledMs)) {
+        const tenMinsBefore = scheduledMs - 10 * 60 * 1000;
+        const sixtyMinsAfter = scheduledMs + 60 * 60 * 1000;
 
-        if (meridian) {
-          if (meridian.toUpperCase() === 'PM' && hours < 12) hours += 12;
-          if (meridian.toUpperCase() === 'AM' && hours === 12) hours = 0;
-        }
-
-        appointmentDate.setHours(hours, minutes, 0, 0);
-
-        const tenMinsBefore = new Date(appointmentDate.getTime() - 10 * 60 * 1000);
-        const sixtyMinsAfter = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
-
-        if (now < tenMinsBefore) {
+        if (nowMs < tenMinsBefore) {
           return {
             canJoin: false,
-            reason: `Consultation room will be available 10 minutes prior to scheduled time (${timeStr}).`,
+            reason: `Consultation room will be available 10 minutes prior to scheduled time (${appointment.time || 'scheduled start'}).`,
           };
         }
 
-        if (now > sixtyMinsAfter) {
+        if (nowMs > sixtyMinsAfter) {
           return {
             canJoin: false,
             reason: 'The scheduled window for this consultation has ended.',
           };
         }
+
+        return { canJoin: true };
       }
 
+      // Legacy fallback if unparseable
       return { canJoin: true };
     } catch {
-      // Fallback: allow join if date/time string cannot be strictly parsed
       return { canJoin: true };
     }
   }
@@ -125,38 +126,16 @@ export class ConsultationService {
       throw new ForbiddenError('You are not authorized to access this consultation room.');
     }
 
-    // Time window check
-    const windowCheck = this.isWithinJoinWindow(appointment.date, appointment.time);
+    // Time window check using pure UTC epoch milliseconds
+    const windowCheck = this.isWithinJoinWindow(appointment);
     if (!windowCheck.canJoin) {
       throw new BadRequestError(windowCheck.reason || 'Consultation room is not available at this time.');
     }
 
-    // Get existing room or create a new Daily.co room
-    let roomName = appointment.roomName;
-    let roomUrl = appointment.roomUrl;
-
-    if (!roomName || !roomUrl) {
-      const dailyRoom = await dailyService.createRoom(appointmentId);
-      roomName = dailyRoom.name;
-      roomUrl = dailyRoom.url;
-
-      // Save room details to database so both patient and doctor use the same room
-      await prisma.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          roomName,
-          roomUrl,
-        },
-      });
-    }
-
-    const userName = isPatient ? appointment.user.name : `Dr. Consultation`;
-    const tokenResult = await dailyService.createMeetingToken(
-      roomName,
-      userId,
-      userName,
-      isDoctor
-    );
+    // Generate and persist unique Jitsi room via videoService
+    const videoResult = await videoService.generateRoomName(appointmentId);
+    const roomName = videoResult.roomName;
+    const roomUrl = videoResult.roomUrl;
 
     await auditService.logAction(
       AuditAction.CONSULTATION_JOIN,
@@ -205,7 +184,7 @@ export class ConsultationService {
       appointmentId,
       roomName,
       roomUrl,
-      token: tokenResult.token,
+      token: '',
       isDoctor,
       doctor: doctorInfo,
       appointment: {
@@ -214,6 +193,9 @@ export class ConsultationService {
         userId: appointment.userId,
         date: appointment.date,
         time: appointment.time,
+        scheduledAt: appointment.scheduledAt,
+        endTime: appointment.endTime,
+        timezone: appointment.timezone,
         status: appointment.status,
       },
     };

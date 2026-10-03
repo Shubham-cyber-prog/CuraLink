@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
+import { Router } from 'express';
 import { authController } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -25,30 +26,28 @@ router.post('/refresh', (req, res, next) => authController.refresh(req, res, nex
 
 // CSRF Token endpoint
 router.get('/csrf-token', (req, res) => {
-  // Handled entirely by csrfProtection middleware mapped in app.ts
-  // This just ensures the route exists so it hits the middleware
-  res.status(200).end();
+  const token = req.cookies?.curalink_csrf || crypto.randomBytes(32).toString('hex');
+  res.cookie('curalink_csrf', token, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+  });
+  res.status(200).json({ success: true, token });
 });
 
 // Protected routes
 router.get('/me', authenticate, (req, res, next) => authController.getMe(req, res, next));
 router.put('/profile', authenticate, authorize(Role.PATIENT, Role.DOCTOR), (req, res, next) => authController.updateProfile(req, res, next));
 
-// Demo Role-based protected routes
-router.get('/doctor-only', authenticate, authorize(Role.DOCTOR), (req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: 'Welcome Doctor! Access granted to medical records portal.',
-    user: req.user,
+// Test-only role authorization route (never exposed in staging/production)
+if (process.env.NODE_ENV === 'test') {
+  router.get('/doctor-only', authenticate, authorize(Role.DOCTOR), (_req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'Welcome Doctor! Access granted to medical records portal.',
+    });
   });
-});
-
-router.get('/admin-only', authenticate, authorize(Role.ADMIN), (req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: 'Welcome Admin! Access granted to system administrative controls.',
-    user: req.user,
-  });
-});
+}
 
 export default router;

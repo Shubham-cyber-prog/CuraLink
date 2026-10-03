@@ -117,6 +117,20 @@ function MainLayoutContent({
                 animation: 'none',
               }}
             />
+            <Stack.Screen
+              name="auth/callback"
+              options={{
+                gestureEnabled: false,
+                cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              }}
+            />
+            <Stack.Screen
+              name="oauthredirect"
+              options={{
+                gestureEnabled: false,
+                cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              }}
+            />
           </Stack>
         </UniversalEdgeBackGesture>
         {!splashComplete ? <AnimatedSplash onAnimationComplete={onSplashComplete} /> : null}

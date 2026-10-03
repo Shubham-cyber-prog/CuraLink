@@ -44,6 +44,7 @@ interface UpcomingAppointment {
   date: string;
   time: string;
   type: string;
+  status: string;
   avatarInitial: string;
 }
 
@@ -91,6 +92,7 @@ export default function DashboardPage() {
               date: confirmedApt.date,
               time: confirmedApt.time,
               type: "Video Consultation",
+              status: confirmedApt.status || "PENDING",
               avatarInitial: confirmedApt.doctor?.name
                 ? confirmedApt.doctor.name.replace("Dr. ", "").charAt(0)
                 : "D",
@@ -108,7 +110,7 @@ export default function DashboardPage() {
             }
           }
         } catch (vErr) {
-          // Silent catch
+          console.warn("Dashboard vitals load error:", vErr);
         }
       } catch (err) {
         console.error("Dashboard data load error:", err);
@@ -200,7 +202,9 @@ export default function DashboardPage() {
                     <h3 className="text-base font-semibold text-slate-900 dark:text-white">
                       {upcomingAppointment.doctorName}
                     </h3>
-                    <Badge variant="verified">Confirmed</Badge>
+                    <Badge variant={upcomingAppointment.status === "CONFIRMED" ? "verified" : upcomingAppointment.status === "CANCELLED" ? "emergency" : "default"}>
+                      {upcomingAppointment.status === "CONFIRMED" ? "Confirmed" : upcomingAppointment.status === "PENDING" ? "Pending" : upcomingAppointment.status === "COMPLETED" ? "Completed" : upcomingAppointment.status}
+                    </Badge>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {upcomingAppointment.specialty}

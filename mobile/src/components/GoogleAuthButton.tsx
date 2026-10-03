@@ -28,24 +28,27 @@ export function GoogleAuthButton({ label = 'Continue with Google', role, onError
 
       if (result.type === 'success' && result.url) {
         let token: string | null = null;
+        let refreshToken: string | null = null;
         let errorMsg: string | null = null;
 
         if (result.url.includes('?')) {
           const queryString = result.url.split('?')[1];
           const params = new URLSearchParams(queryString);
           token = params.get('token');
+          refreshToken = params.get('refreshToken');
           errorMsg = params.get('error');
         } else if (result.url.includes('#')) {
           const hashString = result.url.split('#')[1];
           const params = new URLSearchParams(hashString);
           token = params.get('token');
+          refreshToken = params.get('refreshToken');
           errorMsg = params.get('error');
         }
 
         if (errorMsg) {
           onError?.(decodeURIComponent(errorMsg));
         } else if (token) {
-          await loginWithToken(token);
+          await loginWithToken(token, refreshToken || undefined);
         } else {
           onError?.('Could not complete Google login token verification.');
         }

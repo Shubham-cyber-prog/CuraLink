@@ -1,6 +1,7 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -67,19 +68,23 @@ model DoctorProfile {
 }
 
 model Appointment {
-  id        String   @id @default(uuid())
-  userId    String
-  doctorId  String
-  date      String
-  time      String
-  status    String   @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
-  roomName  String?
-  roomUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String                @id @default(uuid())
+  userId          String
+  doctorId        String
+  date            String                // Legacy date string (e.g. "2026-09-30")
+  time            String                // Legacy time string (e.g. "10:00 AM")
+  scheduledAt     DateTime?             // Source of truth: Start timestamp in UTC
+  endTime         DateTime?             // Source of truth: End timestamp in UTC
+  durationMinutes Int                   @default(30)
+  timezone        String                @default("Asia/Kolkata") // Explicit IANA timezone of appointment
+  status          String                @default("PENDING") // PENDING, CONFIRMED, COMPLETED, CANCELLED
+  roomName        String?
+  roomUrl         String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctor       DoctorProfile @relation(fields: [doctorId], references: [userId], onDelete: Cascade)
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctor       DoctorProfile         @relation(fields: [doctorId], references: [userId], onDelete: Cascade)
   payment      Payment?
   prescription Prescription?
   review       Review?
@@ -87,6 +92,7 @@ model Appointment {
   reminders    AppointmentReminder[]
 
   @@index([doctorId, date])
+  @@index([doctorId, scheduledAt])
   @@index([userId, status])
   @@map("appointments")
 }

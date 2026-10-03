@@ -22,6 +22,21 @@ describe('Environment Configuration & Validation Tests', () => {
     expect(env.RAZORPAY_KEY_ID).toBeDefined();
   });
 
+  it('should allow optional DIRECT_URL, DATABASE_CONNECTION_LIMIT, and DATABASE_POOL_TIMEOUT', () => {
+    process.env.NODE_ENV = 'test';
+    process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test-pooler';
+    process.env.DIRECT_URL = 'postgresql://test:test@localhost:5432/test-direct';
+    process.env.DATABASE_CONNECTION_LIMIT = '15';
+    process.env.DATABASE_POOL_TIMEOUT = '30';
+    process.env.JWT_SECRET = 'a'.repeat(32);
+    process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+
+    const { env } = require('../../src/config/env');
+    expect(env.DIRECT_URL).toBe('postgresql://test:test@localhost:5432/test-direct');
+    expect(env.DATABASE_CONNECTION_LIMIT).toBe('15');
+    expect(env.DATABASE_POOL_TIMEOUT).toBe('30');
+  });
+
   it('should fail fast at startup in production if Turnstile dummy secret key is used', () => {
     process.env.NODE_ENV = 'production';
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';

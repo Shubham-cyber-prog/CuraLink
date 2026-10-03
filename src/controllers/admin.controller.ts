@@ -163,12 +163,21 @@ export class AdminController {
       const [total, appointments] = await Promise.all([
         prisma.appointment.count(),
         prisma.appointment.findMany({
-          include: {
+          select: {
+            id: true,
+            date: true,
+            time: true,
+            status: true,
+            reason: true,
+            type: true,
+            createdAt: true,
             user: {
               select: { id: true, name: true, email: true },
             },
             doctor: {
-              include: {
+              select: {
+                id: true,
+                specialization: true,
                 user: {
                   select: { id: true, name: true, email: true },
                 },

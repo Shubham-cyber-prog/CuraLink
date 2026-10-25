@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, security-hardening, 'release/**']
   pull_request:
-    branches: [main, master]
+    branches: [main, master, security-hardening]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

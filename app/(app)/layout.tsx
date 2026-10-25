@@ -32,6 +32,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           credentials: "include",
         });
         if (!res.ok) throw new Error("Not auth");
+        const json = await res.json().catch(() => null);
+        if (json?.data?.token && typeof window !== "undefined") {
+          localStorage.setItem("curalink_token", json.data.token);
+        }
         if (mounted) setIsAuthed(true);
       } catch (err) {
         if (mounted) router.replace("/login");
@@ -43,7 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (!isAuthed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] dark:bg-[#070B14]">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="relative flex flex-col items-center gap-4">
           <div className="relative w-14 h-14 flex items-center justify-center">
             <motion.div
@@ -81,7 +85,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <MotionProvider>
-      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-[#0F172A] dark:text-[#F1F5F9] transition-colors duration-200">
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
         {/* Top Navbar — Full Width, No Sidebar */}
         <TopNavbar />
 

@@ -9,7 +9,7 @@ export const paginationQuerySchema = z.object({
       const n = typeof val === 'number' ? val : parseInt(String(val), 10);
       return isNaN(n) ? 20 : n;
     })
-    .pipe(z.number().int().min(1).max(100).default(20)),
+    .pipe(z.number().int().min(1).max(100)),
   page: z
     .union([z.string(), z.number()])
     .optional()
@@ -18,7 +18,7 @@ export const paginationQuerySchema = z.object({
       const n = typeof val === 'number' ? val : parseInt(String(val), 10);
       return isNaN(n) ? 1 : n;
     })
-    .pipe(z.number().int().min(1).default(1)),
+    .pipe(z.number().int().min(1)),
   cursor: z.string().optional(),
 });
 

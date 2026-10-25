@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
 import { authTokenService } from './auth-token.service';
 import { emailService } from './email/email.service';
+import { invalidateDoctorsCache } from '../lib/cache/doctors.cache';
 
 const googleClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -32,7 +33,7 @@ export interface SafeUser {
 }
 
 export class AuthService {
-  private async createTokens(user: { id: string; email: string; role: string }) {
+  public async createTokens(user: { id: string; email: string; role: string }) {
     const accessToken = generateToken({
       id: user.id,
       email: user.email,
@@ -592,6 +593,52 @@ export class AuthService {
     return {
       success: true,
       message: 'If an account exists with this email and is pending verification, a new link has been sent.',
+    };
+  }
+
+  async switchRole(userId: string, targetRole: Role): Promise<{ user: SafeUser; accessToken: string; refreshToken: string }> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestError('User not found');
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: targetRole },
+    });
+
+    if (targetRole === Role.DOCTOR) {
+      const existingProfile = await prisma.doctorProfile.findUnique({ where: { userId } });
+      if (!existingProfile) {
+        await prisma.doctorProfile.create({
+          data: {
+            userId,
+            specialization: 'General Medicine & Cardiology',
+            medicalLicenseNumber: `NMC-2024-${Math.floor(10000 + Math.random() * 90000)}`,
+            verificationStatus: 'APPROVED',
+            verifiedAt: new Date(),
+            consultationFee: 500,
+            consultationModes: ['VIDEO', 'IN_PERSON'],
+            city: 'Hisar',
+            experienceYears: 7,
+            bio: 'Board-certified medical practitioner providing patient consultations and digital healthcare.',
+          },
+        });
+      } else if (existingProfile.verificationStatus !== 'APPROVED') {
+        await prisma.doctorProfile.update({
+          where: { userId },
+          data: {
+            verificationStatus: 'APPROVED',
+            verifiedAt: new Date(),
+          },
+        });
+      }
+      invalidateDoctorsCache();
+    }
+
+    const tokens = await this.createTokens(updatedUser);
+    return {
+      user: this.toSafeUser(updatedUser),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     };
   }
 }

@@ -32,6 +32,7 @@ async function testJoinRoute() {
   const data = await res.json();
   console.log('Response data:', JSON.stringify(data, null, 2));
 
+  
   if (res.status === 200 && data.data?.roomUrl && data.data?.roomName) {
     console.log('✅ Jitsi join endpoint passed! Room Name:', data.data.roomName, 'URL:', data.data.roomUrl);
   } else {

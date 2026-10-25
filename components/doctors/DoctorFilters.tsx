@@ -96,7 +96,7 @@ export function DoctorFilters({
               onClick={() => setFilterByCity(!filterByCity)}
               className={`rounded-xl px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer ${
                 filterByCity
-                  ? "bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-[#0F9D8C] dark:text-[#14B8A6] hover:bg-teal-100 dark:hover:bg-teal-900/60"
+                  ? "bg-[#006D77]/10 dark:bg-[#006D77]/25 border border-[#83C5BE]/40 text-[#006D77] dark:text-[#83C5BE] hover:bg-[#006D77]/20"
                   : "bg-slate-100 dark:bg-[#1C2338] border border-slate-200 dark:border-[#263049] text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-[#F1F5F9]"
               }`}
             >

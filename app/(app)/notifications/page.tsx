@@ -183,7 +183,7 @@ export default function NotificationsPage() {
               href={n.href || "#"}
               className="flex items-start gap-4 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-5 shadow-xs transition-colors hover:bg-slate-50/60 dark:hover:bg-[#1C2338]"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-teal-400">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#006D77] dark:text-[#83C5BE]">
                 {n.type === "appointment" ? (
                   <Calendar className="h-5 w-5" />
                 ) : n.type === "prescription" ? (

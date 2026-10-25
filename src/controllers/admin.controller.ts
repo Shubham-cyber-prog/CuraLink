@@ -168,8 +168,6 @@ export class AdminController {
             date: true,
             time: true,
             status: true,
-            reason: true,
-            type: true,
             createdAt: true,
             user: {
               select: { id: true, name: true, email: true },

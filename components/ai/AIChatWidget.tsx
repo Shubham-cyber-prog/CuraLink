@@ -147,12 +147,12 @@ export function AIChatWidget() {
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             onClick={() => setIsOpen(true)}
             id="ai-chat-widget-fab"
-            className="fixed bottom-24 right-5 z-50 md:bottom-8 md:right-8 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#0F9D8C] to-[#0C8577] dark:from-[#14B8A6] dark:to-[#0D9488] text-white shadow-lg shadow-teal-500/25 dark:shadow-teal-400/20 hover:shadow-xl hover:shadow-teal-500/30 transition-shadow cursor-pointer active:scale-95"
+            className="fixed bottom-24 right-5 z-50 md:bottom-8 md:right-8 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#006D77] to-[#00565e] text-white shadow-lg shadow-[rgba(0,109,119,0.35)] hover:shadow-xl hover:shadow-[rgba(131,197,190,0.5)] border border-[#83C5BE]/40 transition-all cursor-pointer active:scale-95"
             aria-label="Open AI Health Assistant"
           >
-            <Sparkles className="h-6 w-6" />
+            <Sparkles className="h-6 w-6 text-[#83C5BE]" />
             {/* Pulse ring */}
-            <span className="absolute inset-0 rounded-full animate-ping bg-[#0F9D8C]/20 dark:bg-[#14B8A6]/20" style={{ animationDuration: "3s" }} />
+            <span className="absolute inset-0 rounded-full animate-ping bg-[#83C5BE]/30" style={{ animationDuration: "3s" }} />
           </motion.button>
         )}
       </AnimatePresence>
@@ -165,20 +165,20 @@ export function AIChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="fixed bottom-24 right-4 z-50 md:bottom-8 md:right-8 flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-8rem)] rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden"
+            className="fixed bottom-24 right-4 z-50 md:bottom-8 md:right-8 flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-8rem)] rounded-2xl border border-[#83C5BE]/30 bg-white dark:bg-[#0B1F33] shadow-2xl shadow-black/20 overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between gap-3 border-b border-[#E2E8F0] dark:border-[#263049] bg-gradient-to-r from-[#0F9D8C] to-[#0C8577] dark:from-[#14B8A6] dark:to-[#0D9488] px-4 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-[#83C5BE]/20 bg-gradient-to-r from-[#006D77] via-[#00565e] to-[#0B1F33] px-4 py-3">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
-                  <Bot className="h-4.5 w-4.5 text-white" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm border border-[#83C5BE]/30">
+                  <Bot className="h-4.5 w-4.5 text-[#83C5BE]" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white">
                     CuraLink AI
                   </h3>
-                  <p className="text-[11px] text-white/70 font-medium">
-                    Health Assistant • Always available
+                  <p className="text-[11px] text-[#83C5BE] font-medium">
+                    Clinical Assistant • Active
                   </p>
                 </div>
               </div>
@@ -192,7 +192,7 @@ export function AIChatWidget() {
             </div>
 
             {/* Messages Body */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F8FAFC] dark:bg-[#0B1120]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F8FAFC] dark:bg-[#071320]">
               {messages.map((m) => (
                 <div
                   key={m.id}
@@ -201,15 +201,15 @@ export function AIChatWidget() {
                   }`}
                 >
                   {m.role === "assistant" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6]">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#006D77]/10 dark:bg-[#006D77]/25 text-[#006D77] dark:text-[#83C5BE]">
                       <Bot className="h-3.5 w-3.5" />
                     </div>
                   )}
                   <div
                     className={`max-w-[260px] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
                       m.role === "user"
-                        ? "bg-[#0F9D8C] dark:bg-[#14B8A6] text-white rounded-br-sm"
-                        : "bg-white dark:bg-[#1C2338] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] rounded-bl-sm shadow-xs"
+                        ? "bg-[#006D77] text-white rounded-br-sm shadow-xs"
+                        : "bg-white dark:bg-[#0B1F33] text-[#0B1F33] dark:text-[#F1F5F9] border border-border dark:border-[#163656] rounded-bl-sm shadow-xs"
                     }`}
                   >
                     {m.role === "assistant" ? (
@@ -226,13 +226,13 @@ export function AIChatWidget() {
               {/* Typing indicator */}
               {isLoading && (
                 <div className="flex gap-2.5 justify-start">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-900/60 text-[#0F9D8C] dark:text-[#14B8A6]">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#006D77]/10 dark:bg-[#006D77]/25 text-[#006D77] dark:text-[#83C5BE]">
                     <Bot className="h-3.5 w-3.5 animate-pulse" />
                   </div>
-                  <div className="flex items-center gap-1.5 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#1C2338] px-3.5 py-2.5 shadow-xs">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse [animation-delay:200ms]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#0F9D8C] dark:bg-[#14B8A6] animate-pulse [animation-delay:400ms]" />
+                  <div className="flex items-center gap-1.5 rounded-2xl border border-border dark:border-[#163656] bg-white dark:bg-[#0B1F33] px-3.5 py-2.5 shadow-xs">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#006D77] dark:bg-[#83C5BE] animate-pulse" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#006D77] dark:bg-[#83C5BE] animate-pulse [animation-delay:200ms]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#006D77] dark:bg-[#83C5BE] animate-pulse [animation-delay:400ms]" />
                   </div>
                 </div>
               )}
@@ -240,7 +240,7 @@ export function AIChatWidget() {
             </div>
 
             {/* Disclaimer */}
-            <div className="flex items-center gap-1.5 border-t border-[#E2E8F0] dark:border-[#263049] bg-amber-50/70 dark:bg-amber-950/30 px-3 py-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+            <div className="flex items-center gap-1.5 border-t border-border dark:border-[#163656] bg-amber-50/70 dark:bg-amber-950/30 px-3 py-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
               <AlertTriangle className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-400" />
               <span>AI guidance only — not medical advice. For emergencies call 112.</span>
             </div>
@@ -248,7 +248,7 @@ export function AIChatWidget() {
             {/* Input */}
             <form
               onSubmit={handleSubmit}
-              className="flex items-center gap-2 border-t border-[#E2E8F0] dark:border-[#263049] p-3 bg-white dark:bg-[#151B2E]"
+              className="flex items-center gap-2 border-t border-border dark:border-[#163656] p-3 bg-white dark:bg-[#0B1F33]"
             >
               <input
                 ref={inputRef}
@@ -256,13 +256,14 @@ export function AIChatWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me anything about health..."
-                className="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] px-3.5 py-2 text-sm text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#94A3B8] dark:placeholder:text-[#64748B] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:outline-none transition-colors"
+                className="flex-1 rounded-xl border border-border dark:border-[#163656] bg-surface-elevated px-3.5 py-2 text-sm text-foreground placeholder:text-muted focus:border-[#006D77] focus:outline-none focus:ring-2 focus:ring-[#83C5BE]/30 transition-colors"
                 disabled={isLoading}
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F9D8C] dark:bg-[#14B8A6] text-white hover:bg-[#0C8577] dark:hover:bg-teal-500 disabled:opacity-40 transition-all active:scale-95 cursor-pointer"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#006D77] hover:bg-[#00565e] text-white disabled:opacity-40 transition-colors cursor-pointer shrink-0 shadow-xs"
+                aria-label="Send message"
               >
                 <Send className="h-4 w-4" />
               </button>

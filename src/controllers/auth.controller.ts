@@ -7,6 +7,7 @@ import { profileSchema } from '../validators/profile.validator';
 import { UnauthorizedError } from '../utils/errors';
 import { setAuthCookies, clearAuthCookies } from '../utils/cookie';
 import { notificationService } from '../services/notification.service';
+import { Role } from '../types/role';
 import { z } from 'zod';
 
 export class AuthController {
@@ -185,9 +186,41 @@ export class AuthController {
 
       const user = await authService.getUserById(req.user.id);
 
+      // Token role auto-healing: if token role differs from DB role, issue fresh token
+      let token: string | undefined;
+      if (req.user.role !== user.role) {
+        const tokens = await authService.createTokens(user as any);
+        setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+        token = tokens.accessToken;
+      }
+
       res.status(200).json({
         success: true,
-        data: { user },
+        data: { user, ...(token ? { token, accessToken: token } : {}) },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async switchRole(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const requestedRole = req.body?.role === 'DOCTOR' ? Role.DOCTOR : Role.PATIENT;
+      const result = await authService.switchRole(req.user.id, requestedRole);
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+
+      res.status(200).json({
+        success: true,
+        message: `Role switched to ${requestedRole} successfully`,
+        data: {
+          user: result.user,
+          token: result.accessToken,
+          accessToken: result.accessToken,
+        },
       });
     } catch (error) {
       next(error);

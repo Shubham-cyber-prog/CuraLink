@@ -1,38 +1,52 @@
+import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
-import { Stats } from "@/components/landing/Stats";
-import { PinnedFeaturesSection } from "@/components/landing/PinnedFeaturesSection";
-import { EditorialDoctorDiscovery } from "@/components/landing/EditorialDoctorDiscovery";
-import { EditorialIntakeFlow } from "@/components/landing/EditorialIntakeFlow";
-import { ClinicalSecurityDeepDive } from "@/components/landing/ClinicalSecurityDeepDive";
-import { EditorialForClinicians } from "@/components/landing/EditorialForClinicians";
-import { EditorialClosingCta } from "@/components/landing/EditorialClosingCta";
+import { PartnerMarquee } from "@/components/landing/PartnerMarquee";
+import { ValueProposition } from "@/components/landing/ValueProposition";
+import { SpecialtiesPricing } from "@/components/landing/SpecialtiesPricing";
+import { HowItWorksFlow } from "@/components/landing/HowItWorksFlow";
+import { DoctorRecruitmentBanner } from "@/components/landing/DoctorRecruitmentBanner";
+import { PricingAndTestimonials } from "@/components/landing/PricingAndTestimonials";
+import { AppDownloadSection } from "@/components/landing/AppDownloadSection";
+import { Security } from "@/components/landing/Security";
+
+export const metadata = {
+  title: "CuraLink — India's #1 Rated Telehealth Platform · Consult for ₹199",
+  description:
+    "Consult top board-certified doctors in under 2 minutes. Instant video consults from ₹199, digitally-signed prescriptions, AI symptom triage, and 15-minute medicine delivery.",
+};
 
 export default function LandingPage() {
   return (
-    <main id="main" className="flex flex-1 flex-col bg-[#0A0F0D]">
-      {/* 1. Asymmetric Editorial Hero with GSAP text reveal & parallax */}
+    <main id="main" className="flex flex-1 flex-col bg-background text-foreground">
+      {/* 1. Two-Tier Header Navigation */}
+      <Navbar />
+
+      {/* 2. Advertising Hero with ₹199 Badge, Live Countdown & WebRTC Stage */}
       <Hero />
 
-      {/* 2. GSAP ScrollTrigger Animated Count-Up Counters */}
-      <Stats />
+      {/* 3. Live Trust & Insurance Partner Continuous Marquee */}
+      <PartnerMarquee />
 
-      {/* 3. Horizontal-Pinned GSAP Scroll Section: 4 Core AI/Clinical Capabilities */}
-      <PinnedFeaturesSection />
+      {/* 4. 4 Core Value Proposition Advantages */}
+      <ValueProposition />
 
-      {/* 4. Warm Off-White Editorial Doctor Discovery with GSAP Card Stagger */}
-      <EditorialDoctorDiscovery />
+      {/* 5. Specialty Advertising Cards with ₹199-₹499 Pricing & Wait Times */}
+      <SpecialtiesPricing />
 
-      {/* 5. Interactive Clinical Intake Telemetry & Dossier Protocol */}
-      <EditorialIntakeFlow />
+      {/* 6. 3-Step "How It Works" Visual Journey */}
+      <HowItWorksFlow />
 
-      {/* 6. Technical Security & Sovereign Data Architecture Matrix */}
-      <ClinicalSecurityDeepDive />
+      {/* 7. Doctor Recruitment Advertising Banner (0% Fee Promotion) */}
+      <DoctorRecruitmentBanner />
 
-      {/* 7. Warm Off-White Practitioner Network & Practice Invariants */}
-      <EditorialForClinicians />
+      {/* 8. Transparent Pricing Plans & Patient Testimonial Carousel */}
+      <PricingAndTestimonials />
 
-      {/* 8. Editorial Closing Call to Action */}
-      <EditorialClosingCta />
+      {/* 9. High-Converting Mobile App Download Section */}
+      <AppDownloadSection />
+
+      {/* 10. Security, DPDP 2023 & Indian Compliance */}
+      <Security />
     </main>
   );
 }

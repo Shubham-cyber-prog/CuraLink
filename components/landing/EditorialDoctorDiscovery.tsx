@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CheckCircle2, Star, Calendar, ShieldCheck, Stethoscope } from "lucide-react";
+import { ArrowRight, CheckCircle2, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -109,7 +109,7 @@ export function EditorialDoctorDiscovery() {
         {/* Asymmetric Header Layout */}
         <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-start mb-16 sm:mb-20">
           <div className="lg:col-span-7">
-            <span className="font-mono text-xs uppercase tracking-widest text-[#085041] font-semibold">
+            <span className="font-mono text-xs uppercase tracking-widest text-[#0F9D8C] font-semibold">
               [ 03 · Verified Clinician Roster ]
             </span>
             <h2
@@ -118,7 +118,7 @@ export function EditorialDoctorDiscovery() {
               className="mt-4 font-serif text-3xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-[#0A0F0D] leading-[1.1]"
             >
               Finding the right physician should feel like a{" "}
-              <em className="font-serif italic font-normal text-[#085041]">reasoned conversation</em>,
+              <em className="font-serif italic font-normal text-[#0F9D8C]">reasoned conversation</em>,
               never a lottery.
             </h2>
           </div>
@@ -130,7 +130,7 @@ export function EditorialDoctorDiscovery() {
             <div className="mt-6 flex items-center gap-4">
               <Link
                 href="/find-doctor"
-                className="group inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider font-semibold text-[#085041] hover:text-emerald-800 transition-colors"
+                className="group inline-flex items-center gap-2 text-xs font-mono uppercase tracking-wider font-semibold text-[#0F9D8C] hover:text-[#0284C7] transition-colors"
               >
                 <span>Browse Full Clinical Directory</span>
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
@@ -146,7 +146,7 @@ export function EditorialDoctorDiscovery() {
               key={doc.id}
               whileHover={{ y: -5 }}
               transition={{ duration: 0.25 }}
-              className="doctor-card group flex flex-col justify-between rounded-3xl border border-[#0A0F0D]/10 bg-white p-5 sm:p-6 shadow-sm hover:shadow-xl hover:border-[#085041]/40 transition-all duration-300"
+              className="doctor-card group flex flex-col justify-between rounded-3xl border border-[#0A0F0D]/10 bg-white p-5 sm:p-6 shadow-sm hover:shadow-xl hover:border-[#0F9D8C]/40 transition-all duration-300"
             >
               <div>
                 {/* Doctor Headshot & Status Badge */}
@@ -163,8 +163,8 @@ export function EditorialDoctorDiscovery() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
 
-                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-1 text-[10px] font-mono font-medium text-[#085041] shadow-xs border border-[#0A0F0D]/5">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/95 backdrop-blur-sm px-2.5 py-1 text-[10px] font-mono font-medium text-[#0F9D8C] shadow-xs border border-[#0A0F0D]/5">
+                    <CheckCircle2 className="h-3 w-3 text-teal-600" />
                     <span>Verified MD</span>
                   </span>
                 </div>
@@ -172,7 +172,7 @@ export function EditorialDoctorDiscovery() {
                 {/* Details */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-serif text-xl font-normal text-[#0A0F0D] group-hover:text-[#085041] transition-colors">
+                    <h3 className="font-serif text-xl font-normal text-[#0A0F0D] group-hover:text-[#0F9D8C] transition-colors">
                       {doc.name}
                     </h3>
                     <div className="flex items-center gap-1 text-[11px] font-mono text-[#0A0F0D]/70">
@@ -181,7 +181,7 @@ export function EditorialDoctorDiscovery() {
                     </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-[#085041]">
+                  <p className="text-xs font-semibold text-[#0F9D8C]">
                     {doc.specialty}
                   </p>
 
@@ -204,7 +204,7 @@ export function EditorialDoctorDiscovery() {
 
                 <Link
                   href={`/find-doctor?doctor=${encodeURIComponent(doc.name)}`}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#085041] text-white hover:bg-emerald-800 transition-colors shadow-xs"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-r from-[#0284C7] via-[#0F9D8C] to-[#10B981] text-white hover:brightness-105 transition-all shadow-xs"
                   aria-label={`Book with ${doc.name}`}
                 >
                   <ArrowRight className="h-3.5 w-3.5" />

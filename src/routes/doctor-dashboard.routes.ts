@@ -8,12 +8,19 @@ import { VitalsAiService } from '../services/vitals-ai.service';
 import { validateRequest } from '../middleware/validate.middleware';
 import { issuePrescriptionSchema } from '../validators/prescription.validator';
 import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
+import { doctorController } from '../controllers/doctor.controller';
 
 const router = Router();
 
 // Protect all doctor dashboard routes
 router.use(authenticate);
 router.use(authorize(Role.DOCTOR));
+
+// Doctor self-profile endpoints (supports /api/doctor/me and /api/doctors/me)
+router.get('/', (req, res, next) => doctorController.getMyProfile(req, res, next));
+router.get('/profile', (req, res, next) => doctorController.getMyProfile(req, res, next));
+router.patch('/profile', (req, res, next) => doctorController.updateMyProfile(req, res, next));
+router.put('/profile', (req, res, next) => doctorController.updateMyProfile(req, res, next));
 
 /**
  * Helper to get all valid doctor IDs (both User.id and DoctorProfile.id)
@@ -142,7 +149,7 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
           select: {
             id: true,
             specialization: true,
-            clinicAddress: true,
+            city: true,
             user: {
               select: {
                 id: true,

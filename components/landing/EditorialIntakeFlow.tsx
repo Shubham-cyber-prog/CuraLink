@@ -4,11 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import {
   ClipboardCheck,
-  Stethoscope,
   ArrowRight,
-  ShieldAlert,
   CheckCircle2,
-  FileText,
   AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -75,14 +72,14 @@ export function EditorialIntakeFlow() {
   return (
     <section
       id="clinical-intake"
-      className="relative bg-[#0A0F0D] text-[#F5F3EE] py-24 sm:py-32 px-4 sm:px-6 lg:px-8 border-b border-white/10"
+      className="relative bg-[#090D16] text-[#F5F3EE] py-24 sm:py-32 px-4 sm:px-6 lg:px-8 border-b border-teal-500/15"
       aria-labelledby="intake-heading"
     >
       <div className="mx-auto max-w-7xl">
         {/* Asymmetric Header */}
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-14 items-end mb-16">
           <div className="lg:col-span-8">
-            <span className="font-mono text-xs uppercase tracking-widest text-emerald-400 font-semibold">
+            <span className="font-mono text-xs uppercase tracking-widest text-teal-400 font-semibold">
               [ 04 · Clinical Intake Framework ]
             </span>
             <h2
@@ -90,10 +87,10 @@ export function EditorialIntakeFlow() {
               className="mt-4 font-serif text-3xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-[#F5F3EE] leading-[1.1]"
             >
               Intake designed like a{" "}
-              <em className="font-serif italic font-normal text-emerald-300">clinical consultation</em>,
+              <em className="font-serif italic font-normal bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">clinical consultation</em>,
               not an AI chatbot.
             </h2>
-            <p className="mt-4 text-sm sm:text-base text-white/60 max-w-xl font-sans leading-relaxed">
+            <p className="mt-4 text-sm sm:text-base text-slate-300 max-w-xl font-sans leading-relaxed">
               No conversational bots with emojis or hallucinated diagnoses. A deterministic medical intake protocol that gathers structured context, calculates triage urgency, and equips your doctor before you speak.
             </p>
           </div>
@@ -101,7 +98,7 @@ export function EditorialIntakeFlow() {
           <div className="lg:col-span-4 flex justify-start lg:justify-end">
             <Link
               href="/symptom-checker"
-              className="group inline-flex items-center gap-2 rounded-full bg-[#085041] px-6 py-3 text-xs font-semibold text-white border border-emerald-400/40 hover:border-emerald-300 transition-all shadow-xs"
+              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#0284C7] via-[#0F9D8C] to-[#10B981] px-6 py-3 text-xs font-bold text-white shadow-md shadow-teal-500/25 hover:brightness-105 transition-all"
             >
               <span>Test Clinical Intake</span>
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
@@ -113,7 +110,7 @@ export function EditorialIntakeFlow() {
         <div className="grid lg:grid-cols-12 gap-8 items-start">
           {/* Case Navigation Tabs (Col 4) */}
           <div className="lg:col-span-4 space-y-3">
-            <p className="font-mono text-[11px] uppercase tracking-wider text-white/40 mb-3">
+            <p className="font-mono text-[11px] uppercase tracking-wider text-slate-400 mb-3">
               Select Sample Protocol Scenario:
             </p>
 
@@ -124,14 +121,14 @@ export function EditorialIntakeFlow() {
                   key={item.id}
                   type="button"
                   onClick={() => setActiveCase(item)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all text-xs ${
+                  className={`w-full text-left p-4 rounded-2xl border transition-all text-xs cursor-pointer ${
                     isSelected
-                      ? "bg-white/10 border-emerald-400/50 shadow-md text-white"
-                      : "bg-white/[0.02] border-white/10 hover:bg-white/5 text-white/70"
+                      ? "bg-teal-950/50 border-teal-400/60 shadow-lg text-white"
+                      : "bg-white/[0.02] border-white/10 hover:bg-white/5 text-slate-300"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-400">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-teal-400 font-bold">
                       {item.tag}
                     </span>
                     <span
@@ -140,7 +137,7 @@ export function EditorialIntakeFlow() {
                           ? "bg-rose-950 text-rose-300 border border-rose-800"
                           : item.triageGrade === "Moderate"
                           ? "bg-amber-950/80 text-amber-300 border border-amber-800/60"
-                          : "bg-emerald-950/80 text-emerald-300 border border-emerald-800/60"
+                          : "bg-teal-950/80 text-teal-300 border border-teal-800/60"
                       }`}
                     >
                       {item.triageGrade} Urgency

@@ -435,7 +435,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
   if (isLoadingRoom) {
     return (
       <div className="flex min-h-[70vh] flex-col items-center justify-center text-center px-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-teal-400 mb-4 animate-pulse">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#006D77] dark:text-teal-400 mb-4 animate-pulse">
           <Video className="h-8 w-8" />
         </div>
         <h2 className="text-xl font-bold text-[#0F172A] dark:text-[#F1F5F9] mb-2">
@@ -444,7 +444,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         <p className="text-sm text-[#64748B] dark:text-slate-400 max-w-sm">
           Verifying appointment authorization and establishing peer encryption.
         </p>
-        <Loader2 className="h-6 w-6 animate-spin text-[#0F9D8C] dark:text-teal-400 mt-6" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#006D77] dark:text-teal-400 mt-6" />
       </div>
     );
   }
@@ -634,7 +634,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             <ArrowLeft className="h-4 w-4" />
             Back to {roomData.isDoctor ? "Dashboard" : "Appointments"}
           </Link>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 text-xs font-medium text-[#0F9D8C] dark:text-teal-400">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 text-xs font-medium text-[#006D77] dark:text-teal-400">
             <ShieldCheck className="h-3.5 w-3.5" />
             <span>Private &amp; Secure Session</span>
           </div>
@@ -707,7 +707,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
           {/* Join CTA */}
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <Clock className="h-4 w-4 text-[#0F9D8C] dark:text-teal-400" />
+              <Clock className="h-4 w-4 text-[#006D77] dark:text-teal-400" />
               <span>Scheduled: {roomData.appointment.date} • {roomData.appointment.time}</span>
             </div>
 
@@ -742,7 +742,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
       {/* Top Consultation Control Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-3 px-5 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 font-bold text-[#0F9D8C] dark:text-teal-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 font-bold text-[#006D77] dark:text-teal-400">
             <Video className="h-5 w-5" />
           </div>
           <div>
@@ -765,7 +765,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 text-xs font-semibold text-[#0F9D8C] dark:text-teal-400">
+          <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-teal-200 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/60 px-3 py-1 text-xs font-semibold text-[#006D77] dark:text-teal-400">
             <Lock className="h-3.5 w-3.5" />
             <span>Private &amp; Secure Session</span>
           </div>
@@ -822,14 +822,14 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
       {!hasRemoteParticipant && (
         <div className="flex items-center justify-between rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/90 dark:bg-teal-950/40 p-3 px-4 text-xs text-teal-900 dark:text-teal-200">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 shrink-0 text-[#0F9D8C] dark:text-teal-400" />
+            <Users className="h-4 w-4 shrink-0 text-[#006D77] dark:text-teal-400" />
             <span>
               {roomData.isDoctor
                 ? "Waiting for the patient to connect to this consultation room..."
                 : `Waiting for ${doctorName} to join the consultation. Your presence has been logged and the doctor will connect shortly.`}
             </span>
           </div>
-          <span className="font-mono text-[#0F9D8C] dark:text-teal-400">{formatTimer(callDuration)}</span>
+          <span className="font-mono text-[#006D77] dark:text-teal-400">{formatTimer(callDuration)}</span>
         </div>
       )}
 

@@ -53,23 +53,23 @@ export function ClinicalSecurityDeepDive() {
   return (
     <section
       id="security"
-      className="relative bg-[#0A0F0D] text-[#F5F3EE] py-24 sm:py-32 px-4 sm:px-6 lg:px-8 border-b border-white/10"
+      className="relative bg-[#090D16] text-[#F5F3EE] py-24 sm:py-32 px-4 sm:px-6 lg:px-8 border-b border-teal-500/15"
       aria-labelledby="security-heading"
     >
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl mb-16 sm:mb-20">
-          <span className="font-mono text-xs uppercase tracking-widest text-emerald-400 font-semibold">
-            [ 05 · Sovereign Data Architecture ]
+          <span className="font-mono text-xs uppercase tracking-widest text-teal-400 font-semibold">
+            [ 06 · Sovereign Data Architecture ]
           </span>
           <h2
             id="security-heading"
             className="mt-4 font-serif text-3xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-[#F5F3EE] leading-[1.1]"
           >
             Medical privacy is an{" "}
-            <em className="font-serif italic font-normal text-emerald-300">engineering invariant</em>,
+            <em className="font-serif italic font-normal bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">engineering invariant</em>,
             not a marketing promise.
           </h2>
-          <p className="mt-4 text-sm sm:text-base text-white/60 leading-relaxed font-sans">
+          <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed font-sans">
             Healthcare records contain the most sensitive details of human life. We build with least-privilege access, verifiable encryption, and zero third-party monetization.
           </p>
         </div>
@@ -83,11 +83,11 @@ export function ClinicalSecurityDeepDive() {
                 key={spec.code}
                 whileHover={{ y: -4 }}
                 transition={{ duration: 0.2 }}
-                className="group flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.02] p-6 sm:p-7 backdrop-blur-xs hover:border-emerald-500/40 hover:bg-white/[0.04] transition-all"
+                className="group flex flex-col justify-between rounded-3xl border border-teal-500/20 bg-white/[0.02] p-6 sm:p-7 backdrop-blur-xs hover:border-teal-400/40 hover:bg-white/[0.04] transition-all"
               >
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-950/80 text-emerald-400 border border-emerald-500/30">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-950/80 text-teal-300 border border-teal-500/30">
                       <Icon className="h-4 w-4" />
                     </div>
                     <span className="font-mono text-[10px] text-emerald-400/80 bg-emerald-950/50 border border-emerald-500/20 px-2 py-0.5 rounded">

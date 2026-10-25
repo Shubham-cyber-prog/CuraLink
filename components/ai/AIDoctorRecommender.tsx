@@ -118,21 +118,21 @@ export function AIDoctorRecommender() {
         {/* Search Form */}
         <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Bot className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#0F9D8C] dark:text-[#14B8A6]" />
+            <Bot className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#006D77] dark:text-[#83C5BE]" />
             <input
               ref={inputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Describe your health concern…"
-              className="w-full rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#0B1120] pl-10 pr-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#94A3B8] dark:placeholder:text-[#64748B] focus:border-[#0F9D8C] dark:focus:border-[#14B8A6] focus:bg-white dark:focus:bg-[#0B1120] focus:outline-none transition-colors"
+              className="w-full rounded-xl border border-border bg-surface-elevated pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-[#006D77] focus:ring-2 focus:ring-[#83C5BE]/25 focus:bg-white dark:focus:bg-[#0B1F33] focus:outline-none transition-colors"
               disabled={isLoading}
             />
           </div>
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
-            className="flex h-10 items-center gap-1.5 rounded-xl bg-[#0F9D8C] dark:bg-[#14B8A6] px-4 text-sm font-semibold text-white hover:bg-[#0C8577] dark:hover:bg-teal-500 disabled:opacity-40 transition-all active:scale-[0.97] cursor-pointer whitespace-nowrap"
+            className="flex h-10 items-center gap-1.5 rounded-xl bg-[#006D77] px-4 text-sm font-semibold text-white hover:bg-[#00565e] disabled:opacity-40 transition-all active:scale-[0.97] cursor-pointer whitespace-nowrap shadow-xs hover:shadow-[0_0_12px_rgba(131,197,190,0.4)]"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -152,7 +152,7 @@ export function AIDoctorRecommender() {
               <button
                 key={ex}
                 onClick={() => handleExampleClick(ex)}
-                className="inline-flex items-center gap-1 rounded-full border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#1C2338] px-3 py-1.5 text-xs text-[#64748B] dark:text-[#94A3B8] hover:border-[#0F9D8C]/40 dark:hover:border-[#14B8A6]/40 hover:text-[#0F9D8C] dark:hover:text-[#14B8A6] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted hover:border-[#83C5BE]/60 hover:text-[#006D77] dark:hover:text-[#83C5BE] transition-colors cursor-pointer"
               >
                 <ArrowRight className="h-3 w-3" />
                 {ex}
@@ -169,11 +169,11 @@ export function AIDoctorRecommender() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.2 }}
-              className="rounded-xl border border-teal-200/60 dark:border-teal-800/40 bg-teal-50/50 dark:bg-teal-950/20 p-4"
+              className="rounded-xl border border-[#83C5BE]/40 bg-[#006D77]/5 dark:bg-[#006D77]/15 p-4"
             >
               {isLoading && !result ? (
-                <div className="flex items-center gap-2 text-sm text-[#64748B] dark:text-[#94A3B8]">
-                  <Loader2 className="h-4 w-4 animate-spin text-[#0F9D8C] dark:text-[#14B8A6]" />
+                <div className="flex items-center gap-2 text-sm text-muted">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#006D77] dark:text-[#83C5BE]" />
                   <span>Analyzing your concern...</span>
                 </div>
               ) : (

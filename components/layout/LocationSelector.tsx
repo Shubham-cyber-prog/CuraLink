@@ -354,7 +354,7 @@ export function LocationSelector({
         className={`flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#1C2338] px-3 py-1.5 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] transition-all hover:bg-slate-100 dark:hover:bg-[#263049] hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none cursor-pointer ${buttonClassName}`}
         aria-label="Select location"
       >
-        <MapPin className="h-3.5 w-3.5 text-[#0F9D8C] shrink-0" />
+        <MapPin className="h-3.5 w-3.5 text-[#006D77] shrink-0" />
         <span className="truncate max-w-[130px] sm:max-w-[160px]">
           {currentLocation.isDetected && !currentLocation.isConfirmed ? (
             <span className="text-amber-700 dark:text-amber-400">
@@ -373,7 +373,7 @@ export function LocationSelector({
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-[#263049] pb-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C]">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/60 text-[#006D77]">
                 <MapPin className="h-4 w-4" />
               </div>
               <div>
@@ -404,7 +404,7 @@ export function LocationSelector({
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type city or pincode (e.g. Hisar, New Delhi)..."
-              className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#1C2338] pl-9 pr-9 py-2 text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#94A3B8] focus:border-[#0F9D8C] focus:bg-white dark:focus:bg-[#151B2E] focus:ring-2 focus:ring-[#0F9D8C]/20 focus:outline-none transition-all"
+              className="w-full rounded-xl border border-[#CBD5E1] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#1C2338] pl-9 pr-9 py-2 text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9] placeholder:text-[#94A3B8] focus:border-[#006D77] focus:bg-white dark:focus:bg-[#151B2E] focus:ring-2 focus:ring-[#006D77]/20 focus:outline-none transition-all"
             />
             {searchQuery ? (
               <button
@@ -441,7 +441,7 @@ export function LocationSelector({
                 <button
                   type="button"
                   onClick={() => selectLocation(unconfirmedDetected, true)}
-                  className="flex-1 rounded-lg bg-[#0F9D8C] hover:bg-[#0C8577] text-white py-1.5 px-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  className="flex-1 rounded-lg bg-[#006D77] hover:bg-[#0C8577] text-white py-1.5 px-2 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
                 >
                   ✓ Confirm {unconfirmedDetected.city}
                 </button>
@@ -485,7 +485,7 @@ export function LocationSelector({
                     onClick={() => selectLocation(loc, true)}
                     className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1 ${
                       isSelected
-                        ? "bg-[#0F9D8C] text-white font-semibold shadow-xs"
+                        ? "bg-[#006D77] text-white font-semibold shadow-xs"
                         : "bg-slate-100 dark:bg-[#1C2338] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#263049]"
                     }`}
                   >
@@ -502,7 +502,7 @@ export function LocationSelector({
             <div className="mt-3 border-t border-slate-100 dark:border-[#263049] pt-2 max-h-44 overflow-y-auto space-y-1 pr-1">
               {searchResults.length > 0 ? (
                 <>
-                  <p className="text-[10px] font-bold text-[#0F9D8C] uppercase tracking-wider px-1">
+                  <p className="text-[10px] font-bold text-[#006D77] uppercase tracking-wider px-1">
                     Search Results ({searchResults.length})
                   </p>
                   {searchResults.map((loc, idx) => (
@@ -513,7 +513,7 @@ export function LocationSelector({
                       className="flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium text-[#0F172A] dark:text-[#F1F5F9] hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors cursor-pointer text-left"
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#0F9D8C]" />
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[#006D77]" />
                         <span className="truncate font-semibold">
                           {loc.city}, {loc.state}
                         </span>
@@ -540,7 +540,7 @@ export function LocationSelector({
                     true
                   )
                 }
-                className="flex w-full items-center gap-2 rounded-xl border border-dashed border-[#0F9D8C]/40 bg-teal-50/50 dark:bg-teal-950/30 p-2.5 text-left text-xs font-semibold text-[#0F9D8C] hover:bg-teal-100/60 dark:hover:bg-teal-900/40 transition-colors cursor-pointer"
+                className="flex w-full items-center gap-2 rounded-xl border border-dashed border-[#006D77]/40 bg-teal-50/50 dark:bg-teal-950/30 p-2.5 text-left text-xs font-semibold text-[#006D77] hover:bg-teal-100/60 dark:hover:bg-teal-900/40 transition-colors cursor-pointer"
               >
                 <Check className="h-3.5 w-3.5 shrink-0" />
                 <span>Select &quot;{searchQuery.trim()}&quot; as your city</span>
@@ -554,16 +554,16 @@ export function LocationSelector({
               type="button"
               onClick={handleAutoDetect}
               disabled={isDetecting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-[#1C2338] hover:bg-teal-50 dark:hover:bg-teal-950/40 border border-slate-200 dark:border-[#263049] hover:border-teal-300 dark:hover:border-teal-700/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-[#0F9D8C] dark:hover:text-[#14B8A6] transition-all cursor-pointer disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-100 dark:bg-[#1C2338] hover:bg-teal-50 dark:hover:bg-teal-950/40 border border-slate-200 dark:border-[#263049] hover:border-teal-300 dark:hover:border-teal-700/60 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-[#006D77] dark:hover:text-[#14B8A6] transition-all cursor-pointer disabled:opacity-50"
             >
               {isDetecting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#0F9D8C]" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#006D77]" />
                   <span>Detecting location...</span>
                 </>
               ) : (
                 <>
-                  <Navigation className="h-3.5 w-3.5 text-[#0F9D8C]" />
+                  <Navigation className="h-3.5 w-3.5 text-[#006D77]" />
                   <span>Auto-detect via GPS</span>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
                     (Best on mobile)

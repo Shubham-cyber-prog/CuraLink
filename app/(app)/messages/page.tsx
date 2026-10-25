@@ -224,7 +224,7 @@ export default function MessagesPage() {
         </div>
       ) : contacts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 dark:border-[#263049] bg-slate-50/50 dark:bg-[#151B2E]/60 py-24 text-center px-4">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-teal-400">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 dark:bg-teal-950/60 text-[#006D77] dark:text-teal-400">
             <MessageSquare className="h-8 w-8" />
           </div>
           <h3 className="text-lg font-bold text-[#0F172A] dark:text-[#F1F5F9]">
@@ -237,7 +237,7 @@ export default function MessagesPage() {
           </p>
           <Link
             href={currentUser?.role === "DOCTOR" ? "/doctor-dashboard" : "/find-doctor"}
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0F9D8C] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#006D77] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0C8577] transition-colors"
           >
             {currentUser?.role === "DOCTOR" ? "Go to Doctor Dashboard" : "Find a Doctor & Book"}
             <ArrowRight className="h-4 w-4" />
@@ -258,11 +258,11 @@ export default function MessagesPage() {
                   onClick={() => setSelectedContact(c)}
                   className={`flex items-center gap-3 rounded-xl p-3 border transition-all cursor-pointer ${
                     isSelected
-                      ? "bg-white dark:bg-[#1C2338] border-[#0F9D8C] dark:border-teal-500/80 shadow-xs"
+                      ? "bg-white dark:bg-[#1C2338] border-[#006D77] dark:border-teal-500/80 shadow-xs"
                       : "border-transparent hover:bg-white/60 dark:hover:bg-[#151B2E]"
                   }`}
                 >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-teal-300 font-bold text-sm">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-950/60 text-[#006D77] dark:text-teal-300 font-bold text-sm">
                     {c.name.replace(/^Dr\.\s*/i, "").charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -284,7 +284,7 @@ export default function MessagesPage() {
               {/* Thread Header */}
               <div className="flex items-center justify-between border-b border-[#E2E8F0] dark:border-[#263049] px-5 py-3.5 bg-white dark:bg-[#151B2E]">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0F9D8C] dark:text-teal-400 font-bold text-sm">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#006D77] dark:text-teal-400 font-bold text-sm">
                     {selectedContact.name.replace(/^Dr\.\s*/i, "").charAt(0)}
                   </div>
                   <div>
@@ -301,7 +301,7 @@ export default function MessagesPage() {
                 {selectedContact.appointmentId && (
                   <Link
                     href={`/consultation/${selectedContact.appointmentId}`}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-xs font-semibold text-[#0F9D8C] dark:text-teal-300 hover:bg-[#0F9D8C] hover:text-white transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-xs font-semibold text-[#006D77] dark:text-teal-300 hover:bg-[#006D77] hover:text-white transition-colors"
                   >
                     <Video className="h-3.5 w-3.5" />
                     Join Video
@@ -329,7 +329,7 @@ export default function MessagesPage() {
                       <div
                         className={`max-w-md rounded-2xl px-4 py-2.5 text-sm ${
                           m.sender === "self"
-                            ? "bg-[#0F9D8C] text-white rounded-br-none"
+                            ? "bg-[#006D77] text-white rounded-br-none"
                             : "bg-white dark:bg-[#1C2338] text-[#0F172A] dark:text-[#F1F5F9] border border-[#E2E8F0] dark:border-[#263049] shadow-xs rounded-bl-none"
                         }`}
                       >
@@ -353,11 +353,11 @@ export default function MessagesPage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={`Message ${selectedContact.name}...`}
-                  className="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#070b14] px-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#0F9D8C] focus:bg-white dark:focus:bg-[#151B2E] focus:outline-none"
+                  className="flex-1 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-[#F8FAFC] dark:bg-[#070b14] px-4 py-2.5 text-sm text-[#0F172A] dark:text-[#F1F5F9] focus:border-[#006D77] focus:bg-white dark:focus:bg-[#151B2E] focus:outline-none"
                 />
                 <button
                   type="submit"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0F9D8C] text-white hover:bg-[#0C8577] transition-colors cursor-pointer"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#006D77] text-white hover:bg-[#0C8577] transition-colors cursor-pointer"
                 >
                   <Send className="h-4 w-4" />
                 </button>

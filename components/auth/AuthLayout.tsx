@@ -13,10 +13,10 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, subtitle }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen w-full flex-col bg-slate-50 dark:bg-[#0B1120] md:flex-row transition-colors duration-200">
+    <div className="flex min-h-screen w-full flex-col bg-background md:flex-row transition-colors duration-200">
       {/* Left Clinical Editorial Panel (Desktop) */}
       <div className="relative hidden select-none overflow-hidden bg-[#06241C] p-10 lg:p-14 text-white md:flex md:w-[46%] md:flex-col md:justify-between lg:w-[42%] border-r border-teal-900/30">
-        <div className="pointer-events-none absolute inset-0 bg-grid opacity-15" />
+        <div className="pointer-events-none absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '32px 32px' }} />
         
         {/* Top Logo */}
         <div className="z-10 flex items-center justify-between">

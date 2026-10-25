@@ -6,6 +6,7 @@ import { auditService, AuditAction } from '../services/audit.service';
 import { bookAppointmentSchema } from '../validators/appointment.validator';
 import { UnauthorizedError, NotFoundError, ForbiddenError, BadRequestError } from '../utils/errors';
 import { checkConsultationEligibility } from '../utils/appointment-time';
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 
 export class AppointmentController {
   async book(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -36,11 +37,12 @@ export class AppointmentController {
         throw new UnauthorizedError('Authentication required');
       }
 
-      const appointments = await appointmentService.getMyAppointments(req.user.id);
+      const pagination = parsePaginationParams(req.query);
+      const result = await appointmentService.getMyAppointments(req.user.id, pagination);
 
       res.status(200).json({
         success: true,
-        data: appointments,
+        ...buildPaginatedResponse(result.appointments, result.total, result.limit, result.page),
       });
     } catch (error) {
       next(error);

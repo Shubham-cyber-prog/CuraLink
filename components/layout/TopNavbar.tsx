@@ -80,6 +80,9 @@ export function TopNavbar() {
           setUserName(user.name || "");
           setUserEmail(user.email || "");
           if (user.role) setUserRole(user.role);
+          if (data.data.token && typeof window !== "undefined") {
+            localStorage.setItem("curalink_token", data.data.token);
+          }
         }
       } catch (err) {
         // Handled silently
@@ -87,6 +90,37 @@ export function TopNavbar() {
     };
     fetchUser();
   }, []);
+
+  const handleSwitchRole = async (targetRole: "DOCTOR" | "PATIENT") => {
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
+          : null;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${apiBase}/auth/switch-role`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ role: targetRole }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.token) {
+        localStorage.setItem("curalink_token", data.data.token);
+      }
+      setProfileOpen(false);
+      if (targetRole === "DOCTOR") {
+        window.location.href = "/doctor-dashboard";
+      } else {
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      console.error("Role switch failed:", err);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -411,6 +445,27 @@ export function TopNavbar() {
                       <HelpCircle className="h-4 w-4 text-slate-400" />
                       <span>Help & Support</span>
                     </Link>
+
+                    {/* Role Quick Toggle */}
+                    {userRole === "DOCTOR" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchRole("PATIENT")}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-lg transition-colors cursor-pointer text-left"
+                      >
+                        <User className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                        <span>Switch to Patient Mode</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchRole("DOCTOR")}
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-lg transition-colors cursor-pointer text-left"
+                      >
+                        <Stethoscope className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                        <span>Switch to Doctor Mode</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="border-t border-slate-100 dark:border-slate-800 pt-1">

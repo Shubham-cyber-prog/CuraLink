@@ -193,7 +193,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         <Link
           href="/forgot-password"
           target="_self"
-          className="text-xs font-semibold text-[#0F9D8C] dark:text-teal-400 hover:text-[#085041] dark:hover:text-teal-300 transition-colors"
+          className="text-xs font-semibold text-[#006D77] dark:text-[#83C5BE] hover:text-[#00565e] dark:hover:text-teal-300 transition-colors"
         >
           Forgot password?
         </Link>
@@ -211,7 +211,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       <button
         type="submit"
         disabled={isLoading}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#085041] hover:bg-[#06382e] dark:bg-teal-600 dark:hover:bg-teal-500 text-sm font-semibold text-white shadow-sm shadow-[#085041]/20 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#0F9D8C]/40 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#006D77] hover:bg-[#00565e] dark:bg-[#006D77] dark:hover:bg-[#00565e] text-sm font-semibold text-white shadow-md shadow-[#006D77]/20 border border-[#83C5BE]/30 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#83C5BE]/40 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
       >
         {isLoading ? (
           <>
@@ -233,7 +233,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
           <Link
             href="/register"
             target="_self"
-            className="font-semibold text-[#0F9D8C] dark:text-teal-400 hover:text-[#085041] dark:hover:text-teal-300 transition-colors underline-offset-4 hover:underline"
+            className="font-semibold text-[#006D77] dark:text-[#83C5BE] hover:text-[#00565e] dark:hover:text-teal-300 transition-colors underline-offset-4 hover:underline"
           >
             Create account
           </Link>

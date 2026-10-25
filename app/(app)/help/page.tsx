@@ -32,7 +32,7 @@ export default function HelpSupportPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-[#0F9D8C]">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-[#006D77]">
             <PhoneCall className="h-5 w-5" />
           </div>
           <h3 className="mt-4 text-sm font-bold text-[#0F172A]">
@@ -43,7 +43,7 @@ export default function HelpSupportPage() {
           </p>
           <a
             href="tel:1800123456"
-            className="mt-3 inline-block text-xs font-bold text-[#0F9D8C]"
+            className="mt-3 inline-block text-xs font-bold text-[#006D77]"
           >
             +1 (800) 555-CURA
           </a>

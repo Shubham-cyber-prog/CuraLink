@@ -39,6 +39,7 @@ router.get('/csrf-token', (req, res) => {
 // Protected routes
 router.get('/me', authenticate, (req, res, next) => authController.getMe(req, res, next));
 router.put('/profile', authenticate, authorize(Role.PATIENT, Role.DOCTOR), (req, res, next) => authController.updateProfile(req, res, next));
+router.post('/switch-role', authenticate, (req, res, next) => authController.switchRole(req, res, next));
 
 // Test-only role authorization route (never exposed in staging/production)
 if (process.env.NODE_ENV === 'test') {

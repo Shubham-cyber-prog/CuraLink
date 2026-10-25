@@ -189,22 +189,51 @@ export class AppointmentService {
     return appointment;
   }
 
-  async getMyAppointments(userId: string) {
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        OR: [{ userId }, { doctorId: userId }],
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-        doctor: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true },
+  async getMyAppointments(
+    userId: string,
+    options?: { limit?: number; page?: number; cursor?: string; skip?: number }
+  ) {
+    const limit = options?.limit ?? 20;
+    const page = options?.page ?? 1;
+    const cursor = options?.cursor;
+    const skip = cursor ? 0 : (options?.skip ?? (page - 1) * limit);
+
+    const whereClause = {
+      OR: [{ userId }, { doctorId: userId }],
+    };
+
+    const [total, appointments] = await Promise.all([
+      prisma.appointment.count({ where: whereClause }),
+      prisma.appointment.findMany({
+        where: whereClause,
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+          doctor: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
             },
           },
+          payment: {
+            select: { status: true, amount: true },
+          },
+          prescription: true,
+          review: true,
         },
+
+        orderBy: [
+          { scheduledAt: 'asc' },
+          { date: 'asc' },
+          { time: 'asc' },
+        ],
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+        take: limit + 1,
+      }),
+    ]);
+
         payment: {
           select: { status: true, amount: true },
         },
@@ -218,7 +247,8 @@ export class AppointmentService {
       ],
     });
 
-    return appointments.map((apt) => ({
+
+    const mapped = appointments.map((apt) => ({
       ...apt,
       doctor: apt.doctor
         ? {
@@ -239,6 +269,13 @@ export class AppointmentService {
           }
         : null,
     }));
+
+    return {
+      appointments: mapped,
+      total,
+      limit,
+      page,
+    };
   }
 }
 

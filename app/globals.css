@@ -3,28 +3,40 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #ffffff;
+  --foreground: #0B1F33; /* Deep Navy */
   --surface: #ffffff;
-  --surface-elevated: #ffffff;
-  --muted: #64748b;
+  --surface-elevated: #f4f8f8;
+  --muted: #4e6578;
   --border: #e2e8f0;
-  --ring: #0F9D8C;
-  --accent-primary: #0F9D8C;
-  --accent-secondary: #085041;
+  --ring: #006D77; /* Royal Teal */
+  --accent: #006D77; /* Royal Teal */
+  --accent-hover: #00565e;
+  --accent-subtle: #f0f8f8;
+  
+  /* The 3 User Requested Signature Colors */
+  --royal-teal: #006D77;
+  --deep-navy: #0B1F33;
+  --soft-aqua: #83C5BE;
   color-scheme: light;
 }
 
 .dark {
-  --background: #0A0F0D;
-  --foreground: #F5F3EE;
-  --surface: #101614;
-  --surface-elevated: #161F1B;
-  --muted: #8E9B95;
-  --border: #1F2A25;
-  --ring: #085041;
-  --accent-primary: #0F9D8C;
-  --accent-secondary: #085041;
+  --background: #071320; /* Luxury deep navy dark background */
+  --foreground: #f4f9f9;
+  --surface: #0B1F33; /* Deep Navy surface */
+  --surface-elevated: #112a44;
+  --muted: #8fa7b8;
+  --border: #163656;
+  --ring: #83C5BE; /* Soft Aqua ring in dark */
+  --accent: #006D77; /* Royal Teal */
+  --accent-hover: #83C5BE; /* Soft Aqua hover in dark */
+  --accent-subtle: #082933;
+
+  /* The 3 User Requested Signature Colors */
+  --royal-teal: #006D77;
+  --deep-navy: #0B1F33;
+  --soft-aqua: #83C5BE;
   color-scheme: dark;
 }
 
@@ -36,24 +48,42 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-ring: var(--ring);
-  --color-accent-primary: var(--accent-primary);
-  --color-accent-secondary: var(--accent-secondary);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+
+  --color-royal-teal: #006D77;
+  --color-deep-navy: #0B1F33;
+  --color-soft-aqua: #83C5BE;
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-instrument), "Instrument Serif", Georgia, serif;
 
-  --color-charcoal: #1e293b;
-  --color-accent: #0F9D8C;
+  --animate-fadeIn: fadeIn 0.5s ease-out;
+  --animate-fadeInUp: fadeInUp 0.6s ease-out;
+  --animate-slideIn: slideIn 0.4s ease-out;
+  --animate-pulseGlow: pulseGlow 2.5s ease-in-out infinite;
+}
 
-  --animate-fadeIn: fadeIn 0.2s ease-out;
-  --animate-shimmer: shimmer 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(131, 197, 190, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(131, 197, 190, 0.7);
+  }
 }
 
 @keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -61,13 +91,29 @@
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
   }
-  100% {
-    background-position: 200% 0;
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
+}
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
 }
 
 html {
@@ -84,13 +130,13 @@ body {
 }
 
 ::selection {
-  background: #99f6e4;
-  color: #0f172a;
+  background: rgba(131, 197, 190, 0.35);
+  color: #0B1F33;
 }
 
 .dark ::selection {
-  background: #134e4a;
-  color: #ccfbf1;
+  background: rgba(0, 109, 119, 0.45);
+  color: #f4f9f9;
 }
 
 /* Notification badge dot */
@@ -107,23 +153,6 @@ body {
 
 .dark .nav-badge-dot {
   border-color: #0f172a;
-}
-
-.bg-grid {
-  background-image:
-    linear-gradient(to right, rgb(15 118 110 / 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(15 118 110 / 0.06) 1px, transparent 1px);
-  background-size: 56px 56px;
-}
-
-.dark .bg-grid {
-  background-image:
-    linear-gradient(to right, rgb(20 184 166 / 0.08) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(20 184 166 / 0.08) 1px, transparent 1px);
-}
-
-.bg-noise {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
 }
 
 /* Reduced Motion */

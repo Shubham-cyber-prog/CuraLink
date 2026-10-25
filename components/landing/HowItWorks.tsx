@@ -1,107 +1,88 @@
 "use client";
 
-import { Search, Calendar, Stethoscope, ArrowRight } from "lucide-react";
+import React from "react";
 import { motion } from "framer-motion";
+import { MessageSquareText, CalendarCheck, Video, FileCheck2 } from "lucide-react";
 
 const STEPS = [
   {
-    number: "01",
-    icon: Search,
-    title: "Find your doctor",
-    description: "Search by clinical specialty, verified availability, and consultation type.",
+    step: "01",
+    icon: MessageSquareText,
+    title: "Describe your symptoms",
+    description:
+      "Share your health concerns in plain words. Our clinical triage organizes your background and highlights urgency.",
   },
   {
-    number: "02",
-    icon: Calendar,
-    title: "Book your visit",
-    description: "Choose a convenient date and time with transparent fees and immediate confirmation.",
+    step: "02",
+    icon: CalendarCheck,
+    title: "Select your specialist",
+    description:
+      "Browse verified doctors by specialty, credentials, and fees. Pick a same-day or convenient future time slot.",
   },
   {
-    number: "03",
-    icon: Stethoscope,
-    title: "Get care",
-    description: "Meet your doctor online via secure video or in person for diagnosis and treatment plans.",
+    step: "03",
+    icon: Video,
+    title: "Consult via HD video",
+    description:
+      "Join your encrypted video call directly in your browser. No downloads or setup required.",
   },
-] as const;
+  {
+    step: "04",
+    icon: FileCheck2,
+    title: "Receive your prescription",
+    description:
+      "Get a signed digital prescription PDF instantly to share with your pharmacy, plus follow-up guidance.",
+  },
+];
 
 export function HowItWorks() {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 12 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.4, ease: "easeOut" as const },
-    },
-  };
-
   return (
-    <section
-      id="how-it-works"
-      className="px-4 sm:px-6 py-16 sm:py-20 bg-[#F5F7F6] dark:bg-[#0B1120] border-b border-[#E2E8F0] dark:border-slate-800"
-      aria-labelledby="how-it-works-heading"
-    >
-      <div className="mx-auto max-w-6xl">
-        {/* Section Header */}
-        <div className="mb-12 max-w-xl">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[#0D9488] dark:text-[#14B8A6]">
+    <section id="how-it-works" className="py-20 sm:py-24 border-b border-border bg-surface-elevated/40">
+      <div className="mx-auto max-w-6xl px-6">
+        {/* Header */}
+        <div className="max-w-2xl">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#006D77]">
             How It Works
           </span>
-          <h2
-            id="how-it-works-heading"
-            className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-4xl"
-          >
-            Three steps to better care
+          <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+            From symptoms to care in minutes.
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-slate-600 dark:text-slate-400">
-            A simple, dignified patient journey designed to remove bureaucracy and waiting rooms.
+          <p className="mt-3 text-base text-muted leading-relaxed">
+            A simple, predictable consultation experience designed to respect your time.
           </p>
         </div>
 
-        {/* 3 Steps Grid */}
-        <motion.div
-          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-40px" }}
-          variants={containerVariants}
-        >
-          {STEPS.map((step) => (
+        {/* Steps Grid */}
+        <div className="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {STEPS.map((step, index) => (
             <motion.div
-              key={step.number}
-              variants={itemVariants}
-              whileHover={{ y: -2 }}
-              className="relative flex flex-col justify-between rounded-2xl border border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-[#151B2E] p-6 shadow-2xs transition-all hover:border-[#0D9488]/40"
+              key={step.step}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: index * 0.08, duration: 0.35 }}
+              className="rounded-2xl border border-border bg-surface p-6 space-y-4 hover:border-[#83C5BE]/50 transition-colors"
             >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs font-bold tracking-widest text-[#0D9488] dark:text-[#14B8A6] font-mono">
-                    {step.number}
-                  </span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6] border border-teal-100 dark:border-teal-900/50">
-                    <step.icon className="h-4 w-4" aria-hidden="true" />
-                  </div>
+              <div className="flex items-center justify-between">
+                <div className="h-10 w-10 rounded-xl bg-[#006D77]/10 text-[#006D77] flex items-center justify-center">
+                  <step.icon className="h-5 w-5" />
                 </div>
+                <span className="font-mono text-xs font-bold text-muted">
+                  STEP {step.step}
+                </span>
+              </div>
 
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+              <div>
+                <h3 className="text-base font-bold text-foreground">
                   {step.title}
                 </h3>
-                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+                <p className="mt-2 text-sm text-muted leading-relaxed">
                   {step.description}
                 </p>
               </div>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

@@ -1,17 +1,12 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import Link from "next/link";
 import {
   Activity,
   Video,
   HeartPulse,
   TrendingUp,
   ArrowRight,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  Lock,
 } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -182,26 +177,26 @@ export function PinnedFeaturesSection() {
     <section
       id="capabilities"
       ref={pinSectionRef}
-      className="relative bg-[#0A0F0D] text-[#F5F3EE] py-20 lg:py-28 overflow-hidden border-b border-white/10"
+      className="relative bg-[#090D16] text-[#F5F3EE] py-20 lg:py-28 overflow-hidden border-b border-teal-500/15"
       aria-label="Core Clinical and AI Capabilities"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mb-12 lg:mb-16">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-emerald-400 mb-3">
+            <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-teal-400 mb-3">
               <span>[ 02 · Integrated Architecture ]</span>
             </div>
             <h2 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-[#F5F3EE]">
-              Four pillars of <em className="italic text-emerald-300 font-normal">clinical precision</em>.
+              Four pillars of <em className="italic bg-gradient-to-r from-sky-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent font-normal">clinical precision</em>.
             </h2>
-            <p className="mt-4 text-sm sm:text-base text-white/60 leading-relaxed max-w-xl">
+            <p className="mt-4 text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl font-sans">
               From the moment symptoms emerge to longitudinal recovery, CuraLink orchestrates your entire healthcare continuum with zero friction.
             </p>
           </div>
 
-          <div className="hidden lg:flex items-center gap-2 text-xs font-mono text-white/40">
+          <div className="hidden lg:flex items-center gap-2 text-xs font-mono text-slate-400">
             <span>SCROLL TO EXPLORE ARCHITECTURE</span>
-            <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
+            <ArrowRight className="h-3.5 w-3.5 text-teal-400" />
           </div>
         </div>
       </div>
@@ -219,20 +214,20 @@ export function PinnedFeaturesSection() {
                 key={item.number}
                 whileHover={{ y: -4 }}
                 transition={{ duration: 0.2 }}
-                className="w-full lg:w-[460px] flex-shrink-0 flex flex-col justify-between rounded-3xl border border-white/15 bg-white/[0.03] p-7 sm:p-8 backdrop-blur-sm shadow-xl"
+                className="w-full lg:w-[460px] flex-shrink-0 flex flex-col justify-between rounded-3xl border border-teal-500/20 bg-white/[0.03] p-7 sm:p-8 backdrop-blur-sm shadow-xl hover:border-teal-400/50 transition-colors"
               >
                 <div>
                   <div className="flex items-center justify-between mb-6">
-                    <span className="font-mono text-xs font-bold tracking-widest text-emerald-400">
+                    <span className="font-mono text-xs font-bold tracking-widest text-teal-400">
                       {item.number}
                     </span>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-white/60 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-teal-300 bg-teal-950/60 border border-teal-500/30 px-2.5 py-1 rounded-full">
                       {item.badge}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-950/80 text-emerald-300 border border-emerald-500/30">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-950/80 text-teal-300 border border-teal-500/30">
                       <Icon className="h-4 w-4" />
                     </div>
                     <h3 className="font-serif text-2xl font-normal text-white">
@@ -240,7 +235,7 @@ export function PinnedFeaturesSection() {
                     </h3>
                   </div>
 
-                  <p className="text-xs font-semibold text-emerald-300/90 mb-3">
+                  <p className="text-xs font-semibold text-teal-300/90 mb-3">
                     {item.subtitle}
                   </p>
 

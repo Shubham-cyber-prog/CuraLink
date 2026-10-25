@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
 declare global {
+
   namespace Express {
     interface Request {
       id?: string;

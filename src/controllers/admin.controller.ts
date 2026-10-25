@@ -4,6 +4,7 @@ import { doctorVerificationService } from '../services/doctor-verification.servi
 import { dataPrivacyService } from '../services/data-privacy.service';
 import { auditService, AuditAction } from '../services/audit.service';
 import { updateVerificationStatusSchema } from '../validators/doctor.validator';
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 
 export class AdminController {
   async getStats(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -53,35 +54,41 @@ export class AdminController {
     try {
       const role = typeof req.query.role === 'string' ? req.query.role.toUpperCase() : undefined;
       const whereClause = role ? { role } : {};
+      const { limit, page, cursor, skip } = parsePaginationParams(req.query);
 
-      const users = await prisma.user.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          phone: true,
-          phoneVerified: true,
-          age: true,
-          gender: true,
-          createdAt: true,
-          updatedAt: true,
-          doctorProfile: {
-            select: {
-              id: true,
-              specialization: true,
-              medicalLicenseNumber: true,
-              verificationStatus: true,
+      const [total, users] = await Promise.all([
+        prisma.user.count({ where: whereClause }),
+        prisma.user.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            phone: true,
+            phoneVerified: true,
+            age: true,
+            gender: true,
+            createdAt: true,
+            updatedAt: true,
+            doctorProfile: {
+              select: {
+                id: true,
+                specialization: true,
+                medicalLicenseNumber: true,
+                verificationStatus: true,
+              },
             },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+          orderBy: { createdAt: 'desc' },
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+          take: limit + 1,
+        }),
+      ]);
 
       res.status(200).json({
         success: true,
-        data: users,
+        ...buildPaginatedResponse(users, total, limit, page),
       });
     } catch (error) {
       next(error);
@@ -90,24 +97,31 @@ export class AdminController {
 
   async getDoctors(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const doctors = await prisma.doctorProfile.findMany({
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-              createdAt: true,
+      const { limit, page, cursor, skip } = parsePaginationParams(req.query);
+
+      const [total, doctors] = await Promise.all([
+        prisma.doctorProfile.count(),
+        prisma.doctorProfile.findMany({
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                createdAt: true,
+              },
             },
           },
-        },
-        orderBy: [{ verificationStatus: 'asc' }, { createdAt: 'desc' }],
-      });
+          orderBy: [{ verificationStatus: 'asc' }, { createdAt: 'desc' }],
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+          take: limit + 1,
+        }),
+      ]);
 
       res.status(200).json({
         success: true,
-        data: doctors,
+        ...buildPaginatedResponse(doctors, total, limit, page),
       });
     } catch (error) {
       next(error);
@@ -144,31 +158,45 @@ export class AdminController {
 
   async getAppointments(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const appointments = await prisma.appointment.findMany({
-        include: {
-          user: {
-            select: { id: true, name: true, email: true },
-          },
-          doctor: {
-            include: {
-              user: {
-                select: { id: true, name: true, email: true },
+      const { limit, page, cursor, skip } = parsePaginationParams(req.query);
+
+      const [total, appointments] = await Promise.all([
+        prisma.appointment.count(),
+        prisma.appointment.findMany({
+          select: {
+            id: true,
+            date: true,
+            time: true,
+            status: true,
+            createdAt: true,
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+            doctor: {
+              select: {
+                id: true,
+                specialization: true,
+                user: {
+                  select: { id: true, name: true, email: true },
+                },
               },
             },
+            payment: {
+              select: { status: true, amount: true },
+            },
+            prescription: {
+              select: { id: true, diagnosis: true },
+            },
           },
-          payment: {
-            select: { status: true, amount: true },
-          },
-          prescription: {
-            select: { id: true, diagnosis: true },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+          orderBy: { createdAt: 'desc' },
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+          take: limit + 1,
+        }),
+      ]);
 
       res.status(200).json({
         success: true,
-        data: appointments,
+        ...buildPaginatedResponse(appointments, total, limit, page),
       });
     } catch (error) {
       next(error);
@@ -177,21 +205,25 @@ export class AdminController {
 
   async getAuditLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const limit = typeof req.query.limit === 'string' ? Math.min(parseInt(req.query.limit, 10), 100) : 50;
+      const { limit, page, cursor, skip } = parsePaginationParams(req.query);
 
-      const logs = await prisma.auditLog.findMany({
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, role: true },
+      const [total, logs] = await Promise.all([
+        prisma.auditLog.count(),
+        prisma.auditLog.findMany({
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, role: true },
+            },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-      });
+          orderBy: { createdAt: 'desc' },
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+          take: limit + 1,
+        }),
+      ]);
 
       res.status(200).json({
         success: true,
-        data: logs,
+        ...buildPaginatedResponse(logs, total, limit, page),
       });
     } catch (error) {
       next(error);
@@ -200,18 +232,25 @@ export class AdminController {
 
   async getErasureRequests(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const requests = await prisma.dataErasureRequest.findMany({
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, role: true },
+      const { limit, page, cursor, skip } = parsePaginationParams(req.query);
+
+      const [total, requests] = await Promise.all([
+        prisma.dataErasureRequest.count(),
+        prisma.dataErasureRequest.findMany({
+          include: {
+            user: {
+              select: { id: true, name: true, email: true, role: true },
+            },
           },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
+          orderBy: { createdAt: 'desc' },
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+          take: limit + 1,
+        }),
+      ]);
 
       res.status(200).json({
         success: true,
-        data: requests,
+        ...buildPaginatedResponse(requests, total, limit, page),
       });
     } catch (error) {
       next(error);

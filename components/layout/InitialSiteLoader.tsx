@@ -28,7 +28,7 @@ export function InitialSiteLoader() {
             filter: "blur(8px)",
             transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
           }}
-          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#F8FAFC] dark:bg-[#070B14] transition-colors duration-200 select-none pointer-events-auto"
+          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-background transition-colors duration-200 select-none pointer-events-auto"
           aria-live="polite"
           aria-busy={isVisible}
         >

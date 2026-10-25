@@ -8,11 +8,21 @@ import { VitalsAiService } from '../services/vitals-ai.service';
 import { validateRequest } from '../middleware/validate.middleware';
 import { issuePrescriptionSchema } from '../validators/prescription.validator';
 
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
+import { doctorController } from '../controllers/doctor.controller';
+
+
 const router = Router();
 
 // Protect all doctor dashboard routes
 router.use(authenticate);
 router.use(authorize(Role.DOCTOR));
+
+// Doctor self-profile endpoints (supports /api/doctor/me and /api/doctors/me)
+router.get('/', (req, res, next) => doctorController.getMyProfile(req, res, next));
+router.get('/profile', (req, res, next) => doctorController.getMyProfile(req, res, next));
+router.patch('/profile', (req, res, next) => doctorController.updateMyProfile(req, res, next));
+router.put('/profile', (req, res, next) => doctorController.updateMyProfile(req, res, next));
 
 /**
  * Helper to get all valid doctor IDs (both User.id and DoctorProfile.id)
@@ -36,38 +46,62 @@ router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFun
   try {
     const doctorUserId = req.user!.id;
     const doctorIds = await getDoctorIds(doctorUserId);
-
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const allAppointments = await prisma.appointment.findMany({
-      where: {
-        doctorId: { in: doctorIds },
-      },
-      select: {
-        id: true,
-        userId: true,
-        date: true,
-        status: true,
-      },
-    });
-
-    const todayAppointments = allAppointments.filter(
-      (a) => a.date === todayStr && a.status !== 'CANCELLED'
-    ).length;
-
-    const uniquePatients = new Set(allAppointments.map((a) => a.userId)).size;
-    const pendingRequests = allAppointments.filter((a) => a.status === 'PENDING').length;
-    const completedConsultations = allAppointments.filter((a) => a.status === 'COMPLETED').length;
-
-    const doctorProfile = await prisma.doctorProfile.findUnique({
-      where: { userId: doctorUserId },
-    });
+    const [
+      todayAppointments,
+      pendingRequests,
+      completedConsultations,
+      uniquePatientGroups,
+      doctorProfile,
+    ] = await Promise.all([
+      // Count today's active appointments directly in DB
+      prisma.appointment.count({
+        where: {
+          doctorId: { in: doctorIds },
+          date: todayStr,
+          status: { not: 'CANCELLED' },
+        },
+      }),
+      // Count pending requests directly in DB
+      prisma.appointment.count({
+        where: {
+          doctorId: { in: doctorIds },
+          status: 'PENDING',
+        },
+      }),
+      // Count completed consultations directly in DB
+      prisma.appointment.count({
+        where: {
+          doctorId: { in: doctorIds },
+          status: 'COMPLETED',
+        },
+      }),
+      // Distinct patients counted via DB groupBy
+      prisma.appointment.groupBy({
+        by: ['userId'],
+        where: {
+          doctorId: { in: doctorIds },
+        },
+      }),
+      // Doctor profile with select (only needed fields)
+      prisma.doctorProfile.findUnique({
+        where: { userId: doctorUserId },
+        select: {
+          consultationFee: true,
+          specialization: true,
+          verificationStatus: true,
+          consultationModes: true,
+          city: true,
+        },
+      }),
+    ]);
 
     res.status(200).json({
       success: true,
       data: {
         todayAppointments,
-        totalPatients: uniquePatients,
+        totalPatients: uniquePatientGroups.length,
         pendingRequests,
         completedConsultations,
         consultationFee: doctorProfile?.consultationFee || 500,
@@ -90,11 +124,13 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
   try {
     const doctorUserId = req.user!.id;
     const doctorIds = await getDoctorIds(doctorUserId);
+    const { limit, page, cursor, skip } = parsePaginationParams(req.query);
+    const whereClause = { doctorId: { in: doctorIds } };
 
-    const appointments = await prisma.appointment.findMany({
-      where: {
-        doctorId: { in: doctorIds },
-      },
+    const [total, appointments] = await Promise.all([
+      prisma.appointment.count({ where: whereClause }),
+      prisma.appointment.findMany({
+        where: whereClause,
       include: {
         user: {
           select: {
@@ -112,7 +148,10 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
           },
         },
         doctor: {
-          include: {
+          select: {
+            id: true,
+            specialization: true,
+            city: true,
             user: {
               select: {
                 id: true,
@@ -132,7 +171,10 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
         },
       },
       orderBy: [{ date: 'desc' }, { time: 'desc' }],
-    });
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : { skip }),
+      take: limit + 1,
+    }),
+  ]);
 
     // Query platform-wide completed appointment counts for all patient users in this list
     const patientIds = Array.from(new Set(appointments.map((a) => a.userId)));
@@ -190,7 +232,7 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
 
     res.status(200).json({
       success: true,
-      data: mapped,
+      ...buildPaginatedResponse(mapped, total, limit, page),
     });
   } catch (error) {
     next(error);
@@ -280,114 +322,149 @@ router.get('/patients', async (req: Request, res: Response, next: NextFunction) 
   try {
     const doctorUserId = req.user!.id;
     const doctorIds = await getDoctorIds(doctorUserId);
+    const { limit, page, cursor, skip } = parsePaginationParams(req.query);
 
-    const appointments = await prisma.appointment.findMany({
+    // 1. Database-level aggregation: Group appointments by patient userId and count visits in DB
+    const patientVisitGroups = await prisma.appointment.groupBy({
+      by: ['userId'],
       where: {
         doctorId: { in: doctorIds },
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            phoneVerified: true,
-            age: true,
-            gender: true,
-            profileCompletedAt: true,
-            noShowCount: true,
-            createdAt: true,
-          },
+      _count: { id: true },
+      _max: { date: true },
+      orderBy: {
+        _max: { date: 'desc' },
+      },
+    });
+
+    const total = patientVisitGroups.length;
+    const pagedGroups = patientVisitGroups.slice(skip, skip + limit);
+    const pagedUserIds = pagedGroups.map((g) => g.userId);
+
+    if (pagedUserIds.length === 0) {
+      res.status(200).json({
+        success: true,
+        data: [],
+        total,
+        nextCursor: null,
+      });
+      return;
+    }
+
+    // 2. Optimized queries with select instead of include for only the paginated slice
+    const [users, latestAppointments, completedCounts] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: pagedUserIds } },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          phoneVerified: true,
+          age: true,
+          gender: true,
+          profileCompletedAt: true,
+          noShowCount: true,
+          createdAt: true,
         },
-        doctor: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
+      }),
+      prisma.appointment.findMany({
+        where: {
+          doctorId: { in: doctorIds },
+          userId: { in: pagedUserIds },
+        },
+        orderBy: [{ date: 'desc' }, { time: 'desc' }],
+        distinct: ['userId'],
+        select: {
+          id: true,
+          userId: true,
+          date: true,
+          time: true,
+          status: true,
+          prescription: {
+            select: {
+              diagnosis: true,
             },
           },
         },
-        prescription: true,
-      },
-      orderBy: [{ date: 'desc' }, { time: 'desc' }],
-    });
+      }),
+      prisma.appointment.groupBy({
+        by: ['userId'],
+        where: {
+          userId: { in: pagedUserIds },
+          status: 'COMPLETED',
+        },
+        _count: { id: true },
+      }),
+    ]);
 
-    // Query platform-wide completed appointment counts for all patient users in this list
-    const patientIds = Array.from(new Set(appointments.map((a) => a.userId)));
-    const completedCounts = await prisma.appointment.groupBy({
-      by: ['userId'],
-      where: {
-        userId: { in: patientIds },
-        status: 'COMPLETED',
-      },
-      _count: { id: true },
-    });
-    const completedMap = new Map<string, number>();
-    completedCounts.forEach((c) => completedMap.set(c.userId, c._count.id));
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const apptMap = new Map(latestAppointments.map((a) => [a.userId, a]));
+    const completedMap = new Map(completedCounts.map((c) => [c.userId, c._count.id]));
 
-    const patientMap = new Map<string, any>();
+    const patients = pagedGroups.map((group) => {
+      const u = userMap.get(group.userId);
+      const appt = apptMap.get(group.userId);
+      const completedCount = completedMap.get(group.userId) || 0;
+      const diag = appt?.prescription?.diagnosis || 'General Clinical Consultation';
 
-    // Conditions and risk map based on diagnosis
-    for (const appt of appointments) {
-      if (!appt.user) continue;
-      const pid = appt.user.id;
-
-      if (!patientMap.has(pid)) {
-        const diag = appt.prescription?.diagnosis || 'General Clinical Consultation';
-        // Assign clinical risk
-        let risk: 'Low' | 'Moderate' | 'High' = 'Low';
-        const diagLower = diag.toLowerCase();
-        if (diagLower.includes('cardio') || diagLower.includes('chest') || diagLower.includes('severe') || diagLower.includes('hyper')) {
-          risk = 'High';
-        } else if (diagLower.includes('headache') || diagLower.includes('fever') || diagLower.includes('infection') || diagLower.includes('derma')) {
-          risk = 'Moderate';
-        }
-
-        const u = appt.user;
-        const createdAt = u?.createdAt ? new Date(u.createdAt) : new Date();
-        const accountAgeInDays = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
-        const completedCount = completedMap.get(pid) || 0;
-        const isProfileComplete = Boolean(
-          (u as any)?.profileCompletedAt ||
-          (u?.name && (u as any)?.age && (u as any)?.gender)
-        );
-
-        const trustCard = {
-          phoneVerified: Boolean((u as any)?.phoneVerified),
-          profileCompleted: isProfileComplete,
-          accountAgeInDays,
-          memberSinceMonths: Math.max(1, Math.round(accountAgeInDays / 30)),
-          totalPastAppointments: completedCount,
-          noShowCount: (u as any)?.noShowCount || 0,
-        };
-
-        patientMap.set(pid, {
-          id: pid,
-          name: appt.user.name,
-          email: appt.user.email,
-          joinedDate: appt.user.createdAt,
-          lastVisit: `${appt.date} at ${appt.time}`,
-          lastVisitDate: appt.date,
-          lastStatus: appt.status,
-          primaryCondition: diag,
-          riskLevel: risk,
-          totalVisits: 1,
-          latestAppointmentId: appt.id,
-          trustCard,
-        });
-      } else {
-        const existing = patientMap.get(pid);
-        existing.totalVisits += 1;
+      let risk: 'Low' | 'Moderate' | 'High' = 'Low';
+      const diagLower = diag.toLowerCase();
+      if (
+        diagLower.includes('cardio') ||
+        diagLower.includes('chest') ||
+        diagLower.includes('severe') ||
+        diagLower.includes('hyper')
+      ) {
+        risk = 'High';
+      } else if (
+        diagLower.includes('headache') ||
+        diagLower.includes('fever') ||
+        diagLower.includes('infection') ||
+        diagLower.includes('derma')
+      ) {
+        risk = 'Moderate';
       }
-    }
+
+      const createdAt = u?.createdAt ? new Date(u.createdAt) : new Date();
+      const accountAgeInDays = Math.max(0, Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)));
+      const isProfileComplete = Boolean(
+        u?.profileCompletedAt || (u?.name && u?.age && u?.gender)
+      );
+
+      const trustCard = {
+        phoneVerified: Boolean(u?.phoneVerified),
+        profileCompleted: isProfileComplete,
+        accountAgeInDays,
+        memberSinceMonths: Math.max(1, Math.round(accountAgeInDays / 30)),
+        totalPastAppointments: completedCount,
+        noShowCount: u?.noShowCount || 0,
+      };
+
+      return {
+        id: group.userId,
+        name: u?.name || 'Unknown Patient',
+        email: u?.email || '',
+        joinedDate: u?.createdAt,
+        lastVisit: appt ? `${appt.date} at ${appt.time}` : 'N/A',
+        lastVisitDate: appt?.date || '',
+        lastStatus: appt?.status || 'COMPLETED',
+        primaryCondition: diag,
+        riskLevel: risk,
+        totalVisits: group._count.id,
+        latestAppointmentId: appt?.id || '',
+        trustCard,
+      };
+    });
+
+    const hasMore = page * limit < total;
+    const nextCursor = hasMore && patients.length > 0 ? patients[patients.length - 1].id : null;
 
     res.status(200).json({
       success: true,
-      data: Array.from(patientMap.values()),
+      data: patients,
+      total,
+      nextCursor,
     });
   } catch (error) {
     next(error);

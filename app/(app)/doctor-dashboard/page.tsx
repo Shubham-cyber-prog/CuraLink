@@ -95,6 +95,11 @@ const INITIAL_PATIENTS: PatientItem[] = [];
 
 export default function DoctorDashboardPage() {
   const router = useRouter();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("");
+  const [isActivatingDoctor, setIsActivatingDoctor] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
+
   const [stats, setStats] = useState<DoctorStats>(INITIAL_STATS);
   const [appointments, setAppointments] = useState<AppointmentItem[]>(INITIAL_APPOINTMENTS);
   const [patients, setPatients] = useState<PatientItem[]>(INITIAL_PATIENTS);
@@ -108,9 +113,34 @@ export default function DoctorDashboardPage() {
 
   const fetchDashboardData = async () => {
     setIsRefreshing(true);
+    setPermissionError(null);
     try {
+      // 0. Verify Auth & Role
+      const meRes = await api.get("/auth/me").catch(() => null);
+      if (meRes?.success && meRes.data?.user) {
+        const u = meRes.data.user;
+        setUserRole(u.role);
+        setUserName(u.name || "Doctor");
+
+        // Auto-update token if fresh token returned by meRes
+        if (meRes.data.token && typeof window !== "undefined") {
+          localStorage.setItem("curalink_token", meRes.data.token);
+        }
+
+        if (u.role !== "DOCTOR") {
+          setIsLoading(false);
+          setIsRefreshing(false);
+          return;
+        }
+      }
+
       // 1. Fetch Stats
-      const statsData = await api.get<DoctorStats>("/doctor/me/dashboard-stats").catch(() => null);
+      const statsData = await api.get<DoctorStats>("/doctor/me/dashboard-stats").catch((err) => {
+        if (err?.message?.includes("Forbidden") || err?.status === 403) {
+          setPermissionError("Forbidden: Insufficient permissions to access clinician practice records.");
+        }
+        return null;
+      });
       if (statsData?.success && statsData.data) {
         setStats(statsData.data);
       }
@@ -130,11 +160,36 @@ export default function DoctorDashboardPage() {
       } else {
         setPatients([]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Error fetching doctor dashboard data:", err);
+      if (err?.message?.includes("Forbidden") || err?.status === 403) {
+        setPermissionError("Forbidden: Insufficient permissions. Activate your doctor practice credentials to proceed.");
+      }
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  };
+
+  const handleActivateDoctor = async () => {
+    try {
+      setIsActivatingDoctor(true);
+      const res = await api.post("/auth/switch-role", { role: "DOCTOR" });
+      if (res?.success && res.data) {
+        if (res.data.token && typeof window !== "undefined") {
+          localStorage.setItem("curalink_token", res.data.token);
+        }
+        setUserRole("DOCTOR");
+        setPermissionError(null);
+        setStatusMessage("Doctor credentials activated! Loading clinician practice dashboard...");
+        setTimeout(() => setStatusMessage(null), 4000);
+        await fetchDashboardData();
+      }
+    } catch (err: any) {
+      console.error("Failed to activate doctor role:", err);
+      setStatusMessage(`Activation error: ${err?.message || "Failed to activate doctor profile"}`);
+    } finally {
+      setIsActivatingDoctor(false);
     }
   };
 
@@ -178,6 +233,70 @@ export default function DoctorDashboardPage() {
     const q = patientSearch.toLowerCase();
     return p.name.toLowerCase().includes(q) || p.primaryCondition.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
   });
+
+  if (userRole === "PATIENT") {
+    return (
+      <div className="max-w-xl mx-auto py-16 px-4 space-y-6 text-center">
+        <div className="h-16 w-16 mx-auto rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex items-center justify-center text-[#0D9488] dark:text-teal-300">
+          <Stethoscope className="h-8 w-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            Clinician Practice Portal
+          </h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+            Welcome, <span className="font-semibold text-slate-900 dark:text-white">{userName || "User"}</span>. You are currently signed in with a Patient account. To access patient charts, consultations, and write digital prescriptions, activate your Doctor credentials below.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#151B2E] p-6 shadow-xs space-y-4 text-left">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="h-5 w-5 text-[#0D9488] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                Doctor Practice Workspace Privileges
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Switching to Doctor Mode activates your clinical schedule, public practice profile, real-time encrypted video appointments, and electronic prescription issuing.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row gap-2.5 justify-center">
+            <button
+              onClick={handleActivateDoctor}
+              disabled={isActivatingDoctor}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0D9488] hover:bg-[#0f766e] text-white px-5 py-2.5 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            >
+              {isActivatingDoctor ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Activating Practice...
+                </>
+              ) : (
+                <>
+                  <Stethoscope className="h-4 w-4" />
+                  Activate Doctor Access & Practice
+                </>
+              )}
+            </button>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1C2338] px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              Go to Patient Portal
+            </Link>
+            <Link
+              href="/find-doctor"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1C2338] px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              Find a Doctor
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="dashboard" className="space-y-8 pb-12">
@@ -260,6 +379,23 @@ export default function DoctorDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {permissionError && (
+        <div className="rounded-xl border border-amber-200 dark:border-amber-850 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs font-medium text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+            <span>{permissionError}</span>
+          </div>
+          <button
+            onClick={handleActivateDoctor}
+            disabled={isActivatingDoctor}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#0D9488] text-white px-3.5 py-1.5 text-xs font-semibold hover:bg-[#0f766e] transition-colors shrink-0 cursor-pointer"
+          >
+            <Stethoscope className="h-3.5 w-3.5" />
+            Re-activate Clinician Credentials
+          </button>
+        </div>
+      )}
 
       {statusMessage && (
         <div className="rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 p-3.5 text-xs font-medium text-[#0D9488] dark:text-teal-300 flex items-center gap-2">

@@ -146,7 +146,7 @@ export default function FindDoctorPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E2E8F0] dark:border-[#263049] pb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#0F9D8C] dark:text-[#14B8A6] mb-1">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[#006D77] dark:text-[#14B8A6] mb-1">
             <MapPin className="h-3.5 w-3.5" />
             <span>
               {filterByCity
@@ -163,7 +163,7 @@ export default function FindDoctorPage() {
         </div>
 
         <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 self-start sm:self-auto">
-          <Sparkles className="h-3.5 w-3.5 text-[#0F9D8C] dark:text-[#14B8A6]" />
+          <Sparkles className="h-3.5 w-3.5 text-[#006D77] dark:text-[#14B8A6]" />
           <span>Verified Medical Practitioners</span>
         </div>
       </div>
@@ -200,7 +200,7 @@ export default function FindDoctorPage() {
                   localStorage.setItem("curalink_user_location", JSON.stringify(confirmed));
                 } catch (e) {}
               }}
-              className="rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] text-white px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+              className="rounded-xl bg-[#006D77] hover:bg-[#0C8577] text-white px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
             >
               ✓ Filter by {userLocation.city}
             </button>
@@ -226,7 +226,7 @@ export default function FindDoctorPage() {
       ) : (
         <div className="rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/60 dark:bg-teal-950/40 p-4 text-xs font-medium text-teal-900 dark:text-teal-200 flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <MapPin className="h-4 w-4 text-[#0F9D8C] dark:text-[#14B8A6] shrink-0 mt-0.5" />
+            <MapPin className="h-4 w-4 text-[#006D77] dark:text-[#14B8A6] shrink-0 mt-0.5" />
             <div>
               <p className="font-bold text-[#0F172A] dark:text-[#F1F5F9]">
                 {filterByCity
@@ -254,7 +254,7 @@ export default function FindDoctorPage() {
             <span className="text-slate-300 dark:text-slate-700">|</span>
             <button
               onClick={() => setFilterByCity(!filterByCity)}
-              className="shrink-0 text-xs font-semibold text-[#0F9D8C] dark:text-[#14B8A6] hover:underline cursor-pointer"
+              className="shrink-0 text-xs font-semibold text-[#006D77] dark:text-[#14B8A6] hover:underline cursor-pointer"
             >
               {filterByCity ? "View all nationwide" : `Filter by ${userLocation.city}`}
             </button>
@@ -371,12 +371,12 @@ export default function FindDoctorPage() {
                 }}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-[#263049] bg-white dark:bg-[#1C2338] px-4 py-2 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] transition-colors cursor-pointer"
               >
-                <MapPin className="h-3.5 w-3.5 text-[#0F9D8C]" /> Change city manually
+                <MapPin className="h-3.5 w-3.5 text-[#006D77]" /> Change city manually
               </button>
               {filterByCity && (
                 <button
                   onClick={() => setFilterByCity(false)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#0F9D8C] hover:bg-[#0C8577] text-white px-4 py-2 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.97]"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#006D77] hover:bg-[#0C8577] text-white px-4 py-2 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.97]"
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Show all nationwide doctors
                 </button>

@@ -5,6 +5,7 @@ import { prescriptionService } from '../services/prescription.service';
 import { createPrescriptionSchema } from '../validators/prescription.validator';
 import { auditService, AuditAction } from '../services/audit.service';
 import { NotFoundError } from '../utils/errors';
+import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 
 export class PrescriptionController {
   async createPrescription(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -55,11 +56,12 @@ export class PrescriptionController {
   async getMyPrescriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const patientId = req.user!.id;
-      const prescriptions = await prescriptionService.getPatientPrescriptions(patientId);
+      const pagination = parsePaginationParams(req.query);
+      const result = await prescriptionService.getPatientPrescriptions(patientId, pagination);
 
       res.status(200).json({
         success: true,
-        data: prescriptions,
+        ...buildPaginatedResponse(result.prescriptions, result.total, result.limit, result.page),
       });
     } catch (error) {
       next(error);

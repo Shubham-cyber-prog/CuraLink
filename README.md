@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="2079" height="756" alt="CuraLink banner" src="https://github.com/user-attachments/assets/aa0fb947-53aa-4853-a1e7-adf803160d29" />
+
 
 # 🩺 CuraLink
 

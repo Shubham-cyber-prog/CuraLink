@@ -17,6 +17,7 @@
 [![Claude API](https://img.shields.io/badge/AI-Claude_API-D97757?style=flat-square)](https://www.anthropic.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](./LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/Shubham-cyber-prog/CuraLink/ci.yml?style=flat-square&label=CI)](../../actions)
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/Shubham-cyber-prog/badge.svg)](https://hub.xerj.org/contributors/Shubham-cyber-prog)
 
 [Live Demo](#) · [Report Bug](../../issues) · [Request Feature](../../issues)
 

@@ -195,6 +195,9 @@ export class PrescriptionService {
       prisma.prescription.findMany({
         where: { patientId },
         include: {
+          patient: {
+            select: { id: true, name: true, email: true, age: true, gender: true, phone: true },
+          },
           appointment: {
             include: {
               doctor: {
@@ -223,6 +226,7 @@ export class PrescriptionService {
           name: doctorUser?.name || 'Doctor',
           email: doctorUser?.email || '',
           specialization: doctorProfile?.specialization || 'General Practice',
+          medicalLicenseNumber: doctorProfile?.medicalLicenseNumber || '',
         },
         parsedMedications: typeof p.medications === 'string' ? JSON.parse(p.medications) : p.medications,
       };

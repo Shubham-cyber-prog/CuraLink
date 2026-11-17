@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import { TopNavbar } from "@/components/layout/TopNavbar";
 import { FloatingMobileNav } from "@/components/layout/FloatingMobileNav";
 import { PageTransition } from "@/components/layout/PageTransition";
-import { AIChatWidget } from "@/components/ai/AIChatWidget";
 import { MotionProvider } from "@/components/motion/MotionProvider";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -85,25 +84,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <MotionProvider>
-      <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
-        {/* Top Navbar — Full Width, No Sidebar */}
-        <TopNavbar />
+      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#071320] text-slate-900 dark:text-slate-100 transition-colors duration-150">
+        {/* Enterprise Sticky Top Navigation */}
+        <div className="print:hidden">
+          <TopNavbar />
+        </div>
 
         {/* Main Content Container */}
         <div className="relative z-10 flex min-h-[calc(100vh-64px)] flex-col">
-          {/* Page Content (with mobile bottom padding for FloatingMobileNav) */}
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pb-28 md:pb-12">
-            <div className="mx-auto max-w-[1280px]">
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pb-24 md:pb-10 print:p-0">
+            <div className="mx-auto max-w-7xl print:max-w-none">
               <PageTransition>{children}</PageTransition>
             </div>
           </main>
         </div>
 
         {/* Mobile Bottom Navigation Bar (< 768px) */}
-        <FloatingMobileNav />
-
-        {/* Global AI Health Assistant Widget */}
-        <AIChatWidget />
+        <div className="print:hidden">
+          <FloatingMobileNav />
+        </div>
       </div>
     </MotionProvider>
   );

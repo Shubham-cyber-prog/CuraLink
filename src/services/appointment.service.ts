@@ -191,16 +191,18 @@ export class AppointmentService {
 
   async getMyAppointments(
     userId: string,
-    options?: { limit?: number; page?: number; cursor?: string; skip?: number }
+    options?: { limit?: number; page?: number; cursor?: string; skip?: number },
+    role?: string
   ) {
     const limit = options?.limit ?? 20;
     const page = options?.page ?? 1;
     const cursor = options?.cursor;
     const skip = cursor ? 0 : (options?.skip ?? (page - 1) * limit);
 
-    const whereClause = {
-      OR: [{ userId }, { doctorId: userId }],
-    };
+    const whereClause =
+      role === 'PATIENT'
+        ? { userId }
+        : { OR: [{ userId }, { doctorId: userId }] };
 
     const [total, appointments] = await Promise.all([
       prisma.appointment.count({ where: whereClause }),
@@ -244,6 +246,8 @@ export class AppointmentService {
             specialization: apt.doctor.specialization,
             experienceYears: apt.doctor.experienceYears,
             consultationFee: apt.doctor.consultationFee,
+            medicalLicenseNumber: apt.doctor.medicalLicenseNumber,
+            city: apt.doctor.city,
           }
         : null,
       patient: apt.user

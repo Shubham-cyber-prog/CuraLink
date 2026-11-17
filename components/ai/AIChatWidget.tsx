@@ -136,23 +136,28 @@ export function AIChatWidget() {
   );
 
   return (
-    <>
-      {/* Floating Action Button */}
+    <div className="print:hidden">
+      {/* Single Consolidated Floating Action Button */}
       <AnimatePresence>
         {!isOpen && (
           <motion.button
-            initial={shouldReduceMotion ? false : { scale: 0, opacity: 0 }}
+            initial={shouldReduceMotion ? false : { scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            exit={{ scale: 0.85, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 420, damping: 28 }}
             onClick={() => setIsOpen(true)}
             id="ai-chat-widget-fab"
-            className="fixed bottom-24 right-5 z-50 md:bottom-8 md:right-8 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#006D77] to-[#00565e] text-white shadow-lg shadow-[rgba(0,109,119,0.35)] hover:shadow-xl hover:shadow-[rgba(131,197,190,0.5)] border border-[#83C5BE]/40 transition-all cursor-pointer active:scale-95"
-            aria-label="Open AI Health Assistant"
+            className="fixed bottom-20 right-4 z-40 md:bottom-6 md:right-6 group flex h-12 items-center gap-2 rounded-full bg-gradient-to-r from-[#006D77] via-[#0A7D88] to-[#0B1F33] px-4 text-white shadow-lg shadow-[#006D77]/30 hover:shadow-xl hover:shadow-[#006D77]/40 border border-[#83C5BE]/40 ring-4 ring-[#83C5BE]/15 transition-all cursor-pointer active:scale-95"
+            aria-label="Open CuraLink AI Health Assistant"
+            title="CuraLink AI Assistant"
           >
-            <Sparkles className="h-6 w-6 text-[#83C5BE]" />
-            {/* Pulse ring */}
-            <span className="absolute inset-0 rounded-full animate-ping bg-[#83C5BE]/30" style={{ animationDuration: "3s" }} />
+            <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-white/15">
+              <Sparkles className="h-3.5 w-3.5 text-[#83C5BE] transition-transform group-hover:rotate-12" />
+            </span>
+            <span className="text-xs font-semibold tracking-tight whitespace-nowrap pr-0.5">
+              CuraLink AI
+            </span>
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -165,7 +170,7 @@ export function AIChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="fixed bottom-24 right-4 z-50 md:bottom-8 md:right-8 flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-8rem)] rounded-2xl border border-[#83C5BE]/30 bg-white dark:bg-[#0B1F33] shadow-2xl shadow-black/20 overflow-hidden"
+            className="fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6 flex flex-col w-[360px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-7rem)] rounded-2xl border border-[#83C5BE]/30 bg-white dark:bg-[#0B1F33] shadow-2xl shadow-black/25 overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between gap-3 border-b border-[#83C5BE]/20 bg-gradient-to-r from-[#006D77] via-[#00565e] to-[#0B1F33] px-4 py-3">
@@ -271,6 +276,6 @@ export function AIChatWidget() {
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }

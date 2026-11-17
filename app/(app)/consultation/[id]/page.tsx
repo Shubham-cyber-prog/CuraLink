@@ -102,9 +102,19 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
           isDev ? "?bypassWindow=true" : ""
         }`;
 
+        const headers: Record<string, string> = {};
+        if (typeof window !== "undefined") {
+          const token =
+            localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token");
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+          }
+        }
+
         const res = await fetch(url, {
           method: "GET",
           credentials: "include",
+          headers,
         });
 
         if (res.status === 401) {
@@ -112,7 +122,7 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
           return;
         }
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({ success: false }));
 
         if (!res.ok || !data.success) {
           const msg = data.message || "Failed to initialize consultation room";
@@ -123,13 +133,14 @@ export default function ConsultationPage({ params }: ConsultationPageProps) {
             setWaitingNotice(msg);
             return;
           }
-          throw new Error(msg);
+          setRoomError(msg);
+          return;
         }
 
         setRoomData(data.data);
       } catch (err: any) {
-        console.error("Consultation room error:", err);
-        setRoomError(err.message || "Unable to join consultation");
+        console.warn("Consultation room error:", err?.message || err);
+        setRoomError(err?.message || "Unable to join consultation");
       } finally {
         setIsLoadingRoom(false);
       }

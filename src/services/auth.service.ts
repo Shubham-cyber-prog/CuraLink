@@ -25,6 +25,7 @@ export interface SafeUser {
   emailVerifiedAt?: Date | null;
   age?: number | null;
   gender?: string | null;
+  avatarUrl?: string | null;
   profileCompletedAt?: Date | null;
   noShowCount?: number;
   profileCompleted?: boolean;
@@ -434,6 +435,7 @@ export class AuthService {
       emailVerifiedAt: user.emailVerifiedAt || null,
       age: user.age || null,
       gender: user.gender || null,
+      avatarUrl: user.avatarUrl || null,
       profileCompletedAt: user.profileCompletedAt || null,
       noShowCount: user.noShowCount || 0,
       profileCompleted: isProfileComplete,
@@ -485,6 +487,25 @@ export class AuthService {
     });
 
     return this.toSafeUser(updatedUser);
+  }
+
+  async updateAvatar(userId: string, avatarUrl: string | null): Promise<{ user: SafeUser; previousAvatarUrl: string | null }> {
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+
+    invalidateDoctorsCache();
+
+    return {
+      user: this.toSafeUser(updatedUser),
+      previousAvatarUrl: existing?.avatarUrl || null,
+    };
   }
 
   async forgotPassword(email: string): Promise<string | null> {

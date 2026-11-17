@@ -135,8 +135,9 @@ app.use(
   })
 );
 
-// Body parsing and cookies (preserve rawBody for webhook signature verification)
+// Body parsing and cookies (preserve rawBody for webhook signature verification; 5mb limit for profile avatars)
 app.use(express.json({
+  limit: '5mb',
   verify: (req: any, _res, buf) => {
     req.rawBody = buf.toString('utf-8');
   }

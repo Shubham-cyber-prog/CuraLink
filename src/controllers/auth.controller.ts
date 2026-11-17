@@ -1,10 +1,12 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { auditService, AuditAction } from '../services/audit.service';
 import { registerSchema, loginSchema, googleLoginSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator';
 import { profileSchema } from '../validators/profile.validator';
-import { UnauthorizedError } from '../utils/errors';
+import { UnauthorizedError, ForbiddenError, BadRequestError } from '../utils/errors';
 import { setAuthCookies, clearAuthCookies } from '../utils/cookie';
 import { notificationService } from '../services/notification.service';
 import { Role } from '../types/role';
@@ -203,25 +205,14 @@ export class AuthController {
     }
   }
 
-  async switchRole(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async switchRole(req: Request, _res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
         throw new UnauthorizedError('Authentication required');
       }
 
-      const requestedRole = req.body?.role === 'DOCTOR' ? Role.DOCTOR : Role.PATIENT;
-      const result = await authService.switchRole(req.user.id, requestedRole);
-      setAuthCookies(res, result.accessToken, result.refreshToken);
-
-      res.status(200).json({
-        success: true,
-        message: `Role switched to ${requestedRole} successfully`,
-        data: {
-          user: result.user,
-          token: result.accessToken,
-          accessToken: result.accessToken,
-        },
-      });
+      // Strict role isolation: Patients, Doctors, and Admins cannot switch portals or roles
+      throw new ForbiddenError('Role switching is disabled. Please sign in with your dedicated role account.');
     } catch (error) {
       next(error);
     }
@@ -328,6 +319,122 @@ export class AuthController {
         success: true,
         message: 'Profile updated successfully',
         data: { user: updatedUser },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const rawImage = typeof req.body?.image === 'string' ? req.body.image.trim() : '';
+      const match = rawImage.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+
+      if (!match) {
+        throw new BadRequestError('Please upload a valid JPG, PNG, or WebP image.');
+      }
+
+      const mime = match[1].toLowerCase();
+      const base64Payload = match[2];
+      const buffer = Buffer.from(base64Payload, 'base64');
+
+      const MAX_BYTES = 3 * 1024 * 1024; // 3MB
+      if (buffer.length === 0 || buffer.length > MAX_BYTES) {
+        throw new BadRequestError('Profile photo must be smaller than 3 MB.');
+      }
+
+      // Magic-byte validation to prevent spoofed uploads
+      const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+      const isPng =
+        buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+      const isWebp =
+        buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+        buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+
+      if ((mime.includes('jpeg') || mime.includes('jpg')) && !isJpeg) {
+        throw new BadRequestError('Invalid JPEG file signature.');
+      }
+      if (mime === 'image/png' && !isPng) {
+        throw new BadRequestError('Invalid PNG file signature.');
+      }
+      if (mime === 'image/webp' && !isWebp) {
+        throw new BadRequestError('Invalid WebP file signature.');
+      }
+
+      const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+      const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+      fs.mkdirSync(avatarDir, { recursive: true });
+
+      const safeUserId = req.user.id.replace(/[^a-zA-Z0-9_-]/g, '');
+      const fileName = `${safeUserId}-${Date.now()}.${ext}`;
+      const filePath = path.join(avatarDir, fileName);
+      fs.writeFileSync(filePath, buffer);
+
+      const avatarUrl = `/uploads/avatars/${fileName}`;
+      const { user, previousAvatarUrl } = await authService.updateAvatar(req.user.id, avatarUrl);
+
+      // Clean up previous uploaded avatar if it lived under /uploads/avatars/
+      if (previousAvatarUrl && previousAvatarUrl.startsWith('/uploads/avatars/')) {
+        const oldFile = path.join(avatarDir, path.basename(previousAvatarUrl));
+        if (oldFile !== filePath && fs.existsSync(oldFile)) {
+          fs.unlink(oldFile, () => {});
+        }
+      }
+
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'avatar_upload' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile photo updated successfully',
+        data: { user, avatarUrl },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async removeAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { user, previousAvatarUrl } = await authService.updateAvatar(req.user.id, null);
+
+      if (previousAvatarUrl && previousAvatarUrl.startsWith('/uploads/avatars/')) {
+        const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+        const oldFile = path.join(avatarDir, path.basename(previousAvatarUrl));
+        if (fs.existsSync(oldFile)) {
+          fs.unlink(oldFile, () => {});
+        }
+      }
+
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'avatar_remove' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile photo removed',
+        data: { user },
       });
     } catch (error) {
       next(error);

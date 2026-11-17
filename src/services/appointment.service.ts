@@ -215,7 +215,7 @@ export class AppointmentService {
           doctor: {
             include: {
               user: {
-                select: { id: true, name: true, email: true },
+                select: { id: true, name: true, email: true, avatarUrl: true },
               },
             },
           },
@@ -248,6 +248,7 @@ export class AppointmentService {
             consultationFee: apt.doctor.consultationFee,
             medicalLicenseNumber: apt.doctor.medicalLicenseNumber,
             city: apt.doctor.city,
+            photoUrl: apt.doctor.user?.avatarUrl || null,
           }
         : null,
       patient: apt.user

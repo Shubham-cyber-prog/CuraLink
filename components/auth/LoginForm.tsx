@@ -92,10 +92,15 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         credentials: "include",
         body: JSON.stringify({ email: email.trim().toLowerCase(), password, turnstileToken: tokenToSend }),
       });
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        // Non-JSON response
+      }
 
       if (!res.ok || !data.success) {
-        setError(data.message || "Invalid email or password");
+        setError(data.message || (res.status >= 500 ? "Server error: database unreachable or backend failure." : "Invalid email or password"));
         return;
       }
 

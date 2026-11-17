@@ -32,6 +32,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Logo } from "@/components/brand/Logo";
 
 const SPECIALTIES = [
   { name: "General Medicine", desc: "Fevers, seasonal flu & infections", price: "₹199", wait: "< 2 min", icon: Stethoscope, href: "/find-doctor?specialty=general" },
@@ -132,21 +133,7 @@ export function Navbar() {
           }`}
         >
           {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-            <div className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#006D77] to-[#0B1F33] text-white shadow-sm p-1.5 transition-transform group-hover:scale-105">
-              <Image
-                src="/logo.png"
-                alt="CuraLink Healthcare Logo"
-                width={36}
-                height={36}
-                className="object-contain w-full h-full"
-                priority
-              />
-            </div>
-            <span className="text-lg sm:text-xl font-extrabold tracking-tight text-[#0B1F33] dark:text-white leading-none">
-              cura<span className="text-[#006D77] dark:text-[#83C5BE]">link</span>
-            </span>
-          </Link>
+          <Logo href="/" size="sm" />
 
           {/* Centered Desktop Nav Links */}
           <div className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-sm font-medium">
@@ -280,10 +267,18 @@ export function Navbar() {
               </button>
             )}
 
+            {/* Sign In Link for existing patients & doctors */}
+            <Link
+              href="/login"
+              className="hidden sm:inline-flex items-center px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-[#006D77] dark:hover:text-[#83C5BE] transition-colors"
+            >
+              Sign In
+            </Link>
+
             {/* High-Contrast Pill CTA: Consult for ₹199 */}
             <Link
               href="/find-doctor"
-              className="group inline-flex items-center gap-1.5 rounded-full bg-[#006D77] hover:bg-[#00565e] px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-sm hover:shadow-[0_0_20px_rgba(131,197,190,0.5)] transition-all duration-200"
+              className="group inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#006D77] to-[#0A8896] hover:from-[#005a63] hover:to-[#08727e] px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold text-white shadow-md shadow-teal-700/20 hover:shadow-lg hover:shadow-teal-700/30 transition-all duration-200"
             >
               <span>Consult · ₹199</span>
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />

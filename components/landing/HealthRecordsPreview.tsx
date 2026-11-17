@@ -64,7 +64,7 @@ export function HealthRecordsPreview() {
   return (
     <section
       id="records"
-      className="px-4 sm:px-6 py-20 bg-[#F5F7F6] dark:bg-[#0B1120] border-b border-[#E2E8F0] dark:border-slate-800"
+      className="px-4 sm:px-6 py-20 sm:py-24 bg-background border-b border-border"
       aria-labelledby="records-heading"
     >
       <div className="mx-auto max-w-6xl">
@@ -77,14 +77,18 @@ export function HealthRecordsPreview() {
             viewport={{ once: true, margin: "-40px" }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#0D9488] dark:text-[#14B8A6]">
-              Personal Health Records & Vault
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-semibold text-[#006D77] dark:text-[#83C5BE]">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Personal Health Records &amp; Vault</span>
             </span>
             <h2
               id="records-heading"
-              className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#0F172A] dark:text-white"
+              className="mt-3 text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white"
             >
-              Real digital prescriptions, unified and private.
+              Real digital prescriptions,{" "}
+              <span className="font-serif italic font-normal text-[#006D77] dark:text-[#83C5BE]">
+                unified and private.
+              </span>
             </h2>
             <p className="mt-4 text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed">
               No lost slips or scribbled illegible notes. Every consultation automatically generates a

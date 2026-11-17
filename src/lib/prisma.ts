@@ -31,6 +31,13 @@ function getDatasourceUrl(): string | undefined {
     if (!url.searchParams.has('pool_timeout')) {
       url.searchParams.set('pool_timeout', process.env.DATABASE_POOL_TIMEOUT || '20');
     }
+    if (!url.searchParams.has('connect_timeout')) {
+      url.searchParams.set('connect_timeout', process.env.DATABASE_CONNECT_TIMEOUT || '30');
+    }
+    // Neon PgBouncer pooler does not support SCRAM channel binding
+    if (url.hostname.includes('-pooler.') && url.searchParams.has('channel_binding')) {
+      url.searchParams.delete('channel_binding');
+    }
     return url.toString();
   } catch {
     return rawUrl;

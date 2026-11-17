@@ -105,26 +105,29 @@ const SPECIALTIES = [
 
 export function SpecialtiesPricing() {
   return (
-    <section id="specialties" className="py-20 sm:py-24 border-b border-border bg-surface-elevated/40">
+    <section id="specialties" className="py-20 sm:py-24 border-b border-border bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               <Zap className="h-3.5 w-3.5" />
-              <span>Specialist Pricing · Valid for Today</span>
+              <span>Specialist Pricing · Guaranteed Intro Rates</span>
             </span>
-            <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#0B1F33] dark:text-white leading-tight">
-              Top specialties. Real doctors. Transparent pricing.
+            <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+              Top specialties.{" "}
+              <span className="font-serif italic font-normal text-[#006D77] dark:text-[#83C5BE]">
+                Transparent care.
+              </span>
             </h2>
             <p className="mt-3 text-base text-muted leading-relaxed">
-              No hidden fees or unexpected surge charges. Connect with India&apos;s most sought-after medical practitioners from ₹199.
+              No hidden fees or surprise charges. Connect with India&apos;s most sought-after medical practitioners from ₹199.
             </p>
           </div>
 
           <Link
             href="/find-doctor"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#006D77] dark:text-[#83C5BE] hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#006D77] dark:text-[#83C5BE] hover:underline"
           >
             <span>View all 20+ specialties</span>
             <ArrowRight className="h-4 w-4" />
@@ -142,16 +145,16 @@ export function SpecialtiesPricing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.06, duration: 0.35 }}
-                className="group flex flex-col justify-between rounded-2xl border border-border bg-surface p-6 hover:border-[#83C5BE]/60 hover:shadow-[0_12px_36px_rgba(0,109,119,0.12)] transition-all duration-300"
+                className="group flex flex-col justify-between rounded-3xl border border-slate-200/80 dark:border-white/[0.08] bg-white/90 dark:bg-[#0B1F33]/70 backdrop-blur-xl p-6 shadow-[0_4px_24px_-4px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.3)] hover:border-teal-500/40 hover:-translate-y-1 transition-all duration-300"
               >
                 <div>
                   {/* Top Bar: Icon + Wait Time Pill */}
                   <div className="flex items-center justify-between">
-                    <div className="h-12 w-12 rounded-xl bg-[#006D77]/10 text-[#006D77] dark:text-[#83C5BE] flex items-center justify-center transition-transform group-hover:scale-105">
+                    <div className="h-12 w-12 rounded-2xl bg-teal-500/10 text-[#006D77] dark:text-[#83C5BE] flex items-center justify-center transition-transform group-hover:scale-105">
                       <Icon className="h-6 w-6" />
                     </div>
 
-                    <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       <Clock className="h-3 w-3" />
                       <span>Wait: {spec.waitTime}</span>
@@ -159,7 +162,7 @@ export function SpecialtiesPricing() {
                   </div>
 
                   {/* Specialty Title & Tagline */}
-                  <h3 className="mt-5 text-lg font-bold text-foreground group-hover:text-[#006D77] dark:group-hover:text-[#83C5BE] transition-colors">
+                  <h3 className="mt-5 text-lg font-bold text-slate-900 dark:text-white group-hover:text-[#006D77] dark:group-hover:text-[#83C5BE] transition-colors">
                     {spec.name}
                   </h3>
                   <p className="mt-1 text-xs text-muted leading-relaxed">
@@ -173,18 +176,18 @@ export function SpecialtiesPricing() {
                   </div>
 
                   {/* Common conditions treated */}
-                  <div className="mt-3 pt-3 border-t border-border/60">
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/[0.06]">
                     <p className="text-[10px] uppercase font-bold text-muted tracking-wider">
                       Common Complaints:
                     </p>
-                    <p className="text-xs text-foreground mt-0.5 font-medium truncate">
+                    <p className="text-xs text-slate-700 dark:text-slate-300 mt-0.5 font-medium truncate">
                       {spec.popularCondition}
                     </p>
                   </div>
                 </div>
 
                 {/* Bottom Pricing & CTA Row */}
-                <div className="mt-6 pt-4 border-t border-border flex items-center justify-between">
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xl font-extrabold font-mono text-[#006D77] dark:text-[#83C5BE]">
@@ -204,7 +207,7 @@ export function SpecialtiesPricing() {
 
                   <Link
                     href={spec.href}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#006D77] hover:bg-[#00565e] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:shadow-[0_0_16px_rgba(131,197,190,0.45)] transition-all"
+                    className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#006D77] to-[#0A8896] hover:from-[#005a63] hover:to-[#08727e] px-4.5 py-2 text-xs font-bold text-white shadow-md shadow-teal-700/20 transition-all"
                   >
                     <span>Consult</span>
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />

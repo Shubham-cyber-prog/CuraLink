@@ -196,7 +196,7 @@ export default function MessagesPage() {
           setMessages(mapped);
         }
       } catch {
-        // Silent polling retry
+        // Silent retry
       }
     }
 
@@ -256,33 +256,38 @@ export default function MessagesPage() {
   }, [contacts, contactSearch]);
 
   return (
-    <div className="space-y-6">
-      {/* Compact Header */}
-      <div className="pb-5 border-b border-slate-200 dark:border-slate-800">
-        <h1 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+    <div className="space-y-7">
+      {/* Classic Editorial Header */}
+      <div className="pb-6 border-b border-slate-200/80 dark:border-white/[0.08]">
+        <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#006D77] dark:text-[#83C5BE] mb-1">
+          Direct Care Desk
+        </p>
+        <h1 className="font-serif text-3xl sm:text-[36px] leading-tight font-normal tracking-[-0.015em] text-[#0B1F33] dark:text-white">
           Messages
         </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
           Communicate directly with your consulting doctors regarding appointments and prescriptions.
         </p>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[560px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1F33] p-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[580px] rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] p-5">
           <div className="md:col-span-4 space-y-3">
-            <Skeleton className="h-9 w-full rounded-lg" />
-            <Skeleton className="h-16 w-full rounded-lg" />
-            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-10 w-full rounded-full" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
           </div>
           <div className="md:col-span-8 space-y-3">
-            <Skeleton className="h-12 w-full rounded-lg" />
-            <Skeleton className="h-72 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-2xl" />
+            <Skeleton className="h-72 w-full rounded-2xl" />
           </div>
         </div>
       ) : contacts.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1F33] py-16 px-4 text-center">
-          <MessageSquare className="h-8 w-8 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+        <div className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] py-16 px-4 text-center shadow-[0_2px_16px_-4px_rgba(11,31,51,0.05)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F7F8] dark:bg-white/[0.06] text-[#006D77] dark:text-[#83C5BE] mx-auto mb-3">
+            <MessageSquare className="h-6 w-6" />
+          </div>
+          <h3 className="font-serif text-xl text-[#0B1F33] dark:text-white">
             No conversations yet
           </h3>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
@@ -292,27 +297,27 @@ export default function MessagesPage() {
           </p>
           <Link
             href={currentUser?.role === "DOCTOR" ? "/doctor-dashboard" : "/find-doctor"}
-            className="mt-4 inline-flex items-center h-9 px-4 rounded-lg bg-[#006D77] hover:bg-[#005a63] text-sm font-medium text-white"
+            className="mt-5 inline-flex items-center h-10 px-5 rounded-full bg-[#006D77] hover:bg-[#005860] text-sm font-medium text-white shadow-sm"
           >
-            {currentUser?.role === "DOCTOR" ? "Go to Dashboard" : "Find a Doctor"}
+            {currentUser?.role === "DOCTOR" ? "Go to Dashboard" : "Book Appointment"}
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-12 h-[600px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1F33] overflow-hidden shadow-xs">
-          {/* Conversations Sidebar */}
-          <div className="md:col-span-4 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-3 flex flex-col gap-3 overflow-y-auto">
+        <div className="grid grid-cols-1 md:grid-cols-12 h-[620px] rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] overflow-hidden shadow-[0_4px_24px_-6px_rgba(11,31,51,0.07)]">
+          {/* Sidebar */}
+          <div className="md:col-span-4 border-b md:border-b-0 md:border-r border-slate-100 dark:border-white/[0.08] bg-[#F7FAFB] dark:bg-[#071320]/60 p-4 flex flex-col gap-3.5 overflow-y-auto">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
                 type="text"
                 value={contactSearch}
                 onChange={(e) => setContactSearch(e.target.value)}
                 placeholder="Search conversations..."
-                className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1F33] pl-8.5 pr-3 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-[#006D77] focus:outline-none"
+                className="w-full h-10 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] pl-9 pr-4 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-[#006D77] focus:outline-none"
               />
             </div>
 
-            <div className="space-y-1 flex-1 overflow-y-auto">
+            <div className="space-y-1.5 flex-1 overflow-y-auto">
               {filteredContacts.map((c) => {
                 const isSelected = selectedContact?.id === c.id;
                 return (
@@ -320,19 +325,19 @@ export default function MessagesPage() {
                     type="button"
                     key={c.id}
                     onClick={() => setSelectedContact(c)}
-                    className={`w-full text-left flex items-center gap-3 rounded-lg p-2.5 border transition-colors cursor-pointer ${
+                    className={`w-full text-left flex items-center gap-3 rounded-2xl p-3 border transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-white dark:bg-[#0B1F33] border-slate-200 dark:border-slate-700 shadow-2xs"
-                        : "border-transparent hover:bg-white/60 dark:hover:bg-slate-800/50"
+                        ? "bg-white dark:bg-[#0B1F33] border-slate-200/90 dark:border-white/[0.12] shadow-xs"
+                        : "border-transparent hover:bg-white/70 dark:hover:bg-white/[0.04]"
                     }`}
                   >
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/[0.1] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
                       {c.avatarUrl ? (
                         <Image
                           src={c.avatarUrl}
                           alt={c.name}
-                          width={40}
-                          height={40}
+                          width={44}
+                          height={44}
                           className="h-full w-full object-cover object-top"
                         />
                       ) : (
@@ -341,10 +346,10 @@ export default function MessagesPage() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                      <p className="text-sm font-semibold text-[#0B1F33] dark:text-white truncate">
                         {c.name}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      <p className="text-xs text-[#006D77] dark:text-[#83C5BE] truncate">
                         {c.subtitle}
                       </p>
                       {c.date && (
@@ -363,16 +368,15 @@ export default function MessagesPage() {
           {/* Active Chat Thread */}
           {selectedContact ? (
             <div className="md:col-span-8 flex flex-col h-full bg-white dark:bg-[#0B1F33]">
-              {/* Thread Header */}
-              <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 px-5 py-3.5">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-white/[0.08] px-6 py-4">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/[0.1] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
                     {selectedContact.avatarUrl ? (
                       <Image
                         src={selectedContact.avatarUrl}
                         alt={selectedContact.name}
-                        width={36}
-                        height={36}
+                        width={40}
+                        height={40}
                         className="h-full w-full object-cover object-top"
                       />
                     ) : (
@@ -380,7 +384,7 @@ export default function MessagesPage() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                    <h3 className="font-serif text-lg leading-tight text-[#0B1F33] dark:text-white truncate">
                       {selectedContact.name}
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
@@ -394,20 +398,20 @@ export default function MessagesPage() {
                 {selectedContact.status === "CONFIRMED" && selectedContact.appointmentId ? (
                   <Link
                     href={`/consultation/${selectedContact.appointmentId}`}
-                    className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg bg-[#006D77] hover:bg-[#005a63] text-xs font-medium text-white whitespace-nowrap transition-colors"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-[#006D77] hover:bg-[#005860] text-xs font-medium text-white shadow-xs whitespace-nowrap transition-colors"
                   >
                     <Video className="h-3.5 w-3.5" />
                     <span>Join Video Call</span>
                   </Link>
                 ) : selectedContact.status === "PENDING" ? (
-                  <span className="inline-flex items-center gap-1 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300 whitespace-nowrap">
                     <Clock className="h-3.5 w-3.5" />
                     Pending Confirmation
                   </span>
                 ) : (
                   <Link
                     href="/records"
-                    className="inline-flex items-center gap-1.5 h-8.5 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 whitespace-nowrap"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full border border-slate-200 dark:border-white/[0.12] text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.06] whitespace-nowrap"
                   >
                     <FileText className="h-3.5 w-3.5" />
                     <span>View e-Rx</span>
@@ -415,8 +419,7 @@ export default function MessagesPage() {
                 )}
               </div>
 
-              {/* Messages Body */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50/70 dark:bg-[#071320]">
+              <div className="flex-1 overflow-y-auto p-6 space-y-3.5 bg-[#F7FAFB] dark:bg-[#071320]">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 p-6">
                     <MessageSquare className="h-7 w-7 mb-2 text-slate-300 dark:text-slate-600" />
@@ -433,10 +436,10 @@ export default function MessagesPage() {
                       }`}
                     >
                       <div
-                        className={`max-w-[80%] sm:max-w-md rounded-xl px-3.5 py-2 text-sm leading-relaxed ${
+                        className={`max-w-[80%] sm:max-w-md rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                           m.sender === "self"
-                            ? "bg-[#006D77] text-white"
-                            : "bg-white dark:bg-[#0B1F33] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800"
+                            ? "bg-[#006D77] text-white rounded-br-sm shadow-xs"
+                            : "bg-white dark:bg-[#0B1F33] text-[#0B1F33] dark:text-slate-100 border border-slate-200/80 dark:border-white/[0.08] rounded-bl-sm shadow-2xs"
                         }`}
                       >
                         {m.text}
@@ -450,22 +453,21 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Footer */}
               <form
                 onSubmit={handleSend}
-                className="flex items-center gap-2 border-t border-slate-200 dark:border-slate-800 p-3 bg-white dark:bg-[#0B1F33]"
+                className="flex items-center gap-2.5 border-t border-slate-100 dark:border-white/[0.08] p-4 bg-white dark:bg-[#0B1F33]"
               >
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={`Message ${selectedContact.name}...`}
-                  className="flex-1 h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-[#006D77] focus:bg-white dark:focus:bg-[#0B1F33] focus:outline-none"
+                  className="flex-1 h-10 rounded-full border border-slate-200 dark:border-white/[0.1] bg-[#F4F7F8] dark:bg-[#071320] px-4 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-[#006D77] focus:bg-white dark:focus:bg-[#0B1F33] focus:outline-none"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || isSending}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#006D77] hover:bg-[#005a63] text-white disabled:opacity-40 transition-colors cursor-pointer"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#006D77] hover:bg-[#005860] text-white disabled:opacity-40 shadow-xs transition-colors cursor-pointer"
                   aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />

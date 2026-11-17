@@ -84,15 +84,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <MotionProvider>
-      <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#071320] text-slate-900 dark:text-slate-100 transition-colors duration-150">
-        {/* Enterprise Sticky Top Navigation */}
+      <div className="min-h-screen bg-[#F4F7F8] dark:bg-[#06101B] text-[#0B1F33] dark:text-slate-100 transition-colors duration-150">
+        {/* Premium Sticky Top Navigation */}
         <div className="print:hidden">
           <TopNavbar />
         </div>
 
         {/* Main Content Container */}
-        <div className="relative z-10 flex min-h-[calc(100vh-64px)] flex-col">
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 pb-24 md:pb-10 print:p-0">
+        <div className="relative z-10 flex min-h-[calc(100vh-68px)] flex-col">
+          <main className="flex-1 px-4 py-7 sm:px-6 lg:px-8 sm:py-8 pb-24 md:pb-12 print:p-0">
             <div className="mx-auto max-w-7xl print:max-w-none">
               <PageTransition>{children}</PageTransition>
             </div>

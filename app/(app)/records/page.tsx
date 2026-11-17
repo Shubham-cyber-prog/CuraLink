@@ -321,39 +321,42 @@ export default function MedicalRecordsPage() {
   }, [records, searchTerm]);
 
   return (
-    <div className="space-y-6">
-      {/* Compact Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200 dark:border-slate-800 print:hidden">
+    <div className="space-y-7">
+      {/* Classic Editorial Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-white/[0.08] print:hidden">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#006D77] dark:text-[#83C5BE] mb-1">
+            Clinical Archive
+          </p>
+          <h1 className="font-serif text-3xl sm:text-[36px] leading-tight font-normal tracking-[-0.015em] text-[#0B1F33] dark:text-white">
             Health Records &amp; Prescriptions
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            View NMC-compliant digital prescriptions, clinical notes, and lab summaries.
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+            Inspect NMC-compliant digital prescriptions, print pharmacy copies, and review lab summaries.
           </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {showDemoRecords && (
-            <span className="inline-flex items-center rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+            <span className="inline-flex items-center rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
               Sample Preview
             </span>
           )}
-          <span className="inline-flex items-center rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1F33] px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+          <span className="inline-flex items-center rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] px-3.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 shadow-2xs">
             {records.length} {records.length === 1 ? "Prescription" : "Prescriptions"}
           </span>
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Curved Search Input */}
       <div className="relative max-w-md print:hidden">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="Search diagnosis, medication, or doctor..."
-          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1F33] pl-9 pr-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-[#006D77] focus:outline-none focus:ring-2 focus:ring-[#006D77]/15"
+          className="w-full h-11 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] pl-11 pr-4 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 shadow-2xs focus:border-[#006D77] focus:outline-none focus:ring-2 focus:ring-[#006D77]/15"
         />
       </div>
 
@@ -362,24 +365,26 @@ export default function MedicalRecordsPage() {
         <AIRecordSummarizer />
       </div>
 
-      {/* Prescriptions List */}
+      {/* Prescriptions Grid */}
       <div className="print:hidden">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[1, 2].map((i) => (
-              <Skeleton key={i} className="h-52 w-full rounded-xl" />
+              <Skeleton key={i} className="h-56 w-full rounded-[22px]" />
             ))}
           </div>
         ) : filteredRecords.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1F33] py-14 px-4 text-center">
-            <FileText className="h-8 w-8 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+          <div className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] py-16 px-4 text-center shadow-[0_2px_16px_-4px_rgba(11,31,51,0.05)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F7F8] dark:bg-white/[0.06] text-[#006D77] dark:text-[#83C5BE] mx-auto mb-3">
+              <FileText className="h-6 w-6" />
+            </div>
+            <h3 className="font-serif text-xl text-[#0B1F33] dark:text-white">
               No matching prescriptions found
             </h3>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
               Digital prescriptions issued during consultations are stored here automatically.
             </p>
-            <div className="mt-4 flex items-center justify-center gap-2.5">
+            <div className="mt-5 flex items-center justify-center gap-2.5">
               <button
                 type="button"
                 onClick={() => {
@@ -387,20 +392,20 @@ export default function MedicalRecordsPage() {
                   setRecords(DEMO_PRESCRIPTIONS);
                   setShowDemoRecords(true);
                 }}
-                className="h-9 px-3.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                className="h-10 px-4.5 rounded-full border border-slate-200 dark:border-white/[0.12] text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.06] cursor-pointer"
               >
                 Load Sample Rx
               </button>
               <Link
                 href="/find-doctor"
-                className="inline-flex items-center h-9 px-4 rounded-lg bg-[#006D77] hover:bg-[#005a63] text-xs font-medium text-white"
+                className="inline-flex items-center h-10 px-5 rounded-full bg-[#006D77] hover:bg-[#005860] text-xs font-medium text-white shadow-sm"
               >
                 Book Appointment
               </Link>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {filteredRecords.map((rec) => {
               const docName = formatDoctorName(rec.doctor?.name || "Dr. Priya Sharma");
               const docSpec = rec.doctor?.specialization || "Internal Medicine";
@@ -410,26 +415,26 @@ export default function MedicalRecordsPage() {
               return (
                 <div
                   key={rec.id}
-                  className="bg-white dark:bg-[#0B1F33] border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between gap-4"
+                  className="rounded-[22px] bg-white dark:bg-[#0B1F33] border border-slate-200/75 dark:border-white/[0.08] p-6 shadow-[0_2px_16px_-4px_rgba(11,31,51,0.06),0_1px_3px_rgba(11,31,51,0.03)] hover:shadow-[0_14px_32px_-10px_rgba(11,31,51,0.12)] hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between gap-5"
                 >
-                  <div className="space-y-3.5">
-                    {/* Doctor & Date Row */}
+                  <div className="space-y-4">
+                    {/* Doctor & Verified Pill */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="h-13 w-13 shrink-0 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/[0.1] bg-slate-100 dark:bg-slate-800">
                           <Image
                             src={avatarUrl}
                             alt={docName}
-                            width={44}
-                            height={44}
+                            width={52}
+                            height={52}
                             className="h-full w-full object-cover object-top"
                           />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                          <h3 className="font-serif text-xl leading-snug text-[#0B1F33] dark:text-white truncate">
                             {docName}
                           </h3>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                          <p className="text-xs font-medium text-[#006D77] dark:text-[#83C5BE] truncate">
                             {docSpec}
                           </p>
                           <p className="text-[11px] font-mono text-slate-400">
@@ -438,65 +443,66 @@ export default function MedicalRecordsPage() {
                         </div>
                       </div>
 
-                      <span className="inline-flex items-center rounded border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 shrink-0">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 shrink-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         Verified e-Rx
                       </span>
                     </div>
 
-                    {/* Diagnosis */}
-                    <div className="rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 p-3">
+                    {/* Diagnosis Box */}
+                    <div className="rounded-2xl bg-[#F4F7F8] dark:bg-white/[0.04] p-4">
                       <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                         Diagnosis
                       </p>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5 line-clamp-2">
+                      <p className="text-sm font-semibold text-[#0B1F33] dark:text-white mt-0.5 line-clamp-2">
                         {rec.diagnosis}
                       </p>
                     </div>
 
-                    {/* Medications */}
+                    {/* Medications Pills */}
                     <div className="flex flex-wrap gap-1.5">
                       {rec.parsedMedications?.slice(0, 3).map((m, idx) => (
                         <span
                           key={idx}
-                          className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-white/[0.04] px-3 py-1 text-xs text-slate-700 dark:text-slate-300"
                         >
-                          <Pill className="h-3 w-3 text-slate-400 shrink-0" />
+                          <Pill className="h-3 w-3 text-[#006D77] dark:text-[#83C5BE] shrink-0" />
                           {m.name.split("(")[0].trim()}
                         </span>
                       ))}
                       {medsCount > 3 && (
-                        <span className="inline-flex items-center rounded border border-slate-200 dark:border-slate-700 px-2 py-0.5 text-xs text-slate-500">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-white/[0.08] px-3 py-1 text-xs text-slate-500">
                           +{medsCount - 3} more
                         </span>
                       )}
                     </div>
 
-                    {/* Footer Metadata */}
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    {/* Date & Rx ID */}
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2.5 border-t border-slate-100 dark:border-white/[0.07]">
                       <span className="inline-flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                        <Calendar className="h-3.5 w-3.5 text-[#006D77] dark:text-[#83C5BE]" />
                         {formatDateIST(rec.createdAt)}
                       </span>
-                      <span className="font-mono text-[11px]">
+                      <span className="font-mono text-[11px] text-slate-500">
                         Rx #{rec.id.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}
                       </span>
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 pt-1">
+                  {/* Pill Actions */}
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => setSelectedRecord(rec)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1F33] text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 h-10 rounded-full border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-transparent text-xs font-medium text-[#0B1F33] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
                     >
-                      <Eye className="h-3.5 w-3.5 text-slate-500" />
+                      <Eye className="h-3.5 w-3.5 text-[#006D77] dark:text-[#83C5BE]" />
                       <span>View Prescription</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDownloadPdf(rec)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[#006D77] hover:bg-[#005a63] text-xs font-medium text-white transition-colors cursor-pointer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 h-10 rounded-full bg-[#006D77] hover:bg-[#005860] text-xs font-medium text-white shadow-[0_4px_14px_-3px_rgba(0,109,119,0.4)] transition-all cursor-pointer"
                     >
                       {rec.id.startsWith("rx_demo_") ? (
                         <>
@@ -518,14 +524,14 @@ export default function MedicalRecordsPage() {
         )}
       </div>
 
-      {/* NMC-Compliant Printable E-Prescription Modal */}
+      {/* Printable NMC E-Prescription Modal */}
       {selectedRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-6 overflow-y-auto print:static print:inset-auto print:bg-white print:p-0 print:block">
-          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-xl bg-white dark:bg-[#0B1F33] p-2 sm:p-4 shadow-xl border border-slate-200 dark:border-slate-700 print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none print:p-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1F33]/65 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto print:static print:inset-auto print:bg-white print:p-0 print:block">
+          <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-[24px] bg-white dark:bg-[#0B1F33] p-2 sm:p-4 shadow-2xl border border-slate-200 dark:border-white/[0.1] print:max-h-none print:overflow-visible print:rounded-none print:border-0 print:shadow-none print:p-0">
             <button
               type="button"
               onClick={() => setSelectedRecord(null)}
-              className="absolute top-4 right-4 z-20 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer print:hidden"
+              className="absolute top-4 right-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer print:hidden"
               title="Close"
               aria-label="Close prescription view"
             >

@@ -154,17 +154,16 @@ export default function FindDoctorPage() {
                 : `Showing all doctors nationwide (Location: ${userLocation.city})`}
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F172A] dark:text-[#F1F5F9]">
-            Find & Book Doctors
+          <h1 className="font-serif text-3xl sm:text-[36px] leading-tight font-normal tracking-[-0.015em] text-[#0B1F33] dark:text-white">
+            Book a Specialist
           </h1>
-          <p className="mt-1 text-sm text-[#64748B] dark:text-[#94A3B8]">
-            Browse top-rated licensed clinicians for video calls & in-person appointments.
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+            Browse NMC-verified clinicians for video consultations and in-person visits.
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 self-start sm:self-auto">
-          <Sparkles className="h-3.5 w-3.5 text-[#006D77] dark:text-[#14B8A6]" />
-          <span>Verified Medical Practitioners</span>
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] px-3.5 py-1.5 text-xs font-medium text-[#006D77] dark:text-[#83C5BE] shadow-2xs self-start sm:self-auto">
+          <span>NMC Verified Directory</span>
         </div>
       </div>
 

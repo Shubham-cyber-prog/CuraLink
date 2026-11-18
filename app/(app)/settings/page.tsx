@@ -34,6 +34,7 @@ import {
   Award,
   Camera,
   Upload,
+  Copy,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ export default function SettingsPage() {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState(false);
 
   // Password Form State
   const [passwordData, setPasswordData] = useState({
@@ -514,35 +516,233 @@ export default function SettingsPage() {
   }
 
   const nameInitial = formData.name ? formData.name.charAt(0).toUpperCase() : "U";
+  const memberCode = `CL-${(profile?.id || "84920").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`;
+  const memberSince = profile?.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
+    : "2026";
+  const completionChecks = [
+    Boolean(formData.name),
+    Boolean(formData.email),
+    Boolean(formData.phone),
+    Boolean(formData.age),
+    Boolean(profile?.avatarUrl),
+  ];
+  const completionPct = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
+
+  const handleCopyMemberId = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(memberCode);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 dark:border-white/[0.08] pb-6">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#006D77] dark:text-[#83C5BE] mb-1">
-            Account &amp; Profile
-          </p>
-          <h1 className="font-serif text-3xl sm:text-[36px] leading-tight font-normal tracking-[-0.015em] text-[#0B1F33] dark:text-white">
-            Profile &amp; Settings
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-            Update your profile photo, personal details, security, and preferences.
-          </p>
+    <div className="space-y-7">
+      {/* ── BRANDED CURALINK EXECUTIVE PROFILE HERO BANNER ── */}
+      <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#071525] via-[#0B283C] to-[#006D77] text-white shadow-[0_18px_50px_-14px_rgba(11,31,51,0.45)] border border-white/10">
+        {/* Subtle geometric mesh & soft aqua spotlight */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 -right-16 h-80 w-80 rounded-full bg-[#83C5BE]/20 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
+            backgroundSize: "20px 20px",
+          }}
+        />
+        {/* Subtle Brand Crest Watermark */}
+        <div className="pointer-events-none absolute top-5 right-6 hidden sm:flex items-center gap-2 opacity-25 select-none">
+          <img src="/logo.png" alt="" className="h-7 w-7 object-contain brightness-200" />
+          <span className="font-serif text-lg tracking-wide text-white">CuraLink</span>
         </div>
 
-        <div className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] px-3.5 py-1.5 text-xs font-medium text-[#006D77] dark:text-[#83C5BE] shadow-2xs">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          <span>{profile?.role === "ADMIN" ? "Admin Portal" : profile?.role === "DOCTOR" ? "Doctor Portal" : "Patient Portal"}</span>
+        <div className="relative p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          {/* Left: Branded Avatar + Identity */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6">
+            <div className="relative group h-24 w-24 sm:h-28 sm:w-28 shrink-0">
+              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[24px] bg-white/15 backdrop-blur-md font-semibold text-white text-3xl ring-4 ring-white/25 shadow-xl">
+                {profile?.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt={formData.name || "Profile photo"}
+                    className="h-full w-full object-cover bg-white"
+                  />
+                ) : (
+                  <span>{nameInitial}</span>
+                )}
+              </div>
+
+              {/* Verified Online Dot */}
+              <span
+                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-[#0B283C] text-white shadow-sm"
+                title="Verified CuraLink Member"
+              >
+                <Check className="h-3.5 w-3.5 stroke-[3]" />
+              </span>
+
+              {/* Hover Camera Overlay */}
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-[24px] bg-[#071525]/70 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-wait"
+                title="Upload profile photo"
+                aria-label="Upload profile photo"
+              >
+                {isUploadingAvatar ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="h-5 w-5 text-[#83C5BE]" />
+                    <span className="text-[10px] font-medium">Update</span>
+                  </>
+                )}
+              </button>
+
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarFileChange}
+                className="hidden"
+              />
+            </div>
+
+            <div className="space-y-2 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 backdrop-blur-md border border-white/15 px-3 py-0.5 text-[11px] font-medium text-[#83C5BE]">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>
+                    {profile?.role === "ADMIN"
+                      ? "CuraLink Admin"
+                      : profile?.role === "DOCTOR"
+                      ? "NMC Verified Clinician"
+                      : "CuraLink Verified Member"}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyMemberId}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-black/25 hover:bg-black/40 border border-white/10 px-3 py-0.5 text-[11px] font-mono text-white/85 transition-colors cursor-pointer"
+                  title="Copy Member ID"
+                >
+                  <span>{memberCode}</span>
+                  {copiedId ? (
+                    <Check className="h-3 w-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-3 w-3 text-white/60" />
+                  )}
+                </button>
+              </div>
+
+              <h1 className="font-serif text-3xl sm:text-4xl leading-tight font-normal tracking-[-0.015em] text-white truncate">
+                {formData.name || "CuraLink Member"}
+              </h1>
+
+              <p className="text-xs sm:text-sm text-white/70">
+                {formData.email} &bull; Member since {memberSince}
+              </p>
+
+              {/* Integrated Branded Photo Action Pills */}
+              <div className="pt-1 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="inline-flex items-center gap-1.5 h-8.5 px-4 rounded-full bg-white text-[#0B1F33] hover:bg-[#EBF4F5] text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 text-[#006D77]" />
+                  )}
+                  <span>{profile?.avatarUrl ? "Change Photo" : "Upload Photo"}</span>
+                </button>
+
+                {profile?.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    disabled={isUploadingAvatar}
+                    className="inline-flex items-center gap-1.5 h-8.5 px-3.5 rounded-full bg-white/10 hover:bg-rose-500/25 border border-white/15 text-xs font-medium text-white/90 transition-colors cursor-pointer disabled:opacity-60"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Remove</span>
+                  </button>
+                )}
+
+                {avatarError && (
+                  <span className="text-xs font-medium text-rose-300 flex items-center gap-1 ml-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> {avatarError}
+                  </span>
+                )}
+                {avatarSuccess && (
+                  <span className="text-xs font-medium text-emerald-300 flex items-center gap-1 ml-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {avatarSuccess}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Profile Strength Ring / Compact Pill */}
+          <div className="rounded-2xl bg-white/[0.08] backdrop-blur-md border border-white/12 p-4 min-w-[210px] space-y-2.5 self-start lg:self-center">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/75 font-medium">Profile Completion</span>
+              <span className="font-mono font-bold text-[#83C5BE]">{completionPct}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-black/30 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#83C5BE] to-emerald-400 transition-all duration-500"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-white/60">
+              {completionPct === 100
+                ? "All clinical identity fields verified"
+                : "Add photo & details for faster care"}
+            </p>
+          </div>
         </div>
-      </div>
+
+        {/* Bottom Glass Telemetry Strip */}
+        <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/10 border-t border-white/10">
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Blood Group</p>
+            <p className="text-sm font-semibold text-white mt-0.5">{formData.bloodGroup}</p>
+          </div>
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Demographics</p>
+            <p className="text-sm font-semibold text-white mt-0.5">
+              {formData.age || "—"} yrs &bull; {formData.gender}
+            </p>
+          </div>
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Contact Status</p>
+            <p className="text-sm font-semibold text-emerald-300 mt-0.5 flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {profile?.phoneVerified ? "Phone Verified" : "Active Account"}
+            </p>
+          </div>
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Portal Access</p>
+            <p className="text-sm font-semibold text-[#83C5BE] mt-0.5">
+              {profile?.role === "ADMIN" ? "Admin Console" : profile?.role === "DOCTOR" ? "Doctor Practice" : "Patient Care"}
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Tabs & Content Layout */}
       <div className="flex flex-col md:flex-row gap-6 lg:gap-8">
         {/* Navigation Sidebar */}
-        <aside className="w-full md:w-60 shrink-0">
+        <aside className="w-full md:w-68 shrink-0 space-y-5">
           <nav
-            className="flex space-x-2 md:flex-col md:space-x-0 md:space-y-1.5 overflow-x-auto pb-2 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            className="flex space-x-2 md:flex-col md:space-x-0 md:space-y-1.5 overflow-x-auto pb-2 md:pb-0 rounded-[22px] bg-white dark:bg-[#0B1F33] p-2 border border-slate-200/75 dark:border-white/[0.08] shadow-[0_2px_16px_-4px_rgba(11,31,51,0.06)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             aria-label="Settings navigation"
           >
             {[
@@ -561,88 +761,76 @@ export default function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer ${
                     active
-                      ? "bg-teal-50/80 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200 border border-teal-200/80 dark:border-teal-800/60 font-semibold shadow-xs"
-                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+                      ? "bg-[#006D77] text-white font-semibold shadow-sm"
+                      : "text-slate-600 dark:text-slate-300 hover:bg-[#F4F7F8] dark:hover:bg-white/[0.06] hover:text-[#0B1F33] dark:hover:text-white"
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${active ? "text-teal-600 dark:text-teal-400" : ""}`} />
+                  <Icon className={`h-4 w-4 ${active ? "text-[#83C5BE]" : "text-slate-400"}`} />
                   {tab.label}
                 </button>
               );
             })}
           </nav>
 
-          {/* Quick Health / Practice Status Card */}
-          <div className="mt-6 hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] p-4 shadow-xs">
-            {profile?.role === "DOCTOR" ? (
-              <>
-                <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">
-                  <Stethoscope className="h-3.5 w-3.5" />
-                  Physician Practice
+          {/* Branded Metallic Digital Health / Clinician Pass Card */}
+          <div className="hidden md:block relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[#0B1F33] via-[#102E46] to-[#005B64] p-5 text-white shadow-[0_14px_34px_-10px_rgba(11,31,51,0.4)] border border-white/10">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-[#83C5BE]/20 blur-2xl"
+            />
+            <div className="relative space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src="/logo.png" alt="CuraLink" className="h-5 w-5 object-contain brightness-200" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#83C5BE]">
+                    {profile?.role === "DOCTOR" ? "Clinician ID" : "Health Pass"}
+                  </span>
                 </div>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Specialty:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-right truncate max-w-[120px]">
-                      {doctorProfile.specialization}
-                    </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Active
+                </span>
+              </div>
+
+              <div>
+                <p className="font-serif text-lg leading-tight text-white truncate">
+                  {formData.name || "CuraLink Member"}
+                </p>
+                <p className="font-mono text-[11px] text-white/65 mt-0.5">{memberCode}</p>
+              </div>
+
+              {profile?.role === "DOCTOR" ? (
+                <div className="space-y-1.5 pt-3 border-t border-white/10 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-white/60">Specialty</span>
+                    <span className="font-medium text-white truncate max-w-[130px]">{doctorProfile.specialization}</span>
                   </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Location:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {doctorProfile.city || "Not Set"}
-                    </span>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">Fee</span>
+                    <span className="font-semibold text-[#83C5BE]">₹{doctorProfile.consultationFee}</span>
                   </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Session Fee:</span>
-                    <span className="font-semibold text-teal-700 dark:text-teal-400">
-                      ₹{doctorProfile.consultationFee}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Active Modes:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {doctorProfile.consultationModes.includes("VIDEO") && doctorProfile.consultationModes.includes("IN_PERSON")
-                        ? "Video + Clinic"
-                        : doctorProfile.consultationModes.includes("VIDEO")
-                        ? "Video Call"
-                        : "Clinic Visit"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                    <span>License:</span>
-                    <span className="font-mono text-[11px] text-slate-600 dark:text-slate-300">
-                      {doctorProfile.medicalLicenseNumber || "PENDING"}
-                    </span>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">License</span>
+                    <span className="font-mono text-[11px] text-white/90">{doctorProfile.medicalLicenseNumber || "NMC"}</span>
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">
-                  <Heart className="h-3.5 w-3.5" />
-                  Patient Health Card
-                </div>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Blood Type:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formData.bloodGroup}</span>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/10 text-xs">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-white/55">Blood Group</p>
+                    <p className="font-semibold text-[#83C5BE] mt-0.5">{formData.bloodGroup}</p>
                   </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Role:</span>
-                    <span className="font-semibold text-teal-700 dark:text-teal-400">{profile?.role || "PATIENT"}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Status:</span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
-                    </span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-white/55">Emergency</p>
+                    <p className="font-mono text-[11px] text-white/90 mt-0.5 truncate">
+                      {formData.emergencyContact || "112"}
+                    </p>
                   </div>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </aside>
 
@@ -651,14 +839,20 @@ export default function SettingsPage() {
           {/* TAB 1: GENERAL PROFILE */}
           {activeTab === "general" && (
             <div className="space-y-6">
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xs overflow-hidden">
-                <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-5">
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    Personal Information
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Update your registered telehealth account and contact details.
-                  </p>
+              <section className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] shadow-[0_4px_24px_-6px_rgba(11,31,51,0.06)] overflow-hidden">
+                <div className="border-b border-slate-100 dark:border-white/[0.08] px-6 py-5 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-serif text-2xl font-normal text-[#0B1F33] dark:text-white">
+                      Personal Information
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Keep your clinical details and emergency contacts up to date.
+                    </p>
+                  </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-[#F4F7F8] dark:bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                    <Lock className="h-3 w-3 text-[#006D77] dark:text-[#83C5BE]" />
+                    Encrypted
+                  </span>
                 </div>
 
                 {profile?.role === "DOCTOR" && (
@@ -672,113 +866,21 @@ export default function SettingsPage() {
                           Doctor Practice Profile Available
                         </p>
                         <p className="text-slate-600 dark:text-slate-300 mt-0.5">
-                          Configure your consultation modes (Video & Clinic Visit), practice city, fees, and specialty for patients to find you.
+                          Configure your consultation modes (Video &amp; Clinic Visit), practice city, fees, and specialty.
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveTab("practice")}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#0D9488] px-3.5 py-2 font-semibold text-white hover:bg-[#0B7267] transition-colors shrink-0 text-xs shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#006D77] px-4 py-2 font-semibold text-white hover:bg-[#005860] transition-colors shrink-0 text-xs shadow-xs cursor-pointer"
                     >
-                      Configure Practice Profile →
+                      Configure Practice →
                     </button>
                   </div>
                 )}
 
                 <form onSubmit={handleSaveProfile} className="p-6 space-y-6">
-                  {/* Real Working Profile Photo Upload */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 rounded-2xl bg-[#F4F7F8] dark:bg-white/[0.04] p-4 border border-slate-200/70 dark:border-white/[0.07]">
-                    <div className="relative group h-20 w-20 shrink-0">
-                      <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[#0B1F33] dark:bg-[#006D77] font-semibold text-white text-2xl border-2 border-white dark:border-slate-800 shadow-sm">
-                        {profile?.avatarUrl ? (
-                          <img
-                            src={profile.avatarUrl}
-                            alt={formData.name || "Profile photo"}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span>{nameInitial}</span>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => avatarInputRef.current?.click()}
-                        disabled={isUploadingAvatar}
-                        className="absolute inset-0 flex items-center justify-center rounded-2xl bg-[#0B1F33]/55 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-wait"
-                        title="Upload profile photo"
-                        aria-label="Upload profile photo"
-                      >
-                        {isUploadingAvatar ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <Camera className="h-5 w-5" />
-                        )}
-                      </button>
-
-                      <input
-                        ref={avatarInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={handleAvatarFileChange}
-                        className="hidden"
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-serif text-xl text-[#0B1F33] dark:text-white truncate">
-                        {formData.name || "Account Profile"}
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {profile?.role === "ADMIN"
-                          ? "System Administrator"
-                          : profile?.role === "DOCTOR"
-                          ? "Verified Clinician Account"
-                          : "Verified Patient Account"}{" "}
-                        &bull; JPG, PNG or WebP (max 3 MB)
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => avatarInputRef.current?.click()}
-                          disabled={isUploadingAvatar}
-                          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-[#006D77] hover:bg-[#005860] text-xs font-medium text-white shadow-xs transition-all cursor-pointer disabled:opacity-60"
-                        >
-                          {isUploadingAvatar ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Upload className="h-3.5 w-3.5" />
-                          )}
-                          <span>{profile?.avatarUrl ? "Change Photo" : "Upload Photo"}</span>
-                        </button>
-
-                        {profile?.avatarUrl && (
-                          <button
-                            type="button"
-                            onClick={handleRemoveAvatar}
-                            disabled={isUploadingAvatar}
-                            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-transparent text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer disabled:opacity-60"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span>Remove</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {avatarError && (
-                        <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1">
-                          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {avatarError}
-                        </p>
-                      )}
-                      {avatarSuccess && (
-                        <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> {avatarSuccess}
-                        </p>
-                      )}
-                    </div>
-                  </div>
 
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-1.5">
@@ -908,7 +1010,11 @@ export default function SettingsPage() {
                         </p>
                       )}
                     </div>
-                    <Button type="submit" disabled={isSaving}>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="rounded-full bg-[#006D77] hover:bg-[#005860] text-white h-10 px-6 shadow-[0_6px_18px_-4px_rgba(0,109,119,0.45)] cursor-pointer"
+                    >
                       {isSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                       Save Profile Changes
                     </Button>

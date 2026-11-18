@@ -1,10 +1,12 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { auditService, AuditAction } from '../services/audit.service';
 import { registerSchema, loginSchema, googleLoginSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validator';
 import { profileSchema } from '../validators/profile.validator';
-import { UnauthorizedError } from '../utils/errors';
+import { UnauthorizedError, ForbiddenError, BadRequestError } from '../utils/errors';
 import { setAuthCookies, clearAuthCookies } from '../utils/cookie';
 import { notificationService } from '../services/notification.service';
 import { Role } from '../types/role';
@@ -35,8 +37,23 @@ export class AuthController {
       const validatedInput = loginSchema.parse(req.body);
       
       try {
-        const { user, accessToken, refreshToken } = await authService.login(validatedInput);
-        
+        const result = await authService.login(validatedInput);
+
+        if ('requiresTwoFactor' in result && result.requiresTwoFactor) {
+          res.status(200).json({
+            success: true,
+            requiresTwoFactor: true,
+            message: 'Two-factor verification required',
+            data: {
+              requiresTwoFactor: true,
+              tempToken: result.tempToken,
+              email: result.email,
+            },
+          });
+          return;
+        }
+
+        const { user, accessToken, refreshToken } = result;
         setAuthCookies(res, accessToken, refreshToken);
         await auditService.logAction(AuditAction.LOGIN, user.id, 'User', user.id, req.ip, req.headers['user-agent']);
 
@@ -203,25 +220,14 @@ export class AuthController {
     }
   }
 
-  async switchRole(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async switchRole(req: Request, _res: Response, next: NextFunction): Promise<void> {
     try {
       if (!req.user) {
         throw new UnauthorizedError('Authentication required');
       }
 
-      const requestedRole = req.body?.role === 'DOCTOR' ? Role.DOCTOR : Role.PATIENT;
-      const result = await authService.switchRole(req.user.id, requestedRole);
-      setAuthCookies(res, result.accessToken, result.refreshToken);
-
-      res.status(200).json({
-        success: true,
-        message: `Role switched to ${requestedRole} successfully`,
-        data: {
-          user: result.user,
-          token: result.accessToken,
-          accessToken: result.accessToken,
-        },
-      });
+      // Strict role isolation: Patients, Doctors, and Admins cannot switch portals or roles
+      throw new ForbiddenError('Role switching is disabled. Please sign in with your dedicated role account.');
     } catch (error) {
       next(error);
     }
@@ -328,6 +334,316 @@ export class AuthController {
         success: true,
         message: 'Profile updated successfully',
         data: { user: updatedUser },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const rawImage = typeof req.body?.image === 'string' ? req.body.image.trim() : '';
+      const match = rawImage.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+
+      if (!match) {
+        throw new BadRequestError('Please upload a valid JPG, PNG, or WebP image.');
+      }
+
+      const mime = match[1].toLowerCase();
+      const base64Payload = match[2];
+      const buffer = Buffer.from(base64Payload, 'base64');
+
+      const MAX_BYTES = 3 * 1024 * 1024; // 3MB
+      if (buffer.length === 0 || buffer.length > MAX_BYTES) {
+        throw new BadRequestError('Profile photo must be smaller than 3 MB.');
+      }
+
+      // Magic-byte validation to prevent spoofed uploads
+      const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+      const isPng =
+        buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+      const isWebp =
+        buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+        buffer.subarray(8, 12).toString('ascii') === 'WEBP';
+
+      if ((mime.includes('jpeg') || mime.includes('jpg')) && !isJpeg) {
+        throw new BadRequestError('Invalid JPEG file signature.');
+      }
+      if (mime === 'image/png' && !isPng) {
+        throw new BadRequestError('Invalid PNG file signature.');
+      }
+      if (mime === 'image/webp' && !isWebp) {
+        throw new BadRequestError('Invalid WebP file signature.');
+      }
+
+      const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+      const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+      fs.mkdirSync(avatarDir, { recursive: true });
+
+      const safeUserId = req.user.id.replace(/[^a-zA-Z0-9_-]/g, '');
+      const fileName = `${safeUserId}-${Date.now()}.${ext}`;
+      const filePath = path.join(avatarDir, fileName);
+      fs.writeFileSync(filePath, buffer);
+
+      const avatarUrl = `/uploads/avatars/${fileName}`;
+      const { user, previousAvatarUrl } = await authService.updateAvatar(req.user.id, avatarUrl);
+
+      // Clean up previous uploaded avatar if it lived under /uploads/avatars/
+      if (previousAvatarUrl && previousAvatarUrl.startsWith('/uploads/avatars/')) {
+        const oldFile = path.join(avatarDir, path.basename(previousAvatarUrl));
+        if (oldFile !== filePath && fs.existsSync(oldFile)) {
+          fs.unlink(oldFile, () => {});
+        }
+      }
+
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'avatar_upload' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile photo updated successfully',
+        data: { user, avatarUrl },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async removeAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { user, previousAvatarUrl } = await authService.updateAvatar(req.user.id, null);
+
+      if (previousAvatarUrl && previousAvatarUrl.startsWith('/uploads/avatars/')) {
+        const avatarDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
+        const oldFile = path.join(avatarDir, path.basename(previousAvatarUrl));
+        if (fs.existsSync(oldFile)) {
+          fs.unlink(oldFile, () => {});
+        }
+      }
+
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'avatar_remove' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile photo removed',
+        data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async setupTwoFactor(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const setup = await authService.setupTwoFactor(req.user.id);
+      res.status(200).json({
+        success: true,
+        message: 'Scan the QR code in Google Authenticator, Authy, or Microsoft Authenticator and enter the 6-digit code.',
+        data: setup,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyEnableTwoFactor(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const code = String(req.body?.code || '').trim();
+      if (!code) {
+        throw new BadRequestError('6-digit authenticator code is required');
+      }
+
+      const { user, backupCodes } = await authService.verifyAndEnableTwoFactor(req.user.id, code);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: '2fa_enabled' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Two-factor authentication is now active on your account.',
+        data: { user, backupCodes },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async disableTwoFactor(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const code = String(req.body?.code || '').trim();
+      if (!code) {
+        throw new BadRequestError('Enter your current 6-digit authenticator code or a backup code to disable 2FA');
+      }
+
+      const { user } = await authService.disableTwoFactor(req.user.id, code);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: '2fa_disabled' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Two-factor authentication has been disabled.',
+        data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyTwoFactorLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const tempToken = String(req.body?.tempToken || '').trim();
+      const code = String(req.body?.code || '').trim();
+
+      if (!tempToken || !code) {
+        throw new BadRequestError('Verification token and 6-digit code are required');
+      }
+
+      const { user, accessToken, refreshToken, usedBackupCode } = await authService.verifyTwoFactorLogin(tempToken, code);
+      setAuthCookies(res, accessToken, refreshToken);
+      await auditService.logAction(
+        AuditAction.LOGIN,
+        user.id,
+        'User',
+        user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { method: usedBackupCode ? '2fa_backup_code' : '2fa_totp' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Two-factor verification successful',
+        data: { user, token: accessToken, accessToken, refreshToken, usedBackupCode },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async registerBiometric(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const credentialId = String(req.body?.credentialId || '').trim();
+      const { user } = await authService.registerBiometric(req.user.id, credentialId);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'biometric_registered' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Fingerprint / biometric login enabled on this device.',
+        data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async disableBiometric(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { user } = await authService.disableBiometric(req.user.id);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'biometric_disabled' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Fingerprint / biometric login disabled.',
+        data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async biometricLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const email = String(req.body?.email || '').trim().toLowerCase();
+      const credentialId = String(req.body?.credentialId || '').trim();
+
+      const { user, accessToken, refreshToken } = await authService.biometricLogin(email, credentialId);
+      setAuthCookies(res, accessToken, refreshToken);
+      await auditService.logAction(
+        AuditAction.LOGIN,
+        user.id,
+        'User',
+        user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { method: 'biometric_fingerprint' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Biometric sign-in successful',
+        data: { user, token: accessToken, accessToken, refreshToken },
       });
     } catch (error) {
       next(error);

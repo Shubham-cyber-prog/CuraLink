@@ -4,9 +4,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { Role } from '../types/role';
 import { validateRequest } from '../middleware/validate.middleware';
 import { sendMessageSchema, getMessagesQuerySchema } from '../validators/message.validator';
-
 import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
-
 
 const router = Router();
 
@@ -74,9 +72,7 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const appointmentId = String(req.query.appointmentId);
-
       const { limit, page, cursor, skip } = parsePaginationParams(req.query);
-
 
       const access = await getAppointmentAndCheckAccess(appointmentId, req.user!.id, req.user!.role);
       if (!access.appointment) {
@@ -84,6 +80,17 @@ router.get(
         return;
       }
 
+      // Mark unread incoming messages as read when thread is opened
+      await prisma.message
+        .updateMany({
+          where: {
+            appointmentId,
+            receiverId: req.user!.id,
+            read: false,
+          },
+          data: { read: true },
+        })
+        .catch(() => {});
 
       const [total, messages] = await Promise.all([
         prisma.message.count({ where: { appointmentId } }),
@@ -94,7 +101,7 @@ router.get(
           take: limit + 1,
           include: {
             sender: {
-              select: { id: true, name: true, role: true },
+              select: { id: true, name: true, role: true, avatarUrl: true },
             },
           },
         }),
@@ -103,20 +110,6 @@ router.get(
       res.status(200).json({
         success: true,
         ...buildPaginatedResponse(messages, total, limit, page),
-
-      const messages = await prisma.message.findMany({
-        where: { appointmentId },
-        orderBy: { createdAt: 'asc' },
-        include: {
-          sender: {
-            select: { id: true, name: true, role: true },
-          },
-        },
-      });
-
-      res.status(200).json({
-        success: true,
-        data: messages,
       });
     } catch (error) {
       next(error);
@@ -158,7 +151,7 @@ router.post(
       },
       include: {
         sender: {
-          select: { id: true, name: true, role: true },
+          select: { id: true, name: true, role: true, avatarUrl: true },
         },
       },
     });

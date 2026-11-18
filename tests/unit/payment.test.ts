@@ -3,11 +3,7 @@ import { prisma } from '../../src/lib/prisma';
 import crypto from 'crypto';
 
 jest.mock('../../src/lib/prisma', () => {
-
   const mockInstance: any = {
-
-  const mockInstance = {
-
     payment: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -16,11 +12,9 @@ jest.mock('../../src/lib/prisma', () => {
       update: jest.fn(),
     },
   };
-
   mockInstance.$transaction = jest.fn((input: any) =>
     Array.isArray(input) ? Promise.all(input) : input(mockInstance)
   );
-
   return {
     __esModule: true,
     default: mockInstance,
@@ -31,13 +25,11 @@ jest.mock('../../src/lib/prisma', () => {
 describe('Payment Service Unit Tests', () => {
   const originalEnv = process.env.NODE_ENV;
 
-
   beforeEach(() => {
     (prisma.$transaction as jest.Mock).mockImplementation((input: any) =>
       Array.isArray(input) ? Promise.all(input) : input(prisma)
     );
   });
-
 
   afterEach(() => {
     process.env.NODE_ENV = originalEnv;
@@ -116,8 +108,6 @@ describe('Payment Service Unit Tests', () => {
     });
 
     expect(result.status).toBe('SUCCESS');
-
     expect(prisma.$transaction).toHaveBeenCalled();
-
   });
 });

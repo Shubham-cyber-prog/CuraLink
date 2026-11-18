@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -32,10 +32,22 @@ import {
   Sparkles,
   ExternalLink,
   Award,
+  Camera,
+  Upload,
+  Copy,
+  Fingerprint,
+  QrCode,
+  ShieldAlert,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import {
+  isPlatformBiometricSupported,
+  enrollPlatformBiometric,
+  saveStoredBiometric,
+  clearStoredBiometric,
+} from "@/lib/webauthn";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -48,6 +60,9 @@ interface UserProfile {
   phoneVerified?: boolean;
   age?: number | null;
   gender?: string | null;
+  avatarUrl?: string | null;
+  twoFactorEnabled?: boolean;
+  biometricEnabled?: boolean;
   profileCompleted?: boolean;
   createdAt: string;
 }
@@ -93,6 +108,13 @@ export default function SettingsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
 
+  // Profile Photo Upload State
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState(false);
+
   // Password Form State
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -110,9 +132,24 @@ export default function SettingsPage() {
   const [aiInsights, setAiInsights] = useState(true);
   const [emailDigest, setEmailDigest] = useState(false);
 
-  // Security Toggles
+  // Real 2FA (TOTP) & Biometric (Fingerprint / Passkey) State
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
-  const [biometricUnlock, setBiometricUnlock] = useState(true);
+  const [twoFaSetup, setTwoFaSetup] = useState<{ secret: string; otpauthUri: string; qrCodeUrl: string } | null>(null);
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaBackupCodes, setTwoFaBackupCodes] = useState<string[]>([]);
+  const [showDisableTwoFa, setShowDisableTwoFa] = useState(false);
+  const [disableTwoFaCode, setDisableTwoFaCode] = useState("");
+  const [isProcessing2FA, setIsProcessing2FA] = useState(false);
+  const [twoFaError, setTwoFaError] = useState<string | null>(null);
+  const [twoFaSuccess, setTwoFaSuccess] = useState<string | null>(null);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedBackups, setCopiedBackups] = useState(false);
+
+  const [biometricUnlock, setBiometricUnlock] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState<boolean | null>(null);
+  const [isProcessingBiometric, setIsProcessingBiometric] = useState(false);
+  const [biometricError, setBiometricError] = useState<string | null>(null);
+  const [biometricSuccess, setBiometricSuccess] = useState<string | null>(null);
 
   // Data Privacy Modal & Download State
   const [isDownloading, setIsDownloading] = useState(false);
@@ -142,11 +179,7 @@ export default function SettingsPage() {
       const savedDigest = localStorage.getItem("curalink_notif_digest");
       if (savedDigest !== null) setEmailDigest(savedDigest === "true");
 
-      const saved2FA = localStorage.getItem("curalink_2fa");
-      if (saved2FA !== null) setTwoFactorAuth(saved2FA === "true");
-
-      const savedBio = localStorage.getItem("curalink_bio");
-      if (savedBio !== null) setBiometricUnlock(savedBio === "true");
+      isPlatformBiometricSupported().then(setBiometricSupported).catch(() => setBiometricSupported(false));
 
       const savedPhone = localStorage.getItem("curalink_user_phone");
       const savedBlood = localStorage.getItem("curalink_user_blood");
@@ -168,19 +201,13 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          credentials: "include",
-        });
+        const data = await api.get("/auth/me");
 
-        if (res.status === 401) {
-          router.replace("/login?redirect=/settings");
-          return;
-        }
-        const data = await res.json();
-
-        if (res.ok && data.success && data.data) {
+        if (data?.success && data.data) {
           const user = data.data.user || data.data;
           setProfile(user);
+          setTwoFactorAuth(Boolean(user.twoFactorEnabled));
+          setBiometricUnlock(Boolean(user.biometricEnabled));
           setFormData((prev) => ({
             ...prev,
             name: user.name || "",
@@ -217,7 +244,11 @@ export default function SettingsPage() {
             }
           }
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.status === 401) {
+          router.replace("/login?redirect=/settings");
+          return;
+        }
         console.error("Settings page fetch error:", err);
       } finally {
         setIsLoading(false);
@@ -277,30 +308,87 @@ export default function SettingsPage() {
     });
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError(null);
+    setAvatarSuccess(null);
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setAvatarError("Please choose a JPG, PNG, or WebP photo.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setAvatarError("Photo must be smaller than 3 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Could not read image file"));
+        reader.readAsDataURL(file);
+      });
+
+      const res = await api.post("/auth/profile/avatar", { image: dataUrl });
+      if (!res?.success) {
+        throw new Error(res?.message || "Failed to upload profile photo");
+      }
+
+      const updatedUser = res.data?.user || { ...profile, avatarUrl: res.data?.avatarUrl };
+      setProfile((prev) => (prev ? { ...prev, ...updatedUser } : updatedUser));
+      window.dispatchEvent(new CustomEvent("curalink-profile-updated", { detail: updatedUser }));
+      setAvatarSuccess("Profile photo updated!");
+      setTimeout(() => setAvatarSuccess(null), 4000);
+    } catch (err: any) {
+      setAvatarError(err?.message || "Failed to upload photo. Please try again.");
+    } finally {
+      setIsUploadingAvatar(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setAvatarError(null);
+    setAvatarSuccess(null);
+    setIsUploadingAvatar(true);
+    try {
+      const res = await api.delete("/auth/profile/avatar");
+      if (!res?.success) {
+        throw new Error(res?.message || "Failed to remove photo");
+      }
+      const updatedUser = res.data?.user || { ...profile, avatarUrl: null };
+      setProfile((prev) => (prev ? { ...prev, ...updatedUser, avatarUrl: null } : updatedUser));
+      window.dispatchEvent(
+        new CustomEvent("curalink-profile-updated", { detail: { ...updatedUser, avatarUrl: null } })
+      );
+      setAvatarSuccess("Profile photo removed.");
+      setTimeout(() => setAvatarSuccess(null), 3500);
+    } catch (err: any) {
+      setAvatarError(err?.message || "Could not remove photo.");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleVerifyPhone = async () => {
     setIsVerifyingPhone(true);
     try {
-      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
-      const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.token;
-
-      const res = await fetch(`${API_BASE}/auth/profile`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          phoneVerified: true,
-        }),
+      const data = await api.put("/auth/profile", {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        phoneVerified: true,
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data?.success) {
         const updated = data.data?.user || data.data;
         setProfile(updated);
         setSaveSuccess(true);
@@ -320,37 +408,25 @@ export default function SettingsPage() {
     setSaveError(null);
 
     try {
-      // Persist client extras
       localStorage.setItem("curalink_user_phone", formData.phone);
       localStorage.setItem("curalink_user_blood", formData.bloodGroup);
       localStorage.setItem("curalink_user_emerg", formData.emergencyContact);
 
-      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
-      const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.token;
-
-      const res = await fetch(`${API_BASE}/auth/profile`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone || undefined,
-          age: formData.age ? Number(formData.age) : undefined,
-          gender: formData.gender || undefined,
-        }),
+      const data = await api.put("/auth/profile", {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        age: formData.age ? Number(formData.age) : undefined,
+        gender: formData.gender || undefined,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update profile settings");
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to update profile settings");
       }
 
-      setProfile(data.data?.user || data.data);
+      const updatedUser = data.data?.user || data.data;
+      setProfile(updatedUser);
+      window.dispatchEvent(new CustomEvent("curalink-profile-updated", { detail: updatedUser }));
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     } catch (err: any) {
@@ -392,6 +468,150 @@ export default function SettingsPage() {
       setPasswordError(err.message || "Could not update password. Please check your current password.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleStartTwoFactorSetup = async () => {
+    setTwoFaError(null);
+    setTwoFaSuccess(null);
+    setTwoFaBackupCodes([]);
+    setIsProcessing2FA(true);
+    try {
+      const res = await api.post("/auth/2fa/setup", {});
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.message || "Failed to start 2FA setup");
+      }
+      setTwoFaSetup(res.data);
+      setTwoFaCode("");
+    } catch (err: any) {
+      setTwoFaError(err?.message || "Could not generate authenticator QR code.");
+    } finally {
+      setIsProcessing2FA(false);
+    }
+  };
+
+  const handleVerifyEnableTwoFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTwoFaError(null);
+    setTwoFaSuccess(null);
+
+    const cleaned = twoFaCode.replace(/\s+/g, "");
+    if (!/^\d{6}$/.test(cleaned)) {
+      setTwoFaError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+
+    setIsProcessing2FA(true);
+    try {
+      const res = await api.post("/auth/2fa/verify-enable", { code: cleaned });
+      if (!res?.success) {
+        throw new Error(res?.message || "Invalid verification code");
+      }
+      setTwoFactorAuth(true);
+      setTwoFaSetup(null);
+      setTwoFaCode("");
+      setTwoFaBackupCodes(res.data?.backupCodes || []);
+      setTwoFaSuccess("Two-Factor Authentication is now active! Save your recovery backup codes below.");
+      if (res.data?.user) {
+        setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+      }
+    } catch (err: any) {
+      setTwoFaError(err?.message || "Invalid 6-digit code. Please check your authenticator app.");
+    } finally {
+      setIsProcessing2FA(false);
+    }
+  };
+
+  const handleDisableTwoFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTwoFaError(null);
+    setTwoFaSuccess(null);
+
+    if (!disableTwoFaCode.trim()) {
+      setTwoFaError("Enter your 6-digit authenticator code or a backup code.");
+      return;
+    }
+
+    setIsProcessing2FA(true);
+    try {
+      const res = await api.post("/auth/2fa/disable", { code: disableTwoFaCode.trim() });
+      if (!res?.success) {
+        throw new Error(res?.message || "Could not disable 2FA");
+      }
+      setTwoFactorAuth(false);
+      setShowDisableTwoFa(false);
+      setDisableTwoFaCode("");
+      setTwoFaBackupCodes([]);
+      setTwoFaSuccess("Two-Factor Authentication has been disabled.");
+      if (res.data?.user) {
+        setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+      }
+    } catch (err: any) {
+      setTwoFaError(err?.message || "Invalid verification code.");
+    } finally {
+      setIsProcessing2FA(false);
+    }
+  };
+
+  const handleToggleBiometric = async () => {
+    setBiometricError(null);
+    setBiometricSuccess(null);
+
+    if (!biometricUnlock) {
+      if (!profile) return;
+      setIsProcessingBiometric(true);
+      try {
+        const { credentialId, rawId } = await enrollPlatformBiometric({
+          id: profile.id,
+          email: profile.email,
+          name: profile.name || formData.name || profile.email,
+        });
+
+        const res = await api.post("/auth/biometric/register", { credentialId });
+        if (!res?.success) {
+          throw new Error(res?.message || "Failed to register fingerprint credential");
+        }
+
+        saveStoredBiometric({
+          email: profile.email,
+          name: profile.name,
+          credentialId,
+          rawId,
+          enrolledAt: new Date().toISOString(),
+        });
+
+        setBiometricUnlock(true);
+        setBiometricSuccess("Fingerprint / Passkey enabled! You can now sign in with one touch on the login screen.");
+        if (res.data?.user) {
+          setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+        }
+      } catch (err: any) {
+        if (err?.name === "NotAllowedError") {
+          setBiometricError("Fingerprint prompt was cancelled or timed out. Please try again.");
+        } else {
+          setBiometricError(err?.message || "Could not enroll fingerprint on this device.");
+        }
+      } finally {
+        setIsProcessingBiometric(false);
+      }
+    } else {
+      setIsProcessingBiometric(true);
+      try {
+        const res = await api.delete("/auth/biometric/disable");
+        if (!res?.success) {
+          throw new Error(res?.message || "Failed to disable fingerprint login");
+        }
+        clearStoredBiometric();
+        setBiometricUnlock(false);
+        setBiometricSuccess("Fingerprint / Passkey login disabled on this account.");
+        if (res.data?.user) {
+          setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+        }
+      } catch (err: any) {
+        setBiometricError(err?.message || "Failed to disable biometric login.");
+      } finally {
+        setIsProcessingBiometric(false);
+      }
     }
   };
 
@@ -464,33 +684,233 @@ export default function SettingsPage() {
   }
 
   const nameInitial = formData.name ? formData.name.charAt(0).toUpperCase() : "U";
+  const memberCode = `CL-${(profile?.id || "84920").replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase()}`;
+  const memberSince = profile?.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
+    : "2026";
+  const completionChecks = [
+    Boolean(formData.name),
+    Boolean(formData.email),
+    Boolean(formData.phone),
+    Boolean(formData.age),
+    Boolean(profile?.avatarUrl),
+  ];
+  const completionPct = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
+
+  const handleCopyMemberId = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(memberCode);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Account Settings
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Manage your personal profile, notifications, security, and HIPAA data controls.
-          </p>
+    <div className="space-y-7">
+      {/* ── BRANDED CURALINK EXECUTIVE PROFILE HERO BANNER ── */}
+      <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#071525] via-[#0B283C] to-[#006D77] text-white shadow-[0_18px_50px_-14px_rgba(11,31,51,0.45)] border border-white/10">
+        {/* Subtle geometric mesh & soft aqua spotlight */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 -right-16 h-80 w-80 rounded-full bg-[#83C5BE]/20 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
+            backgroundSize: "20px 20px",
+          }}
+        />
+        {/* Subtle Brand Crest Watermark */}
+        <div className="pointer-events-none absolute top-5 right-6 hidden sm:flex items-center gap-2 opacity-25 select-none">
+          <img src="/logo.png" alt="" className="h-7 w-7 object-contain brightness-200" />
+          <span className="font-serif text-lg tracking-wide text-white">CuraLink</span>
         </div>
 
-        {/* Brand HIPAA Trust Badge */}
-        <div className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300">
-          <ShieldCheck className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-          <span>HIPAA-aligned Workspace</span>
+        <div className="relative p-6 sm:p-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          {/* Left: Branded Avatar + Identity */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6">
+            <div className="relative group h-24 w-24 sm:h-28 sm:w-28 shrink-0">
+              <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[24px] bg-white/15 backdrop-blur-md font-semibold text-white text-3xl ring-4 ring-white/25 shadow-xl">
+                {profile?.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt={formData.name || "Profile photo"}
+                    className="h-full w-full object-cover bg-white"
+                  />
+                ) : (
+                  <span>{nameInitial}</span>
+                )}
+              </div>
+
+              {/* Verified Online Dot */}
+              <span
+                className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 ring-4 ring-[#0B283C] text-white shadow-sm"
+                title="Verified CuraLink Member"
+              >
+                <Check className="h-3.5 w-3.5 stroke-[3]" />
+              </span>
+
+              {/* Hover Camera Overlay */}
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-[24px] bg-[#071525]/70 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-wait"
+                title="Upload profile photo"
+                aria-label="Upload profile photo"
+              >
+                {isUploadingAvatar ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="h-5 w-5 text-[#83C5BE]" />
+                    <span className="text-[10px] font-medium">Update</span>
+                  </>
+                )}
+              </button>
+
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarFileChange}
+                className="hidden"
+              />
+            </div>
+
+            <div className="space-y-2 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 backdrop-blur-md border border-white/15 px-3 py-0.5 text-[11px] font-medium text-[#83C5BE]">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>
+                    {profile?.role === "ADMIN"
+                      ? "CuraLink Admin"
+                      : profile?.role === "DOCTOR"
+                      ? "NMC Verified Clinician"
+                      : "CuraLink Verified Member"}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyMemberId}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-black/25 hover:bg-black/40 border border-white/10 px-3 py-0.5 text-[11px] font-mono text-white/85 transition-colors cursor-pointer"
+                  title="Copy Member ID"
+                >
+                  <span>{memberCode}</span>
+                  {copiedId ? (
+                    <Check className="h-3 w-3 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-3 w-3 text-white/60" />
+                  )}
+                </button>
+              </div>
+
+              <h1 className="font-serif text-3xl sm:text-4xl leading-tight font-normal tracking-[-0.015em] text-white truncate">
+                {formData.name || "CuraLink Member"}
+              </h1>
+
+              <p className="text-xs sm:text-sm text-white/70">
+                {formData.email} &bull; Member since {memberSince}
+              </p>
+
+              {/* Integrated Branded Photo Action Pills */}
+              <div className="pt-1 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="inline-flex items-center gap-1.5 h-8.5 px-4 rounded-full bg-white text-[#0B1F33] hover:bg-[#EBF4F5] text-xs font-semibold shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 text-[#006D77]" />
+                  )}
+                  <span>{profile?.avatarUrl ? "Change Photo" : "Upload Photo"}</span>
+                </button>
+
+                {profile?.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    disabled={isUploadingAvatar}
+                    className="inline-flex items-center gap-1.5 h-8.5 px-3.5 rounded-full bg-white/10 hover:bg-rose-500/25 border border-white/15 text-xs font-medium text-white/90 transition-colors cursor-pointer disabled:opacity-60"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Remove</span>
+                  </button>
+                )}
+
+                {avatarError && (
+                  <span className="text-xs font-medium text-rose-300 flex items-center gap-1 ml-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> {avatarError}
+                  </span>
+                )}
+                {avatarSuccess && (
+                  <span className="text-xs font-medium text-emerald-300 flex items-center gap-1 ml-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {avatarSuccess}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Profile Strength Ring / Compact Pill */}
+          <div className="rounded-2xl bg-white/[0.08] backdrop-blur-md border border-white/12 p-4 min-w-[210px] space-y-2.5 self-start lg:self-center">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-white/75 font-medium">Profile Completion</span>
+              <span className="font-mono font-bold text-[#83C5BE]">{completionPct}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-black/30 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#83C5BE] to-emerald-400 transition-all duration-500"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-white/60">
+              {completionPct === 100
+                ? "All clinical identity fields verified"
+                : "Add photo & details for faster care"}
+            </p>
+          </div>
         </div>
-      </div>
+
+        {/* Bottom Glass Telemetry Strip */}
+        <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-px bg-white/10 border-t border-white/10">
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Blood Group</p>
+            <p className="text-sm font-semibold text-white mt-0.5">{formData.bloodGroup}</p>
+          </div>
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Demographics</p>
+            <p className="text-sm font-semibold text-white mt-0.5">
+              {formData.age || "—"} yrs &bull; {formData.gender}
+            </p>
+          </div>
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Contact Status</p>
+            <p className="text-sm font-semibold text-emerald-300 mt-0.5 flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {profile?.phoneVerified ? "Phone Verified" : "Active Account"}
+            </p>
+          </div>
+          <div className="bg-[#081C2E]/65 backdrop-blur-sm px-5 py-3">
+            <p className="text-[10px] uppercase tracking-wider text-white/55">Portal Access</p>
+            <p className="text-sm font-semibold text-[#83C5BE] mt-0.5">
+              {profile?.role === "ADMIN" ? "Admin Console" : profile?.role === "DOCTOR" ? "Doctor Practice" : "Patient Care"}
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Tabs & Content Layout */}
       <div className="flex flex-col md:flex-row gap-6 lg:gap-8">
         {/* Navigation Sidebar */}
-        <aside className="w-full md:w-60 shrink-0">
+        <aside className="w-full md:w-68 shrink-0 space-y-5">
           <nav
-            className="flex space-x-2 md:flex-col md:space-x-0 md:space-y-1.5 overflow-x-auto pb-2 md:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            className="flex space-x-2 md:flex-col md:space-x-0 md:space-y-1.5 overflow-x-auto pb-2 md:pb-0 rounded-[22px] bg-white dark:bg-[#0B1F33] p-2 border border-slate-200/75 dark:border-white/[0.08] shadow-[0_2px_16px_-4px_rgba(11,31,51,0.06)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             aria-label="Settings navigation"
           >
             {[
@@ -509,88 +929,76 @@ export default function SettingsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`flex items-center gap-2.5 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all duration-150 whitespace-nowrap cursor-pointer ${
                     active
-                      ? "bg-teal-50/80 dark:bg-teal-950/40 text-teal-900 dark:text-teal-200 border border-teal-200/80 dark:border-teal-800/60 font-semibold shadow-xs"
-                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+                      ? "bg-[#006D77] text-white font-semibold shadow-sm"
+                      : "text-slate-600 dark:text-slate-300 hover:bg-[#F4F7F8] dark:hover:bg-white/[0.06] hover:text-[#0B1F33] dark:hover:text-white"
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${active ? "text-teal-600 dark:text-teal-400" : ""}`} />
+                  <Icon className={`h-4 w-4 ${active ? "text-[#83C5BE]" : "text-slate-400"}`} />
                   {tab.label}
                 </button>
               );
             })}
           </nav>
 
-          {/* Quick Health / Practice Status Card */}
-          <div className="mt-6 hidden md:block rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] p-4 shadow-xs">
-            {profile?.role === "DOCTOR" ? (
-              <>
-                <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">
-                  <Stethoscope className="h-3.5 w-3.5" />
-                  Physician Practice
+          {/* Branded Metallic Digital Health / Clinician Pass Card */}
+          <div className="hidden md:block relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[#0B1F33] via-[#102E46] to-[#005B64] p-5 text-white shadow-[0_14px_34px_-10px_rgba(11,31,51,0.4)] border border-white/10">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-[#83C5BE]/20 blur-2xl"
+            />
+            <div className="relative space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img src="/logo.png" alt="CuraLink" className="h-5 w-5 object-contain brightness-200" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#83C5BE]">
+                    {profile?.role === "DOCTOR" ? "Clinician ID" : "Health Pass"}
+                  </span>
                 </div>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Specialty:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-right truncate max-w-[120px]">
-                      {doctorProfile.specialization}
-                    </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  Active
+                </span>
+              </div>
+
+              <div>
+                <p className="font-serif text-lg leading-tight text-white truncate">
+                  {formData.name || "CuraLink Member"}
+                </p>
+                <p className="font-mono text-[11px] text-white/65 mt-0.5">{memberCode}</p>
+              </div>
+
+              {profile?.role === "DOCTOR" ? (
+                <div className="space-y-1.5 pt-3 border-t border-white/10 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-white/60">Specialty</span>
+                    <span className="font-medium text-white truncate max-w-[130px]">{doctorProfile.specialization}</span>
                   </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Location:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {doctorProfile.city || "Not Set"}
-                    </span>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">Fee</span>
+                    <span className="font-semibold text-[#83C5BE]">₹{doctorProfile.consultationFee}</span>
                   </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Session Fee:</span>
-                    <span className="font-semibold text-teal-700 dark:text-teal-400">
-                      ₹{doctorProfile.consultationFee}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Active Modes:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      {doctorProfile.consultationModes.includes("VIDEO") && doctorProfile.consultationModes.includes("IN_PERSON")
-                        ? "Video + Clinic"
-                        : doctorProfile.consultationModes.includes("VIDEO")
-                        ? "Video Call"
-                        : "Clinic Visit"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                    <span>License:</span>
-                    <span className="font-mono text-[11px] text-slate-600 dark:text-slate-300">
-                      {doctorProfile.medicalLicenseNumber || "PENDING"}
-                    </span>
+                  <div className="flex justify-between">
+                    <span className="text-white/60">License</span>
+                    <span className="font-mono text-[11px] text-white/90">{doctorProfile.medicalLicenseNumber || "NMC"}</span>
                   </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 text-xs font-semibold text-teal-700 dark:text-teal-400 uppercase tracking-wider mb-2">
-                  <Heart className="h-3.5 w-3.5" />
-                  Patient Health Card
-                </div>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Blood Type:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formData.bloodGroup}</span>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/10 text-xs">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-white/55">Blood Group</p>
+                    <p className="font-semibold text-[#83C5BE] mt-0.5">{formData.bloodGroup}</p>
                   </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Role:</span>
-                    <span className="font-semibold text-teal-700 dark:text-teal-400">{profile?.role || "PATIENT"}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                    <span>Status:</span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
-                    </span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-white/55">Emergency</p>
+                    <p className="font-mono text-[11px] text-white/90 mt-0.5 truncate">
+                      {formData.emergencyContact || "112"}
+                    </p>
                   </div>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </aside>
 
@@ -599,14 +1007,20 @@ export default function SettingsPage() {
           {/* TAB 1: GENERAL PROFILE */}
           {activeTab === "general" && (
             <div className="space-y-6">
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xs overflow-hidden">
-                <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-5">
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    Personal Information
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Update your registered telehealth account and contact details.
-                  </p>
+              <section className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] shadow-[0_4px_24px_-6px_rgba(11,31,51,0.06)] overflow-hidden">
+                <div className="border-b border-slate-100 dark:border-white/[0.08] px-6 py-5 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-serif text-2xl font-normal text-[#0B1F33] dark:text-white">
+                      Personal Information
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Keep your clinical details and emergency contacts up to date.
+                    </p>
+                  </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-[#F4F7F8] dark:bg-white/[0.06] px-3 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                    <Lock className="h-3 w-3 text-[#006D77] dark:text-[#83C5BE]" />
+                    Encrypted
+                  </span>
                 </div>
 
                 {profile?.role === "DOCTOR" && (
@@ -620,43 +1034,21 @@ export default function SettingsPage() {
                           Doctor Practice Profile Available
                         </p>
                         <p className="text-slate-600 dark:text-slate-300 mt-0.5">
-                          Configure your consultation modes (Video & Clinic Visit), practice city, fees, and specialty for patients to find you.
+                          Configure your consultation modes (Video &amp; Clinic Visit), practice city, fees, and specialty.
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => setActiveTab("practice")}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#0D9488] px-3.5 py-2 font-semibold text-white hover:bg-[#0B7267] transition-colors shrink-0 text-xs shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#006D77] px-4 py-2 font-semibold text-white hover:bg-[#005860] transition-colors shrink-0 text-xs shadow-xs cursor-pointer"
                     >
-                      Configure Practice Profile →
+                      Configure Practice →
                     </button>
                   </div>
                 )}
 
                 <form onSubmit={handleSaveProfile} className="p-6 space-y-6">
-                  {/* Avatar Upload */}
-                  <div className="flex items-center gap-5">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-950/60 font-bold text-teal-700 dark:text-teal-300 text-2xl border border-teal-200 dark:border-teal-800/60 shadow-xs">
-                      {nameInitial}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                        {formData.name || "Patient Profile"}
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {profile?.role === "DOCTOR" ? "Licensed Clinician" : "Verified Patient Account"}
-                      </p>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1e293b] px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          Change Photo
-                        </button>
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div className="space-y-1.5">
@@ -786,7 +1178,11 @@ export default function SettingsPage() {
                         </p>
                       )}
                     </div>
-                    <Button type="submit" disabled={isSaving}>
+                    <Button
+                      type="submit"
+                      disabled={isSaving}
+                      className="rounded-full bg-[#006D77] hover:bg-[#005860] text-white h-10 px-6 shadow-[0_6px_18px_-4px_rgba(0,109,119,0.45)] cursor-pointer"
+                    >
                       {isSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                       Save Profile Changes
                     </Button>
@@ -813,14 +1209,14 @@ export default function SettingsPage() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Set your medical specialty, consultation modes (Video Call & In-Person), practice city, and consultation fee. These fields directly control your visibility on the patient-facing Find Doctor page.
+                      Set your medical specialty, consultation modes (Video Call &amp; In-Person), practice city, and consultation fee.
                     </p>
                   </div>
                   <Link
-                    href="/find-doctor"
-                    className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
+                    href="/doctor-dashboard"
+                    className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
                   >
-                    <span>View Find Doctor Portal</span>
+                    <span>Back to Doctor Dashboard</span>
                     <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
                   </Link>
                 </div>
@@ -841,10 +1237,10 @@ export default function SettingsPage() {
                           </span>
                         </div>
                         <Link
-                          href="/find-doctor"
-                          className="inline-flex items-center gap-1 text-xs font-bold text-[#0D9488] dark:text-teal-300 hover:underline shrink-0"
+                          href="/doctor-dashboard"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[#006D77] dark:text-[#83C5BE] hover:underline shrink-0"
                         >
-                          Verify on Find Doctor →
+                          Return to Practice Dashboard →
                         </Link>
                       </div>
                     )}
@@ -1384,76 +1780,287 @@ export default function SettingsPage() {
                 </form>
               </section>
 
-              {/* Two-Factor Authentication & Biometrics */}
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xs p-6 space-y-5">
-                <div className="flex items-start justify-between gap-4">
+              {/* Real Two-Factor Authentication (RFC 6238 TOTP) */}
+              <section className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] shadow-[0_4px_24px_-6px_rgba(11,31,51,0.06)] p-6 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex gap-3.5">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
+                    <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-[#006D77]/10 dark:bg-[#83C5BE]/15 text-[#006D77] dark:text-[#83C5BE]">
                       <Key className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Two-Factor Authentication (2FA)
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                        Add an extra layer of security to your medical records using an authenticator app (TOTP).
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-serif text-xl font-normal text-[#0B1F33] dark:text-white">
+                          Two-Factor Authentication (2FA)
+                        </h3>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                            twoFactorAuth
+                              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/50"
+                              : "bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400"
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${twoFactorAuth ? "bg-emerald-500" : "bg-slate-400"}`} />
+                          {twoFactorAuth ? "Active & Protected" : "Not Enabled"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                        Protect your medical records and logins with real 6-digit TOTP codes from Google Authenticator, Microsoft Authenticator, or Authy.
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={twoFactorAuth}
-                    onClick={() => {
-                      const val = !twoFactorAuth;
-                      setTwoFactorAuth(val);
-                      localStorage.setItem("curalink_2fa", String(val));
-                    }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 ${
-                      twoFactorAuth ? "bg-teal-600" : "bg-slate-300 dark:bg-slate-700"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        twoFactorAuth ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
+
+                  {!twoFactorAuth ? (
+                    <button
+                      type="button"
+                      onClick={handleStartTwoFactorSetup}
+                      disabled={isProcessing2FA}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#006D77] hover:bg-[#005860] text-white px-5 py-2.5 text-xs font-semibold shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-60"
+                    >
+                      {isProcessing2FA ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
+                      <span>{twoFaSetup ? "Regenerate QR" : "Set Up 2FA"}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDisableTwoFa((v) => !v);
+                        setTwoFaError(null);
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-rose-200 dark:border-rose-800/60 bg-rose-50/70 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-4 py-2 text-xs font-semibold transition-colors shrink-0 cursor-pointer"
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      <span>{showDisableTwoFa ? "Cancel" : "Disable 2FA"}</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="border-t border-slate-100 dark:border-slate-800 pt-4 flex items-start justify-between gap-4">
-                  <div className="flex gap-3.5">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
-                      <Smartphone className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Biometric / Fast Session Unlock
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                        Quickly unlock consultations with your device biometric passkey (Windows Hello / Touch ID).
-                      </p>
+                {twoFaError && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/30 px-4 py-3 text-xs font-medium text-rose-700 dark:text-rose-300">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{twoFaError}</span>
+                  </div>
+                )}
+
+                {twoFaSuccess && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/80 dark:bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>{twoFaSuccess}</span>
+                  </div>
+                )}
+
+                {/* 2FA QR Setup Panel */}
+                {twoFaSetup && !twoFactorAuth && (
+                  <div className="rounded-2xl border border-[#006D77]/20 dark:border-[#83C5BE]/20 bg-[#F4F7F8]/80 dark:bg-white/[0.03] p-5 space-y-5">
+                    <div className="grid gap-6 md:grid-cols-[200px_1fr] items-center">
+                      <div className="mx-auto flex flex-col items-center justify-center rounded-2xl bg-white p-3.5 shadow-sm border border-slate-200">
+                        <img
+                          src={twoFaSetup.qrCodeUrl}
+                          alt="2FA Authenticator QR Code"
+                          className="h-44 w-44 object-contain"
+                        />
+                        <span className="mt-2 text-[10px] font-medium text-slate-500">Scan with Authenticator App</span>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-[#0B1F33] dark:text-white">
+                            Step 1: Scan QR Code or enter key manually
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Open Google Authenticator, Microsoft Authenticator, or Authy and scan the QR code.
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <code className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#071525] px-3 py-2 font-mono text-xs tracking-wider text-[#0B1F33] dark:text-[#83C5BE] break-all">
+                              {twoFaSetup.secret}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(twoFaSetup.secret);
+                                setCopiedSecret(true);
+                                setTimeout(() => setCopiedSecret(false), 2000);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#071525] px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer"
+                            >
+                              {copiedSecret ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                              <span>{copiedSecret ? "Copied" : "Copy"}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <form onSubmit={handleVerifyEnableTwoFactor} className="space-y-2.5">
+                          <label className="block text-xs font-semibold text-[#0B1F33] dark:text-white">
+                            Step 2: Enter the 6-digit verification code
+                          </label>
+                          <div className="flex flex-col sm:flex-row gap-2.5">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={twoFaCode}
+                              onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                              placeholder="000000"
+                              className="w-full sm:w-44 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#071525] px-4 py-2.5 text-center font-mono text-base tracking-[0.3em] text-[#0B1F33] dark:text-white focus:border-[#006D77] focus:outline-none focus:ring-2 focus:ring-[#006D77]/20"
+                              required
+                            />
+                            <button
+                              type="submit"
+                              disabled={isProcessing2FA || twoFaCode.length !== 6}
+                              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#006D77] hover:bg-[#005860] disabled:opacity-50 text-white px-5 py-2.5 text-xs font-semibold shadow-sm cursor-pointer"
+                            >
+                              {isProcessing2FA ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                              <span>Verify &amp; Activate 2FA</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTwoFaSetup(null);
+                                setTwoFaError(null);
+                              }}
+                              className="rounded-full border border-slate-200 dark:border-white/10 px-4 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={biometricUnlock}
-                    onClick={() => {
-                      const val = !biometricUnlock;
-                      setBiometricUnlock(val);
-                      localStorage.setItem("curalink_bio", String(val));
-                    }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 ${
-                      biometricUnlock ? "bg-teal-600" : "bg-slate-300 dark:bg-slate-700"
-                    }`}
+                )}
+
+                {/* Backup Recovery Codes Display (shown right after activation) */}
+                {twoFaBackupCodes.length > 0 && (
+                  <div className="rounded-2xl border border-amber-200/80 dark:border-amber-800/50 bg-amber-50/70 dark:bg-amber-950/20 p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          Save Your One-Time Recovery Backup Codes
+                        </p>
+                        <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
+                          Store these codes safely. Each code can unlock your account once if you lose your authenticator device.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(twoFaBackupCodes.join("\n"));
+                          setCopiedBackups(true);
+                          setTimeout(() => setCopiedBackups(false), 2000);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-[#0B1F33] border border-amber-200 dark:border-amber-800/60 px-3.5 py-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200 cursor-pointer"
+                      >
+                        {copiedBackups ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        <span>{copiedBackups ? "Copied All" : "Copy Codes"}</span>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {twoFaBackupCodes.map((code) => (
+                        <div
+                          key={code}
+                          className="rounded-xl bg-white dark:bg-[#071525] border border-amber-200/70 dark:border-amber-800/40 px-3 py-2 text-center font-mono text-xs font-semibold text-[#0B1F33] dark:text-[#83C5BE]"
+                        >
+                          {code}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Disable 2FA Verification Form */}
+                {showDisableTwoFa && twoFactorAuth && (
+                  <form
+                    onSubmit={handleDisableTwoFactor}
+                    className="rounded-2xl border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 p-4 space-y-3"
                   >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        biometricUnlock ? "translate-x-5" : "translate-x-0"
+                    <p className="text-xs font-semibold text-rose-800 dark:text-rose-200">
+                      Confirm disabling 2FA with a 6-digit authenticator code or backup code:
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      <input
+                        type="text"
+                        value={disableTwoFaCode}
+                        onChange={(e) => setDisableTwoFaCode(e.target.value)}
+                        placeholder="6-digit code or XXXX-XXXX"
+                        className="flex-1 rounded-xl border border-rose-200 dark:border-rose-800/60 bg-white dark:bg-[#071525] px-3.5 py-2 font-mono text-sm text-[#0B1F33] dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={isProcessing2FA}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 text-xs font-semibold cursor-pointer disabled:opacity-60"
+                      >
+                        {isProcessing2FA && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        <span>Confirm Disable</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Real Fingerprint / Biometric Passkey Authentication */}
+                <div className="border-t border-slate-100 dark:border-white/[0.08] pt-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex gap-3.5">
+                      <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-[#006D77]/10 dark:bg-[#83C5BE]/15 text-[#006D77] dark:text-[#83C5BE]">
+                        <Fingerprint className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-serif text-xl font-normal text-[#0B1F33] dark:text-white">
+                            Fingerprint &amp; Biometric Sign-In
+                          </h3>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                              biometricUnlock
+                                ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/50"
+                                : "bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400"
+                            }`}
+                          >
+                            {biometricUnlock ? "Enrolled" : "Off"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                          Sign in instantly with your mobile Fingerprint sensor, Touch ID, Face ID, or Windows Hello passkey.
+                        </p>
+                        {biometricSupported === false && (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                            Hardware biometric authenticator not detected on this browser — open on a mobile phone or Windows Hello device.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleBiometric}
+                      disabled={isProcessingBiometric}
+                      className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs font-semibold shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-60 ${
+                        biometricUnlock
+                          ? "border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                          : "bg-[#006D77] hover:bg-[#005860] text-white"
                       }`}
-                    />
-                  </button>
+                    >
+                      {isProcessingBiometric ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Fingerprint className="h-3.5 w-3.5" />
+                      )}
+                      <span>{biometricUnlock ? "Disable Fingerprint" : "Enable Fingerprint"}</span>
+                    </button>
+                  </div>
+
+                  {biometricError && (
+                    <div className="flex items-center gap-2 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/30 px-4 py-3 text-xs font-medium text-rose-700 dark:text-rose-300">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>{biometricError}</span>
+                    </div>
+                  )}
+
+                  {biometricSuccess && (
+                    <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/80 dark:bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>{biometricSuccess}</span>
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
@@ -1462,13 +2069,13 @@ export default function SettingsPage() {
           {/* TAB 4: APPEARANCE */}
           {activeTab === "appearance" && (
             <div className="space-y-6">
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xs overflow-hidden">
-                <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-5">
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    Appearance & Theme
+              <section className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] shadow-[0_4px_24px_-6px_rgba(11,31,51,0.06)] overflow-hidden">
+                <div className="border-b border-slate-100 dark:border-white/[0.08] px-6 py-5">
+                  <h2 className="font-serif text-2xl font-normal text-[#0B1F33] dark:text-white">
+                    Appearance &amp; Theme
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Choose how CuraLink looks across all your desktop and mobile browser sessions.
+                    Switch between Light Mode, Dark Mode, or System Sync here. Theme controls are managed centrally in Settings.
                   </p>
                 </div>
 
@@ -1484,7 +2091,7 @@ export default function SettingsPage() {
                       {
                         id: "dark",
                         label: "Dark Mode",
-                        desc: "Calm navy slate palette",
+                        desc: "Calm deep navy palette",
                         icon: Moon,
                       },
                       {
@@ -1501,30 +2108,30 @@ export default function SettingsPage() {
                           key={mode.id}
                           type="button"
                           onClick={() => setTheme(mode.id)}
-                          className={`flex flex-col items-center justify-center p-5 rounded-2xl border text-center transition-all duration-200 cursor-pointer ${
+                          className={`flex flex-col items-center justify-center p-6 rounded-[22px] border text-center transition-all duration-200 cursor-pointer ${
                             isSelected
-                              ? "border-teal-500 bg-teal-50/60 dark:bg-teal-950/40 shadow-sm"
-                              : "border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-[#070b14] hover:border-slate-300 dark:hover:border-slate-600"
+                              ? "border-[#006D77] bg-[#006D77]/[0.07] dark:bg-[#83C5BE]/10 shadow-sm"
+                              : "border-slate-200/80 dark:border-white/[0.08] bg-[#F4F7F8]/60 dark:bg-[#071525] hover:border-[#006D77]/40"
                           }`}
                         >
                           <div
-                            className={`h-11 w-11 rounded-xl flex items-center justify-center mb-3 ${
+                            className={`h-12 w-12 rounded-2xl flex items-center justify-center mb-3.5 ${
                               isSelected
-                                ? "bg-teal-600 text-white shadow-sm shadow-teal-700/20"
-                                : "bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                                ? "bg-[#006D77] text-white shadow-sm"
+                                : "bg-slate-200/80 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300"
                             }`}
                           >
                             <Icon className="h-5 w-5" />
                           </div>
-                          <p className={`text-sm font-semibold ${isSelected ? "text-teal-900 dark:text-teal-200" : "text-slate-900 dark:text-white"}`}>
+                          <p className={`text-sm font-semibold ${isSelected ? "text-[#006D77] dark:text-[#83C5BE]" : "text-[#0B1F33] dark:text-white"}`}>
                             {mode.label}
                           </p>
                           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                             {mode.desc}
                           </p>
                           {isSelected && (
-                            <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 dark:text-teal-300">
-                              <Check className="h-3.5 w-3.5" /> Active
+                            <span className="mt-2.5 inline-flex items-center gap-1 rounded-full bg-[#006D77]/12 dark:bg-[#83C5BE]/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#006D77] dark:text-[#83C5BE]">
+                              <Check className="h-3 w-3" /> Active
                             </span>
                           )}
                         </button>

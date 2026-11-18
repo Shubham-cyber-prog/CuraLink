@@ -47,23 +47,35 @@ export function DoctorRecruitmentBanner() {
 
             {/* 3 Core Highlights */}
             <div className="grid sm:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 rounded-xl border border-white/10 bg-white/[0.04]">
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 rounded-xl border border-white/10 bg-white/[0.04] transition-colors hover:border-[#83C5BE]/40"
+              >
                 <Percent className="h-5 w-5 text-[#83C5BE] mb-2" />
                 <h4 className="text-sm font-bold text-white">0% Fees for 3 Months</h4>
                 <p className="text-xs text-white/60 mt-1">Keep 100% of patient consultation payments.</p>
-              </div>
+              </motion.div>
 
-              <div className="p-4 rounded-xl border border-white/10 bg-white/[0.04]">
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 rounded-xl border border-white/10 bg-white/[0.04] transition-colors hover:border-[#83C5BE]/40"
+              >
                 <CalendarCheck className="h-5 w-5 text-[#83C5BE] mb-2" />
                 <h4 className="text-sm font-bold text-white">Smart Scheduling</h4>
                 <p className="text-xs text-white/60 mt-1">Automated buffers & automated SMS reminders prevent no-shows.</p>
-              </div>
+              </motion.div>
 
-              <div className="p-4 rounded-xl border border-white/10 bg-white/[0.04]">
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 rounded-xl border border-white/10 bg-white/[0.04] transition-colors hover:border-[#83C5BE]/40"
+              >
                 <CreditCard className="h-5 w-5 text-[#83C5BE] mb-2" />
                 <h4 className="text-sm font-bold text-white">Instant Daily Payouts</h4>
                 <p className="text-xs text-white/60 mt-1">Razorpay settlements directly into your account every morning.</p>
-              </div>
+              </motion.div>
             </div>
 
             {/* CTA Buttons */}
@@ -88,7 +100,14 @@ export function DoctorRecruitmentBanner() {
 
           {/* Right Column: Interactive Earnings Estimator */}
           <div className="lg:col-span-5">
-            <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-6 sm:p-7 backdrop-blur-md shadow-2xl">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              whileHover={{ y: -4 }}
+              className="rounded-2xl border border-white/15 bg-white/[0.04] p-6 sm:p-7 backdrop-blur-md shadow-2xl transition-all"
+            >
               <div className="flex items-center justify-between pb-4 border-b border-white/10">
                 <div>
                   <h4 className="text-base font-bold text-white">Monthly Earnings Estimator</h4>
@@ -148,7 +167,7 @@ export function DoctorRecruitmentBanner() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>

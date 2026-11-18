@@ -2,100 +2,69 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {
   Calendar,
-  Clock,
-  User,
-  Stethoscope,
-  Video,
-  XCircle,
   AlertTriangle,
   Loader2,
   CheckCircle2,
-  RotateCcw,
+  Plus,
+  FileText,
 } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-import { AppointmentCard } from "@/components/appointments/AppointmentCard";
+import { AppointmentCard, AppointmentData } from "@/components/appointments/AppointmentCard";
+import { PaymentCheckoutModal } from "@/components/payments/PaymentCheckoutModal";
 import { Doctor } from "@/types/doctor";
 import { api } from "@/lib/api";
+import { formatDateIST, formatDoctorName } from "@/lib/clinical-formatters";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
-interface Appointment {
-  id: string;
-  doctorId: string;
-  date: string;
-  time: string;
-  status: string;
-  createdAt: string;
-  type?: string;
-  doctor?: {
-    id: string;
-    name: string;
-    specialty?: string;
-    specialization?: string;
-    photoUrl?: string;
-  };
-}
-
-type TabType = "upcoming" | "completed" | "cancelled";
+type TabType = "upcoming" | "pending" | "completed" | "cancelled";
 
 export default function AppointmentsPage() {
   const router = useRouter();
-  const shouldReduceMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<TabType>("upcoming");
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentData[]>([]);
   const [doctorMap, setDoctorMap] = useState<Record<string, Doctor>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Cancellation Modal State
-  const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<AppointmentData | null>(null);
+  const [appointmentToPay, setAppointmentToPay] = useState<AppointmentData | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     const fetchAppointmentsAndDoctors = async () => {
       try {
-        // Fetch doctor directory for fallback lookup
-        const docRes = await fetch(`${API_BASE}/doctors/verified`);
-        if (docRes.ok) {
-          const docData = await docRes.json();
-          if (docData.success && Array.isArray(docData.data)) {
-            const map: Record<string, Doctor> = {};
-            for (const d of docData.data) {
-              map[d.id] = d;
-              if (d.userId) map[d.userId] = d;
-              if (d.profileId) map[d.profileId] = d;
-            }
-            setDoctorMap(map);
+        const [docRes, aptRes] = await Promise.all([
+          api.get("/doctors/verified").catch(() => null),
+          api.get("/appointments/my-appointments"),
+        ]);
+
+        if (docRes?.success && Array.isArray(docRes.data)) {
+          const map: Record<string, Doctor> = {};
+          for (const d of docRes.data) {
+            map[d.id] = d;
+            if ((d as any).userId) map[(d as any).userId] = d;
+            if ((d as any).profileId) map[(d as any).profileId] = d;
           }
+          setDoctorMap(map);
         }
 
-        const res = await fetch(`${API_BASE}/appointments/my-appointments`, {
-          credentials: "include",
-        });
+        if (!aptRes?.success) {
+          throw new Error(aptRes?.message || "Failed to fetch appointments");
+        }
 
-        if (res.status === 401) {
+        setAppointments(aptRes.data || []);
+      } catch (err: any) {
+        if (err?.status === 401) {
           router.replace("/login?redirect=/appointments");
           return;
         }
-        const data = await res.json();
-
-        if (!res.ok || !data.success) {
-          throw new Error(data.message || "Failed to fetch appointments");
-        }
-
-        setAppointments(data.data || []);
-      } catch (err: any) {
-        setError(err.message || "An error occurred");
+        setError(err.message || "Unable to load appointments.");
       } finally {
         setIsLoading(false);
       }
@@ -125,7 +94,7 @@ export default function AppointmentsPage() {
         )
       );
 
-      setStatusMessage("Appointment was successfully cancelled.");
+      setStatusMessage("Appointment cancelled. Your doctor has been notified.");
       setTimeout(() => setStatusMessage(null), 4000);
       setAppointmentToCancel(null);
     } catch (err: any) {
@@ -135,30 +104,36 @@ export default function AppointmentsPage() {
     }
   };
 
+  const counts = useMemo(() => {
+    return {
+      confirmed: appointments.filter((a) => a.status?.toUpperCase() === "CONFIRMED").length,
+      pending: appointments.filter((a) => a.status?.toUpperCase() === "PENDING").length,
+      completed: appointments.filter((a) => a.status?.toUpperCase() === "COMPLETED").length,
+      cancelled: appointments.filter((a) => a.status?.toUpperCase() === "CANCELLED").length,
+    };
+  }, [appointments]);
+
   const filteredAppointments = useMemo(() => {
     return appointments.filter((apt) => {
       const status = apt.status?.toUpperCase();
-      if (activeTab === "upcoming") {
-        return status === "CONFIRMED" || status === "PENDING";
-      }
-      if (activeTab === "completed") {
-        return status === "COMPLETED";
-      }
-      if (activeTab === "cancelled") {
-        return status === "CANCELLED";
-      }
+      if (activeTab === "upcoming") return status === "CONFIRMED";
+      if (activeTab === "pending") return status === "PENDING";
+      if (activeTab === "completed") return status === "COMPLETED";
+      if (activeTab === "cancelled") return status === "CANCELLED";
       return true;
     });
   }, [appointments, activeTab]);
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-5xl py-8 px-4 sm:px-6 space-y-6">
-        <Skeleton className="h-9 w-60 rounded-xl" />
-        <Skeleton className="h-10 w-80 rounded-xl" />
-        <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-12 w-60 rounded-2xl" />
+          <Skeleton className="h-10 w-44 rounded-full" />
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
           {[1, 2].map((n) => (
-            <Skeleton key={n} className="h-44 w-full rounded-2xl" />
+            <Skeleton key={n} className="h-56 w-full rounded-[22px]" />
           ))}
         </div>
       </div>
@@ -167,60 +142,68 @@ export default function AppointmentsPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center text-center px-4">
-        <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 p-6 max-w-md w-full border border-rose-200 dark:border-rose-900/40">
-          <p className="text-rose-600 dark:text-rose-400 font-semibold mb-2">Unable to Load Visits</p>
-          <p className="text-xs text-rose-700 dark:text-rose-300">{error}</p>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-6 max-w-md w-full text-center">
+          <p className="text-sm font-semibold text-rose-700 dark:text-rose-400">
+            Unable to Load Appointments
+          </p>
+          <p className="text-xs text-rose-600 dark:text-rose-300 mt-1">{error}</p>
         </div>
       </div>
     );
   }
 
   const tabs: { key: TabType; label: string; count: number }[] = [
-    {
-      key: "upcoming",
-      label: "Upcoming",
-      count: appointments.filter((a) => a.status === "CONFIRMED" || a.status === "PENDING").length,
-    },
-    {
-      key: "completed",
-      label: "Completed",
-      count: appointments.filter((a) => a.status === "COMPLETED").length,
-    },
-    {
-      key: "cancelled",
-      label: "Cancelled",
-      count: appointments.filter((a) => a.status === "CANCELLED").length,
-    },
+    { key: "upcoming", label: "Upcoming", count: counts.confirmed },
+    { key: "pending", label: "Pending", count: counts.pending },
+    { key: "completed", label: "Completed", count: counts.completed },
+    { key: "cancelled", label: "Cancelled", count: counts.cancelled },
   ];
 
   return (
-    <div className="mx-auto max-w-5xl py-6 px-4 sm:px-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-5">
+    <div className="space-y-7">
+      {/* Classic Editorial Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-white/[0.08]">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#006D77] dark:text-[#83C5BE] mb-1">
+            Care Schedule
+          </p>
+          <h1 className="font-serif text-3xl sm:text-[36px] leading-tight font-normal tracking-[-0.015em] text-[#0B1F33] dark:text-white">
             My Appointments
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Review your upcoming video visits, clinical records, and consultation history.
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+            Manage your upcoming video visits, clinician approvals, and completed consultations.
           </p>
         </div>
 
-        <Button asChild className="bg-[#0D9488] hover:bg-[#0F766E] text-white self-start sm:self-auto">
-          <Link href="/find-doctor">Book New Visit</Link>
-        </Button>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Link
+            href="/records"
+            className="inline-flex items-center gap-2 h-10 px-4.5 rounded-full border border-slate-200/90 dark:border-white/[0.12] bg-white dark:bg-[#0B1F33] text-sm font-medium text-[#0B1F33] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.06] transition-colors"
+          >
+            <FileText className="h-4 w-4 text-[#006D77] dark:text-[#83C5BE]" />
+            <span>Prescriptions</span>
+          </Link>
+
+          <Link
+            href="/find-doctor"
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-[#006D77] hover:bg-[#005860] text-sm font-medium text-white shadow-[0_6px_18px_-4px_rgba(0,109,119,0.45)] transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Book Appointment</span>
+          </Link>
+        </div>
       </div>
 
       {statusMessage && (
-        <div className="rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 p-3.5 text-xs font-medium text-[#0D9488] dark:text-teal-300 flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4" />
-          {statusMessage}
+        <div className="rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-px">
+      {/* Curved Segmented Pill Tabs */}
+      <div className="inline-flex flex-wrap items-center gap-1 rounded-full bg-white dark:bg-[#0B1F33] p-1.5 border border-slate-200/80 dark:border-white/[0.08] shadow-2xs">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (
@@ -228,111 +211,131 @@ export default function AppointmentsPage() {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`relative px-4 py-2.5 text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1.5 ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
                 isActive
-                  ? "text-[#0D9488] dark:text-[#14B8A6]"
-                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  ? "bg-[#006D77] text-white shadow-xs"
+                  : "text-slate-600 dark:text-slate-300 hover:text-[#0B1F33] dark:hover:text-white"
               }`}
             >
               <span>{tab.label}</span>
               <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                   isActive
-                    ? "bg-teal-100 dark:bg-teal-950/60 text-[#0D9488] dark:text-teal-300"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 dark:bg-white/[0.08] text-slate-500 dark:text-slate-400"
                 }`}
               >
                 {tab.count}
               </span>
-
-              {/* Framer motion sliding underline */}
-              {isActive && (
-                <motion.div
-                  layoutId="active-appointment-tab"
-                  className="absolute bottom-0 inset-x-0 h-0.5 bg-[#0D9488] dark:bg-[#14B8A6]"
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                />
-              )}
             </button>
           );
         })}
       </div>
 
-      {/* Appointment Cards List */}
-      <AnimatePresence mode="wait">
-        {filteredAppointments.length === 0 ? (
-          <motion.div
-            key={`empty-${activeTab}`}
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-            transition={{ duration: 0.18 }}
-            className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-16 text-center px-4"
-          >
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6]">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-              No {activeTab} appointments
-            </h3>
-            <p className="mt-1 max-w-sm text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              {activeTab === "upcoming"
-                ? "You have no upcoming consultations scheduled. Book a visit with a verified specialist."
-                : `No ${activeTab} visits recorded in your patient profile.`}
-            </p>
-            {activeTab === "upcoming" && (
-              <Button asChild className="mt-4 bg-[#0D9488] hover:bg-[#0F766E] text-white">
-                <Link href="/find-doctor">Find a Specialist</Link>
-              </Button>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div
-            key={`list-${activeTab}`}
-            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="grid gap-4 sm:grid-cols-2"
-          >
-            {filteredAppointments.map((apt) => (
-              <AppointmentCard
-                key={apt.id}
-                appointment={apt}
-                doctorFallback={doctorMap[apt.doctorId]}
-                onCancel={(toCancel) => setAppointmentToCancel(toCancel as any)}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Appointments Grid */}
+      {filteredAppointments.length === 0 ? (
+        <div className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] py-16 px-4 text-center shadow-[0_2px_16px_-4px_rgba(11,31,51,0.05)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F4F7F8] dark:bg-white/[0.06] text-[#006D77] dark:text-[#83C5BE] mx-auto mb-3">
+            <Calendar className="h-6 w-6" />
+          </div>
+          <h3 className="font-serif text-xl text-[#0B1F33] dark:text-white">
+            No {activeTab} appointments
+          </h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            {activeTab === "upcoming"
+              ? "You have no confirmed upcoming consultations. Book a slot with a verified doctor."
+              : `No ${activeTab} consultations found in your account.`}
+          </p>
+          {(activeTab === "upcoming" || activeTab === "pending") && (
+            <Link
+              href="/find-doctor"
+              className="mt-5 inline-flex items-center h-10 px-5 rounded-full bg-[#006D77] hover:bg-[#005860] text-sm font-medium text-white shadow-sm transition-all"
+            >
+              Book Appointment
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2">
+          {filteredAppointments.map((apt) => (
+            <AppointmentCard
+              key={apt.id}
+              appointment={apt}
+              doctorFallback={doctorMap[apt.doctorId]}
+              onCancel={(toCancel) => setAppointmentToCancel(toCancel)}
+              onPayNow={(toPay) => setAppointmentToPay(toPay)}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* Cancellation Confirmation Modal */}
+      {/* Real Payment Checkout Modal */}
+      {appointmentToPay && (
+        <PaymentCheckoutModal
+          isOpen={Boolean(appointmentToPay)}
+          onClose={() => setAppointmentToPay(null)}
+          appointmentId={appointmentToPay.id}
+          doctorName={formatDoctorName(
+            appointmentToPay.doctor?.name || doctorMap[appointmentToPay.doctorId]?.name
+          )}
+          specialty={
+            appointmentToPay.doctor?.specialty ||
+            appointmentToPay.doctor?.specialization ||
+            doctorMap[appointmentToPay.doctorId]?.specialty
+          }
+          date={appointmentToPay.date}
+          time={appointmentToPay.time}
+          amount={
+            appointmentToPay.doctor?.consultationFee ||
+            doctorMap[appointmentToPay.doctorId]?.consultationFee ||
+            650
+          }
+          onSuccess={(receipt) => {
+            setAppointments((prev) =>
+              prev.map((a) =>
+                a.id === appointmentToPay.id
+                  ? {
+                      ...a,
+                      status: "CONFIRMED",
+                      payment: { status: "SUCCESS", amount: receipt.amount },
+                    }
+                  : a
+              )
+            );
+            setStatusMessage(
+              `Payment of ₹${receipt.amount} successful (${receipt.transactionId}). Appointment is now Confirmed!`
+            );
+            setTimeout(() => setStatusMessage(null), 6000);
+          }}
+        />
+      )}
+
+      {/* Cancel Modal */}
       <Modal
         isOpen={Boolean(appointmentToCancel)}
         onClose={() => {
           setAppointmentToCancel(null);
           setCancelError(null);
         }}
-        title="Cancel Appointment?"
+        title="Cancel Appointment"
         description={
           appointmentToCancel
-            ? `Scheduled with ${
-                appointmentToCancel.doctor?.name || "the specialist"
-              } on ${appointmentToCancel.date} at ${appointmentToCancel.time}.`
+            ? `Scheduled with ${formatDoctorName(
+                appointmentToCancel.doctor?.name
+              )} on ${formatDateIST(appointmentToCancel.date)} at ${appointmentToCancel.time} IST.`
             : undefined
         }
       >
         <div className="space-y-4 pt-2">
           {cancelError && (
-            <div className="flex items-center gap-2 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 p-3 text-xs text-red-700 dark:text-red-300">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+            <div className="flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-3 text-xs text-rose-700 dark:text-rose-300">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>{cancelError}</span>
             </div>
           )}
 
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            Are you sure you want to release this consultation slot? Your doctor will be notified immediately.
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Are you sure you want to cancel this appointment? Your doctor will be notified immediately.
           </p>
 
           <div className="flex items-center justify-end gap-2.5 pt-2">
@@ -343,6 +346,7 @@ export default function AppointmentsPage() {
                 setAppointmentToCancel(null);
                 setCancelError(null);
               }}
+              className="rounded-full"
             >
               Keep Appointment
             </Button>
@@ -350,6 +354,7 @@ export default function AppointmentsPage() {
               variant="danger"
               disabled={isCancelling}
               onClick={handleConfirmCancel}
+              className="rounded-full"
             >
               {isCancelling ? (
                 <>
@@ -357,7 +362,7 @@ export default function AppointmentsPage() {
                   Cancelling...
                 </>
               ) : (
-                "Yes, Cancel Appointment"
+                "Cancel Appointment"
               )}
             </Button>
           </div>

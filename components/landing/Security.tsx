@@ -47,13 +47,14 @@ export function Security() {
           {SECURITY_ITEMS.map((item, index) => (
             <motion.div
               key={item.title}
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: index * 0.08, duration: 0.35 }}
-              className="flex gap-4 p-6 rounded-2xl border border-border bg-surface hover:border-[#83C5BE]/50 transition-colors"
+              transition={{ delay: index * 0.1, duration: 0.4 }}
+              whileHover={{ y: -4, scale: 1.01 }}
+              className="flex gap-4 p-6 rounded-2xl border border-border bg-surface hover:border-[#006D77]/40 dark:hover:border-[#83C5BE]/40 hover:shadow-lg transition-all"
             >
-              <div className="h-10 w-10 shrink-0 rounded-xl bg-[#006D77]/10 text-[#006D77] flex items-center justify-center">
+              <div className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-[#006D77]/15 to-[#83C5BE]/20 text-[#006D77] dark:text-[#83C5BE] flex items-center justify-center">
                 <item.icon className="h-5 w-5" />
               </div>
               <div>

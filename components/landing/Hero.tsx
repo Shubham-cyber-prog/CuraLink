@@ -26,6 +26,7 @@ import {
   Thermometer,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThreeHeroCanvas } from "@/components/landing/ThreeHeroCanvas";
 
 export function Hero() {
   // Live Countdown Discount Timer State (e.g., starts at 2h 45m 30s)
@@ -70,13 +71,47 @@ export function Hero() {
 
   return (
     <section className="relative pt-36 sm:pt-44 md:pt-48 pb-20 sm:pb-28 overflow-hidden bg-background">
-      {/* Background ambient light */}
+      {/* Real Interactive Three.js WebGL 3D DNA Double-Helix & Particle Field */}
+      <ThreeHeroCanvas />
+
+      {/* Subtle ambient glow behind hero copy */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10"
       >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[650px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,109,119,0.09),rgba(131,197,190,0.05),transparent_70%)]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[650px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,109,119,0.10),rgba(131,197,190,0.05),transparent_70%)]" />
       </div>
+
+      {/* Floating Healthcare Badges (GSAP Scroll Parallax + Framer Motion Spring Float) */}
+      <motion.div
+        data-gsap-parallax="45"
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
+        className="hidden xl:flex absolute top-52 left-10 items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#0B1F33]/85 backdrop-blur-xl px-4 py-2.5 shadow-xl z-20 pointer-events-none"
+      >
+        <div className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+          <ShieldCheck className="h-4.5 w-4.5" />
+        </div>
+        <div>
+          <p className="text-[11px] font-bold text-slate-900 dark:text-white">NMC Board Verified</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400">100% Licensed Clinicians</p>
+        </div>
+      </motion.div>
+
+      <motion.div
+        data-gsap-parallax="65"
+        animate={{ y: [0, 10, 0] }}
+        transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        className="hidden xl:flex absolute top-60 right-10 items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#0B1F33]/85 backdrop-blur-xl px-4 py-2.5 shadow-xl z-20 pointer-events-none"
+      >
+        <div className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-teal-500/15 text-[#006D77] dark:text-[#83C5BE]">
+          <Clock className="h-4.5 w-4.5" />
+        </div>
+        <div>
+          <p className="text-[11px] font-bold text-slate-900 dark:text-white">&lt; 2 Mins Wait Time</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400">Instant Video Connect</p>
+        </div>
+      </motion.div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* ─── 1. TOP BADGES & SOCIAL PROOF ─── */}
@@ -112,11 +147,15 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0B1F33] dark:text-white leading-[1.12]"
+            className="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0B1F33] dark:text-white leading-[1.14]"
           >
-            India&apos;s #1 Rated Telehealth Platform.{" "}
-            <span className="text-[#006D77] dark:text-[#83C5BE]">
-              Talk to a Doctor in 2 Minutes.
+            Clinical precision.{" "}
+            <span className="font-serif italic font-normal text-[#006D77] dark:text-[#83C5BE]">
+              Quiet care.
+            </span>
+            <span className="block mt-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold">
+              Talk to India&apos;s top doctors{" "}
+              <span className="text-[#006D77] dark:text-[#83C5BE]">in 2 minutes.</span>
             </span>
           </motion.h1>
 
@@ -191,19 +230,25 @@ export function Hero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25 }}
-            className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto"
+            className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full sm:w-auto"
           >
             <Link
               href="/find-doctor"
-              className="group inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-[#006D77] hover:bg-[#00565e] px-7 text-sm font-semibold text-white shadow-sm hover:shadow-[0_0_24px_rgba(131,197,190,0.5)] transition-all duration-200"
+              className="group relative overflow-hidden inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#006D77] via-[#0D9488] to-[#0A8896] hover:from-[#005a63] hover:to-[#08727e] px-8 text-sm font-bold text-white shadow-lg shadow-teal-700/25 hover:shadow-xl hover:shadow-teal-700/35 transition-all duration-200"
             >
-              <span>Consult Doctor for ₹199</span>
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              {/* Shimmer light sweep */}
+              <motion.span
+                animate={{ x: ["-100%", "250%"] }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
+                className="pointer-events-none absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12"
+              />
+              <span className="relative z-10">Consult Doctor for ₹199</span>
+              <ArrowRight className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
 
             <Link
               href="/symptom-checker"
-              className="inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-xl border border-border bg-surface px-6 text-sm font-medium text-foreground hover:bg-surface-elevated transition-colors"
+              className="inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-2xl border border-slate-200/90 dark:border-white/[0.12] bg-white/70 dark:bg-[#0B1F33]/60 backdrop-blur-md px-7 text-sm font-semibold text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-xs"
             >
               <Sparkles className="h-4 w-4 text-[#006D77] dark:text-[#83C5BE]" />
               <span>AI Symptom Triage (Free)</span>
@@ -211,14 +256,15 @@ export function Hero() {
           </motion.div>
         </div>
 
-        {/* ─── 2. INTERACTIVE SIMULATED WEBRTC CONSULTATION STAGE ─── */}
+        {/* ─── 2. INTERACTIVE SIMULATED WEBRTC CONSULTATION STAGE (GSAP 3D Scroll Scrub + Framer Motion) ─── */}
         <motion.div
-          initial={{ opacity: 0, y: 28 }}
+          data-gsap-hero-stage
+          initial={{ opacity: 0, y: 36 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.35 }}
-          className="mt-14 sm:mt-18 max-w-5xl mx-auto"
+          transition={{ type: "spring", stiffness: 120, damping: 20, delay: 0.28 }}
+          className="mt-14 sm:mt-18 max-w-5xl mx-auto will-change-transform"
         >
-          <div className="rounded-3xl border border-border bg-[#0B1F33] text-white shadow-[0_20px_60px_rgba(11,31,51,0.25)] overflow-hidden">
+          <div className="rounded-3xl border border-border bg-[#0B1F33] text-white shadow-[0_28px_80px_rgba(11,31,51,0.38)] overflow-hidden">
             {/* Top WebRTC Stage Status Bar */}
             <div className="flex flex-wrap items-center justify-between px-5 py-3.5 bg-[#071320] border-b border-white/10 gap-2">
               <div className="flex items-center gap-3">
@@ -233,6 +279,16 @@ export function Hero() {
               </div>
 
               <div className="flex items-center gap-4 text-xs font-mono text-white/70">
+                <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-400">
+                  <span className="flex gap-0.5 items-end h-3">
+                    <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full" />
+                    <span className="w-0.5 h-2 bg-emerald-400 rounded-full" />
+                    <span className="w-0.5 h-2.5 bg-emerald-400 rounded-full" />
+                    <span className="w-0.5 h-3 bg-emerald-400 rounded-full" />
+                  </span>
+                  <span>HD 1080p · 60 FPS</span>
+                </div>
+
                 <div className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
                   <Clock className="h-3.5 w-3.5 text-[#83C5BE]" />
                   <span>Call Duration: <strong className="text-white">{formatCallTime(callDuration)}</strong></span>
@@ -243,38 +299,39 @@ export function Hero() {
             {/* Video Consultation Main Grid */}
             <div className="grid lg:grid-cols-12 gap-0 relative">
               {/* Doctor Main Video Stream Area (8 cols) */}
-              <div className="lg:col-span-8 relative aspect-video bg-slate-900 overflow-hidden flex items-center justify-center">
-                {/* Doctor Video Poster / Stream */}
+              <div className="lg:col-span-8 relative aspect-video bg-slate-950 overflow-hidden flex items-center justify-center">
+                {/* Doctor Video Poster / Local High-Res Photo Stream */}
                 <Image
-                  src="https://images.unsplash.com/photo-1594824813568-154df6686e58?auto=format&fit=crop&w=1200&q=80"
+                  src="/doctor-consultation.jpg"
                   alt="Dr. Priya Sharma, MD - Live Consultation"
                   fill
-                  unoptimized
-                  className="object-cover object-top opacity-95"
+                  priority
+                  className="object-cover object-center opacity-95"
                 />
 
                 {/* Subtle dark gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B1F33] via-transparent to-transparent opacity-80" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#071320] via-transparent to-transparent opacity-80" />
 
                 {/* Doctor Overlay Info & Live Audio Meters */}
                 <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between z-10">
-                  <div className="flex items-center gap-3 bg-[#0B1F33]/85 backdrop-blur-md border border-white/15 rounded-xl p-2.5">
-                    <div className="h-9 w-9 rounded-lg bg-[#006D77] flex items-center justify-center font-bold text-white text-xs">
+                  <div className="flex items-center gap-3 bg-[#0B1F33]/90 backdrop-blur-md border border-white/15 rounded-2xl p-2.5 shadow-lg">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#006D77] to-[#0A8896] flex items-center justify-center font-bold text-white text-xs shadow-xs ring-2 ring-teal-500/30">
                       Dr
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-white">Dr. Priya Sharma, MD</span>
-                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-medium">
+                        <span className="text-xs font-bold text-white tracking-tight">Dr. Priya Sharma, MD</span>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           Speaking
                         </span>
                       </div>
-                      <p className="text-[10px] text-white/70">Endocrinologist · AIIMS Faculty (12 yrs exp)</p>
+                      <p className="text-[10px] text-white/75 mt-0.5">Endocrinologist · AIIMS Faculty (12 yrs exp)</p>
                     </div>
 
                     {/* LIVE AUDIO METERS (Fluctuating frequency bars) */}
-                    <div className="ml-2 pl-3 border-l border-white/20 flex items-center gap-1" title="Real-time HD audio meter">
+                    <div className="ml-2 pl-3 border-l border-white/20 flex items-center gap-1.5" title="Real-time HD audio meter">
                       <Volume2 className="h-3.5 w-3.5 text-[#83C5BE]" />
                       <div className="flex items-end gap-0.5 h-4">
                         <span className="w-1 bg-[#83C5BE] rounded-full animate-[pulse_0.6s_ease-in-out_infinite] h-3" />
@@ -286,33 +343,33 @@ export function Hero() {
                   </div>
 
                   {/* Patient Picture-in-Picture Stream (Bottom Right) */}
-                  <div className="hidden sm:block relative w-32 h-24 rounded-xl border-2 border-white/30 overflow-hidden shadow-lg bg-black">
+                  <div className="hidden sm:block relative w-36 h-26 rounded-2xl border-2 border-teal-500/40 overflow-hidden shadow-2xl bg-black ring-2 ring-black/40">
                     {isCamOff ? (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-white/60">
-                        <VideoOff className="h-5 w-5 mb-1" />
-                        <span className="text-[9px]">Camera Off</span>
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-white/60">
+                        <VideoOff className="h-5 w-5 mb-1 text-slate-400" />
+                        <span className="text-[10px] font-medium">Camera Off</span>
                       </div>
                     ) : (
                       <Image
-                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=240&q=80"
+                        src="/patient-webcam.jpg"
                         alt="Patient preview"
                         fill
-                        unoptimized
                         className="object-cover"
                       />
                     )}
-                    <span className="absolute bottom-1 left-1 bg-black/60 backdrop-blur-xs text-[9px] px-1.5 py-0.5 rounded text-white font-medium">
+                    <span className="absolute bottom-1.5 left-1.5 bg-black/70 backdrop-blur-xs text-[10px] px-2 py-0.5 rounded-md text-white font-semibold flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                       You (HD)
                     </span>
                   </div>
                 </div>
 
                 {/* WebRTC Interactive Control Bar */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 bg-[#0B1F33]/85 backdrop-blur-md border border-white/15 rounded-xl p-1.5 z-10">
+                <div className="absolute top-4 right-4 flex items-center gap-2 bg-[#0B1F33]/90 backdrop-blur-md border border-white/15 rounded-2xl p-1.5 z-10 shadow-lg">
                   <button
                     type="button"
                     onClick={() => setIsMicMuted(!isMicMuted)}
-                    className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs transition-colors cursor-pointer ${
+                    className={`flex h-8.5 w-8.5 items-center justify-center rounded-xl text-xs transition-all cursor-pointer ${
                       isMicMuted ? "bg-red-500/80 text-white" : "bg-white/10 hover:bg-white/20 text-white"
                     }`}
                     title={isMicMuted ? "Unmute Microphone" : "Mute Microphone"}
@@ -323,7 +380,7 @@ export function Hero() {
                   <button
                     type="button"
                     onClick={() => setIsCamOff(!isCamOff)}
-                    className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs transition-colors cursor-pointer ${
+                    className={`flex h-8.5 w-8.5 items-center justify-center rounded-xl text-xs transition-all cursor-pointer ${
                       isCamOff ? "bg-red-500/80 text-white" : "bg-white/10 hover:bg-white/20 text-white"
                     }`}
                     title={isCamOff ? "Turn Camera On" : "Turn Camera Off"}
@@ -333,8 +390,8 @@ export function Hero() {
 
                   <button
                     type="button"
-                    onClick={() => alert("Simulation: In a live consult, this smoothly ends your call and generates the cryptographically signed prescription.")}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer"
+                    onClick={() => alert("WebRTC Simulation: In a live consultation, this ends the session and instantly downloads your cryptographically signed prescription.")}
+                    className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all cursor-pointer shadow-sm"
                     title="End Consultation"
                   >
                     <PhoneOff className="h-4 w-4" />
@@ -346,13 +403,13 @@ export function Hero() {
               <div className="lg:col-span-4 p-5 sm:p-6 bg-[#071320] border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col justify-between">
                 <div>
                   {/* Telemetry Tabs */}
-                  <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 text-xs">
+                  <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10 text-xs">
                     <button
                       type="button"
                       onClick={() => setActiveTelemetryTab("vitals")}
-                      className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                      className={`flex-1 py-2 rounded-xl font-bold transition-all cursor-pointer ${
                         activeTelemetryTab === "vitals"
-                          ? "bg-[#006D77] text-white shadow-xs"
+                          ? "bg-gradient-to-r from-[#006D77] to-[#0A8896] text-white shadow-sm"
                           : "text-white/70 hover:text-white"
                       }`}
                     >
@@ -361,9 +418,9 @@ export function Hero() {
                     <button
                       type="button"
                       onClick={() => setActiveTelemetryTab("notes")}
-                      className={`flex-1 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                      className={`flex-1 py-2 rounded-xl font-bold transition-all cursor-pointer ${
                         activeTelemetryTab === "notes"
-                          ? "bg-[#006D77] text-white shadow-xs"
+                          ? "bg-gradient-to-r from-[#006D77] to-[#0A8896] text-white shadow-sm"
                           : "text-white/70 hover:text-white"
                       }`}
                     >
@@ -374,62 +431,91 @@ export function Hero() {
                   {activeTelemetryTab === "vitals" ? (
                     <div className="mt-4 space-y-3">
                       {/* Heart Rate Metric */}
-                      <div className="p-3 rounded-xl border border-white/10 bg-white/[0.03]">
+                      <div className="p-3.5 rounded-2xl border border-white/10 bg-white/[0.04]">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-1.5 text-white/70">
-                            <Heart className="h-3.5 w-3.5 text-rose-400 animate-ping" />
+                          <span className="flex items-center gap-1.5 text-white/70 font-medium">
+                            <Heart className="h-3.5 w-3.5 text-rose-400 animate-pulse" />
                             <span>Heart Rate (PPG)</span>
                           </span>
-                          <span className="font-mono text-[10px] text-emerald-400 font-bold bg-emerald-500/15 px-1.5 py-0.5 rounded">
+                          <span className="font-mono text-[10px] text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full">
                             Normal Sinus
                           </span>
                         </div>
-                        <div className="mt-1 flex items-baseline gap-2">
-                          <span className="text-2xl font-mono font-bold text-white">{heartRate}</span>
-                          <span className="text-xs text-white/60">BPM</span>
+                        <div className="mt-1 flex items-baseline justify-between">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-mono font-extrabold text-white">{heartRate}</span>
+                            <span className="text-xs text-white/60 font-mono">BPM</span>
+                          </div>
+                          {/* Mini Animated Cardiac SVG Line */}
+                          <div className="w-28 h-6 overflow-hidden">
+                            <svg className="w-full h-full text-[#83C5BE]" viewBox="0 0 100 20" fill="none">
+                              <path
+                                d="M 0 10 L 20 10 L 24 8 L 28 10 L 32 10 L 36 2 L 40 18 L 44 6 L 48 10 L 56 10 L 60 8 L 64 10 L 100 10"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
                         </div>
                       </div>
 
                       {/* SpO2 & Blood Pressure Grid */}
                       <div className="grid grid-cols-2 gap-2.5">
-                        <div className="p-2.5 rounded-xl border border-white/10 bg-white/[0.03]">
-                          <span className="text-[10px] text-white/60 block">Blood Oxygen</span>
-                          <div className="mt-0.5 flex items-baseline gap-1">
-                            <span className="text-xl font-mono font-bold text-white">98%</span>
-                            <span className="text-[10px] text-emerald-400">SpO2</span>
+                        <div className="p-3 rounded-2xl border border-white/10 bg-white/[0.04]">
+                          <span className="text-[10px] text-white/60 uppercase font-semibold block">Blood Oxygen</span>
+                          <div className="mt-1 flex items-baseline gap-1">
+                            <span className="text-2xl font-mono font-extrabold text-white">98%</span>
+                            <span className="text-[10px] text-emerald-400 font-mono font-bold">SpO2</span>
                           </div>
+                          <span className="text-[10px] text-slate-400 mt-0.5 block">Room air saturation</span>
                         </div>
 
-                        <div className="p-2.5 rounded-xl border border-white/10 bg-white/[0.03]">
-                          <span className="text-[10px] text-white/60 block">Blood Pressure</span>
-                          <div className="mt-0.5 flex items-baseline gap-1">
-                            <span className="text-xl font-mono font-bold text-white">120/80</span>
-                            <span className="text-[10px] text-white/60">mmHg</span>
+                        <div className="p-3 rounded-2xl border border-white/10 bg-white/[0.04]">
+                          <span className="text-[10px] text-white/60 uppercase font-semibold block">Blood Pressure</span>
+                          <div className="mt-1 flex items-baseline gap-1">
+                            <span className="text-2xl font-mono font-extrabold text-white">120/80</span>
+                            <span className="text-[10px] text-white/60 font-mono">mmHg</span>
                           </div>
+                          <span className="text-[10px] text-emerald-400 mt-0.5 block">Normotensive</span>
                         </div>
                       </div>
 
                       {/* Temperature Metric */}
-                      <div className="p-2.5 rounded-xl border border-white/10 bg-white/[0.03] flex items-center justify-between">
+                      <div className="p-3 rounded-2xl border border-white/10 bg-white/[0.04] flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Thermometer className="h-3.5 w-3.5 text-amber-400" />
-                          <span className="text-xs text-white/70">Body Temp</span>
+                          <Thermometer className="h-4 w-4 text-amber-400" />
+                          <span className="text-xs text-white/80 font-medium">Core Temperature</span>
                         </div>
-                        <span className="font-mono text-xs font-bold text-white">98.4 °F (Afebrile)</span>
+                        <span className="font-mono text-xs font-bold text-white bg-white/10 px-2 py-0.5 rounded-md">
+                          98.4 °F (Afebrile)
+                        </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-4 p-3.5 rounded-xl border border-white/10 bg-white/[0.03] text-xs text-white/80 space-y-2">
-                      <p className="font-semibold text-white flex items-center gap-1.5">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-[#83C5BE]" />
-                        <span>Clinical Assessment:</span>
-                      </p>
+                    <div className="mt-4 p-4 rounded-2xl border border-white/10 bg-white/[0.04] text-xs text-white/80 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-white flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-[#83C5BE]" />
+                          Clinical Assessment:
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full">
+                          AIIMS Protocol
+                        </span>
+                      </div>
                       <p className="text-[11px] text-white/70 leading-relaxed">
-                        Patient reports 3-month history of postprandial fatigue. Fasting blood sugar 128 mg/dL.
-                        Initiating Metformin 500mg titration with continuous HbA1c telemetry.
+                        Patient presenting with postprandial fatigue and elevated fasting glucose (128 mg/dL).
+                        Initiating clinical management protocol.
                       </p>
-                      <div className="pt-2 border-t border-white/10 text-[10px] text-emerald-300 font-medium">
-                        ✓ Digital Rx Generated (Ready for PDF download)
+                      <div className="p-2 rounded-xl bg-white/5 border border-white/10 text-[11px] space-y-1">
+                        <p className="font-bold text-white">Prescribed:</p>
+                        <p className="text-[#83C5BE] font-mono">• Tab. Metformin 500mg (Daily)</p>
+                        <p className="text-[#83C5BE] font-mono">• HbA1c Lab Panel (Ordered)</p>
+                      </div>
+                      <div className="pt-2 border-t border-white/10 text-[10px] text-emerald-300 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span>NMC Digital Rx Ready (Cryptographically Signed)</span>
                       </div>
                     </div>
                   )}
@@ -437,19 +523,19 @@ export function Hero() {
 
                 {/* Instant Consult Booking Action */}
                 <div className="mt-6 pt-4 border-t border-white/10">
-                  <div className="flex items-center justify-between text-xs mb-2">
-                    <span className="text-white/70 font-medium">Available Slots Today:</span>
-                    <span className="text-emerald-400 font-bold">₹199 only</span>
+                  <div className="flex items-center justify-between text-xs mb-2.5">
+                    <span className="text-white/80 font-medium">Available Slots Today:</span>
+                    <span className="text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full">₹199 only</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5 mb-3">
+                  <div className="grid grid-cols-3 gap-2 mb-3.5">
                     {["10:30 AM", "11:15 AM", "02:30 PM"].map((slot) => (
                       <button
                         key={slot}
                         type="button"
                         onClick={() => setSelectedSlot(slot)}
-                        className={`py-2 text-[11px] rounded-lg font-semibold transition-all cursor-pointer ${
+                        className={`py-2 text-xs rounded-xl font-bold transition-all cursor-pointer ${
                           selectedSlot === slot
-                            ? "bg-[#006D77] text-white border border-[#83C5BE]/60"
+                            ? "bg-gradient-to-r from-[#006D77] to-[#0A8896] text-white shadow-sm ring-2 ring-[#83C5BE]/50"
                             : "bg-white/5 border border-white/10 text-white/80 hover:bg-white/10"
                         }`}
                       >
@@ -459,11 +545,12 @@ export function Hero() {
                   </div>
 
                   <Link
-                    href="/find-doctor"
-                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-white hover:bg-slate-100 py-2.5 px-4 text-xs font-bold text-[#0B1F33] shadow-sm transition-all"
+                    href={`/find-doctor?doctor=Dr.%20Priya%20Sharma&slot=${encodeURIComponent(selectedSlot)}`}
+                    className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#006D77] via-[#0D9488] to-[#0A8896] hover:from-[#005a63] hover:to-[#08727e] py-3.5 px-4 text-xs sm:text-sm font-bold text-white shadow-lg shadow-teal-900/40 hover:shadow-teal-700/60 transition-all group"
                   >
-                    <Calendar className="h-3.5 w-3.5 text-[#006D77]" />
+                    <Calendar className="h-4 w-4 text-[#83C5BE] transition-transform group-hover:scale-110" />
                     <span>Confirm Consultation ({selectedSlot})</span>
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </div>
               </div>

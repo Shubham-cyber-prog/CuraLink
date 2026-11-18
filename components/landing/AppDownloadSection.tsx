@@ -76,7 +76,11 @@ export function AppDownloadSection() {
 
             {/* 3 Key App-Exclusive Features */}
             <div className="grid sm:grid-cols-3 gap-3.5 pt-2">
-              <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm">
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+                className="p-3.5 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm transition-colors hover:border-[#83C5BE]/40"
+              >
                 <div className="h-8 w-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center mb-2.5">
                   <Ambulance className="h-4 w-4" />
                 </div>
@@ -84,9 +88,13 @@ export function AppDownloadSection() {
                 <p className="text-[11px] text-white/60 mt-1 leading-snug">
                   1-tap emergency triage & nearest hospital alert.
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm">
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+                className="p-3.5 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm transition-colors hover:border-[#83C5BE]/40"
+              >
                 <div className="h-8 w-8 rounded-lg bg-[#006D77]/30 text-[#83C5BE] flex items-center justify-center mb-2.5">
                   <BellRing className="h-4 w-4" />
                 </div>
@@ -94,9 +102,13 @@ export function AppDownloadSection() {
                 <p className="text-[11px] text-white/60 mt-1 leading-snug">
                   Automated pill alerts & refilling countdowns.
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm">
+              <motion.div
+                whileHover={{ y: -4, scale: 1.02 }}
+                transition={{ duration: 0.2 }}
+                className="p-3.5 rounded-xl border border-white/10 bg-white/[0.04] backdrop-blur-sm transition-colors hover:border-[#83C5BE]/40"
+              >
                 <div className="h-8 w-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center mb-2.5">
                   <WifiOff className="h-4 w-4" />
                 </div>
@@ -104,7 +116,7 @@ export function AppDownloadSection() {
                 <p className="text-[11px] text-white/60 mt-1 leading-snug">
                   Prescriptions & lab reports saved without internet.
                 </p>
-              </div>
+              </motion.div>
             </div>
 
             {/* Direct App Store & Google Play Download Badges */}
@@ -198,13 +210,15 @@ export function AppDownloadSection() {
                         maxLength={10}
                         className="flex-1 rounded-xl bg-white/5 border border-white/15 px-3 py-2 text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-[#83C5BE]"
                       />
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         type="submit"
-                        className="rounded-xl bg-[#006D77] hover:bg-[#00565e] px-4 py-2 text-xs font-bold text-white transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                        className="rounded-xl bg-[#006D77] hover:bg-[#00565e] px-4 py-2 text-xs font-bold text-white transition-colors flex items-center gap-1 cursor-pointer shrink-0 shadow-sm"
                       >
                         <Send className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Send</span>
-                      </button>
+                      </motion.button>
                     </div>
                     {error && <p className="text-[10px] text-red-400">{error}</p>}
                   </form>
@@ -273,7 +287,11 @@ export function AppDownloadSection() {
 
           {/* ─── RIGHT COLUMN: 3D-ANGLED MOBILE PHONE CONSULTATION MOCKUP ─── */}
           <div className="lg:col-span-5 flex justify-center items-center py-6">
-            <div className="relative [perspective:1200px] group">
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
+              className="relative [perspective:1200px] group"
+            >
               {/* Floating glow behind phone */}
               <div className="absolute inset-0 bg-[#006D77]/40 blur-3xl rounded-full scale-90 -z-10 group-hover:scale-100 transition-transform duration-500" />
 
@@ -297,11 +315,11 @@ export function AppDownloadSection() {
                 <div className="w-full h-full rounded-[38px] bg-slate-900 overflow-hidden relative flex flex-col justify-between">
                   {/* Doctor Full Screen Video Feed */}
                   <Image
-                    src="https://images.unsplash.com/photo-1594824813568-154df6686e58?auto=format&fit=crop&w=640&q=80"
+                    src="/doctor-consultation.jpg"
                     alt="Active Video Consult"
                     fill
-                    unoptimized
-                    className="object-cover object-top opacity-95"
+                    priority
+                    className="object-cover object-center opacity-95"
                   />
 
                   {/* Dark gradient overlay */}
@@ -352,10 +370,9 @@ export function AppDownloadSection() {
                     <div className="flex justify-end">
                       <div className="relative w-20 h-24 rounded-xl border-2 border-white/40 overflow-hidden shadow-xl bg-slate-800">
                         <Image
-                          src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80"
+                          src="/patient-webcam.jpg"
                           alt="Patient PIP"
                           fill
-                          unoptimized
                           className="object-cover"
                         />
                         <span className="absolute bottom-1 left-1 bg-black/60 text-[8px] px-1 py-0.5 rounded text-white font-medium">
@@ -388,7 +405,7 @@ export function AppDownloadSection() {
                   </div>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>

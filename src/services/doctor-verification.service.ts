@@ -134,6 +134,7 @@ export class DoctorVerificationService {
           : `Dr. ${doc.user.name}`
         : 'Dr. Medical Specialist',
       email: doc.user?.email,
+      photoUrl: doc.user?.avatarUrl || null,
       medicalLicenseNumber: doc.medicalLicenseNumber,
       specialization: doc.specialization,
       specialty: doc.specialization,
@@ -204,6 +205,7 @@ export class DoctorVerificationService {
               id: true,
               name: true,
               email: true,
+              avatarUrl: true,
               reviewsReceived: {
                 select: {
                   id: true,

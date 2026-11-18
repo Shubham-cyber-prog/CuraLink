@@ -5,9 +5,7 @@ import { VitalsAiService } from '../services/vitals-ai.service';
 import { Role } from '../types/role';
 import { validateRequest } from '../middleware/validate.middleware';
 import { createVitalLogSchema } from '../validators/vitals.validator';
-
 import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
-
 
 const router = Router();
 

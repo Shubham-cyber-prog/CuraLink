@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/brand/Logo";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 interface NavLink {
   label: string;
@@ -98,10 +97,8 @@ export function SiteHeader() {
           ))}
         </div>
 
-        {/* Right: Theme Toggle, Auth & Primary Action CTA */}
+        {/* Right: Auth & Primary Action CTA */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          <ThemeToggle className="h-8 w-8 rounded-full text-white/80 hover:bg-white/10 hover:text-white border border-white/10" />
-
           <Link
             href="/login"
             className="hidden sm:inline-flex text-xs font-medium text-white/70 hover:text-white transition-colors px-2 py-1.5"
@@ -156,10 +153,6 @@ export function SiteHeader() {
                 </Link>
               ))}
               <div className="pt-3 mt-1 border-t border-white/10 flex flex-col gap-2">
-                <div className="flex items-center justify-between px-3.5 py-1 text-sm font-medium text-white/70">
-                  <span>Theme</span>
-                  <ThemeToggle className="h-8 w-8 rounded-full text-white/80 hover:bg-white/10 hover:text-white border border-white/10" />
-                </div>
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}

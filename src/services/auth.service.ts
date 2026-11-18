@@ -1,7 +1,23 @@
 import prisma from '../lib/prisma';
 import crypto from 'crypto';
 import { hashPassword, comparePassword } from '../utils/password';
-import { generateToken, generateRefreshToken, generateResetToken, verifyResetToken, verifyRefreshToken, decodeToken } from '../utils/jwt';
+import {
+  generateToken,
+  generateRefreshToken,
+  generateResetToken,
+  verifyResetToken,
+  verifyRefreshToken,
+  generateTwoFactorTempToken,
+  verifyTwoFactorTempToken,
+  decodeToken,
+} from '../utils/jwt';
+import {
+  generateTotpSecret,
+  verifyTotpToken,
+  buildOtpAuthUri,
+  generateBackupCodes,
+  hashBackupCode,
+} from '../utils/totp';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
 import { ConflictError, UnauthorizedError, BadRequestError } from '../utils/errors';
 import { Role } from '../types/role';
@@ -25,6 +41,9 @@ export interface SafeUser {
   emailVerifiedAt?: Date | null;
   age?: number | null;
   gender?: string | null;
+  avatarUrl?: string | null;
+  twoFactorEnabled?: boolean;
+  biometricEnabled?: boolean;
   profileCompletedAt?: Date | null;
   noShowCount?: number;
   profileCompleted?: boolean;
@@ -145,7 +164,12 @@ export class AuthService {
     };
   }
 
-  async login(input: LoginInput): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
+  async login(
+    input: LoginInput
+  ): Promise<
+    | { requiresTwoFactor: true; tempToken: string; email: string }
+    | { requiresTwoFactor?: false; accessToken: string; refreshToken: string; user: SafeUser }
+  > {
     const normalizedEmail = input.email.trim().toLowerCase();
 
     const user = await prisma.user.findUnique({
@@ -165,18 +189,22 @@ export class AuthService {
       throw new UnauthorizedError('Invalid credentials');
     }
 
+    // If real TOTP 2FA is active, issue short-lived tempToken instead of active session cookies
+    if (user.twoFactorEnabled && user.twoFactorSecret) {
+      const tempToken = generateTwoFactorTempToken(user.id, user.email);
+      return {
+        requiresTwoFactor: true,
+        tempToken,
+        email: user.email,
+      };
+    }
+
     const tokens = await this.createTokens(user);
 
     return {
+      requiresTwoFactor: false,
       ...tokens,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role as Role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-      },
+      user: this.toSafeUser(user),
     };
   }
 
@@ -434,6 +462,9 @@ export class AuthService {
       emailVerifiedAt: user.emailVerifiedAt || null,
       age: user.age || null,
       gender: user.gender || null,
+      avatarUrl: user.avatarUrl || null,
+      twoFactorEnabled: Boolean(user.twoFactorEnabled),
+      biometricEnabled: Boolean(user.biometricEnabled),
       profileCompletedAt: user.profileCompletedAt || null,
       noShowCount: user.noShowCount || 0,
       profileCompleted: isProfileComplete,
@@ -485,6 +516,25 @@ export class AuthService {
     });
 
     return this.toSafeUser(updatedUser);
+  }
+
+  async updateAvatar(userId: string, avatarUrl: string | null): Promise<{ user: SafeUser; previousAvatarUrl: string | null }> {
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatarUrl: true },
+    });
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+
+    invalidateDoctorsCache();
+
+    return {
+      user: this.toSafeUser(updatedUser),
+      previousAvatarUrl: existing?.avatarUrl || null,
+    };
   }
 
   async forgotPassword(email: string): Promise<string | null> {
@@ -639,6 +689,188 @@ export class AuthService {
       user: this.toSafeUser(updatedUser),
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
+    };
+  }
+
+  // ── Two-Factor Authentication (RFC 6238 TOTP) ──
+
+  async setupTwoFactor(userId: string): Promise<{ secret: string; otpauthUri: string; qrCodeUrl: string }> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestError('User not found');
+
+    const secret = generateTotpSecret();
+    const otpauthUri = buildOtpAuthUri(user.email, secret, 'CuraLink');
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(otpauthUri)}`;
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorSecret: secret,
+        twoFactorEnabled: false,
+      },
+    });
+
+    return { secret, otpauthUri, qrCodeUrl };
+  }
+
+  async verifyAndEnableTwoFactor(userId: string, code: string): Promise<{ user: SafeUser; backupCodes: string[] }> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestError('User not found');
+    if (!user.twoFactorSecret) {
+      throw new BadRequestError('Two-factor setup has not been initiated. Please generate a new QR code.');
+    }
+
+    const isValid = verifyTotpToken(user.twoFactorSecret, code, 1);
+    if (!isValid) {
+      throw new BadRequestError('Invalid 6-digit authenticator code. Please check your app and try again.');
+    }
+
+    const backupCodes = generateBackupCodes(8);
+    const hashedCodes = backupCodes.map(hashBackupCode);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorBackupCodes: hashedCodes,
+      },
+    });
+
+    return {
+      user: this.toSafeUser(updatedUser),
+      backupCodes,
+    };
+  }
+
+  async disableTwoFactor(userId: string, code: string): Promise<{ user: SafeUser }> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestError('User not found');
+    if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new BadRequestError('Two-factor authentication is not currently enabled.');
+    }
+
+    const isTotpValid = verifyTotpToken(user.twoFactorSecret, code, 1);
+    const hashedInput = hashBackupCode(code);
+    const isBackupValid = Array.isArray(user.twoFactorBackupCodes) && user.twoFactorBackupCodes.includes(hashedInput);
+
+    if (!isTotpValid && !isBackupValid) {
+      throw new BadRequestError('Invalid authenticator or backup recovery code.');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorBackupCodes: [],
+      },
+    });
+
+    return { user: this.toSafeUser(updatedUser) };
+  }
+
+  async verifyTwoFactorLogin(
+    tempToken: string,
+    code: string
+  ): Promise<{ user: SafeUser; accessToken: string; refreshToken: string; usedBackupCode?: boolean }> {
+    let decoded: { id: string; email: string };
+    try {
+      decoded = verifyTwoFactorTempToken(tempToken);
+    } catch (err: any) {
+      throw new UnauthorizedError(err?.message || '2FA session expired. Please sign in again.');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new UnauthorizedError('Two-factor authentication is not configured for this account.');
+    }
+
+    const isTotpValid = verifyTotpToken(user.twoFactorSecret, code, 1);
+    let usedBackupCode = false;
+
+    if (!isTotpValid) {
+      const hashedInput = hashBackupCode(code);
+      const existingCodes = Array.isArray(user.twoFactorBackupCodes) ? user.twoFactorBackupCodes : [];
+      const matchIdx = existingCodes.indexOf(hashedInput);
+
+      if (matchIdx === -1) {
+        throw new UnauthorizedError('Invalid 6-digit verification code or backup code.');
+      }
+
+      // Consume the single-use backup code
+      const remainingCodes = existingCodes.filter((_, i) => i !== matchIdx);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { twoFactorBackupCodes: remainingCodes },
+      });
+      usedBackupCode = true;
+    }
+
+    const tokens = await this.createTokens(user);
+    return {
+      ...tokens,
+      user: this.toSafeUser(user),
+      usedBackupCode,
+    };
+  }
+
+  // ── Biometric / Fingerprint Authentication (WebAuthn & Mobile LocalAuth) ──
+
+  async registerBiometric(userId: string, credentialId: string): Promise<{ user: SafeUser }> {
+    const cleanCred = String(credentialId || '').trim();
+    if (!cleanCred || cleanCred.length < 8) {
+      throw new BadRequestError('Valid biometric credential identifier is required.');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        biometricEnabled: true,
+        biometricCredentialId: cleanCred,
+      },
+    });
+
+    return { user: this.toSafeUser(updatedUser) };
+  }
+
+  async disableBiometric(userId: string): Promise<{ user: SafeUser }> {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        biometricEnabled: false,
+        biometricCredentialId: null,
+      },
+    });
+
+    return { user: this.toSafeUser(updatedUser) };
+  }
+
+  async biometricLogin(
+    email: string,
+    credentialId: string
+  ): Promise<{ user: SafeUser; accessToken: string; refreshToken: string }> {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const cleanCred = String(credentialId || '').trim();
+
+    if (!normalizedEmail || !cleanCred) {
+      throw new UnauthorizedError('Biometric credentials are missing.');
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (!user || !user.biometricEnabled || !user.biometricCredentialId) {
+      throw new UnauthorizedError('Fingerprint / biometric login is not enabled for this account.');
+    }
+
+    const expectedBuf = Buffer.from(user.biometricCredentialId, 'utf8');
+    const actualBuf = Buffer.from(cleanCred, 'utf8');
+    if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) {
+      throw new UnauthorizedError('Biometric device key mismatch. Please sign in with your password.');
+    }
+
+    const tokens = await this.createTokens(user);
+    return {
+      ...tokens,
+      user: this.toSafeUser(user),
     };
   }
 }

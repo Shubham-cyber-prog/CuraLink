@@ -20,22 +20,23 @@ import {
   CheckCircle2,
   Clock,
   Home,
+  Menu,
+  X,
+  Plus,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/brand/Logo";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { api } from "@/lib/api";
 
 export interface NavLink {
   label: string;
   href: string;
-  icon?: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 const PATIENT_NAV: NavLink[] = [
-  { label: "Find Doctors", href: "/find-doctor", icon: Stethoscope },
+  { label: "Dashboard", href: "/dashboard", icon: Home },
   { label: "Appointments", href: "/appointments", icon: Calendar },
   { label: "Health Records", href: "/records", icon: FileText },
-  { label: "Symptom Checker", href: "/symptom-checker", icon: Activity },
 ];
 
 const DOCTOR_NAV: NavLink[] = [
@@ -46,81 +47,82 @@ const DOCTOR_NAV: NavLink[] = [
   { label: "Messages", href: "/messages", icon: MessageSquare },
 ];
 
+const ADMIN_NAV: NavLink[] = [
+  { label: "Admin Dashboard", href: "/admin-dashboard", icon: ShieldCheck },
+];
+
 export function TopNavbar() {
   const router = useRouter();
   const pathname = usePathname();
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  const moreRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchUser = async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
-            : null;
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-
-        const res = await fetch(`${apiBase}/auth/me`, { headers, credentials: "include" });
-        const data = await res.json();
-        if (data.success && data.data) {
-          const user = data.data.user || data.data;
+        const res = await api.get("/auth/me");
+        if (res?.success && res.data && isMounted) {
+          const user = res.data.user || res.data;
           setUserName(user.name || "");
           setUserEmail(user.email || "");
-          if (user.role) setUserRole(user.role);
-          if (data.data.token && typeof window !== "undefined") {
-            localStorage.setItem("curalink_token", data.data.token);
+          setUserAvatar(user.avatarUrl || null);
+          if (user.role) setUserRole(String(user.role).toUpperCase());
+          if (res.data.token && typeof window !== "undefined") {
+            localStorage.setItem("curalink_token", res.data.token);
           }
         }
-      } catch (err) {
-        // Handled silently
+      } catch {
+        // Silent
       }
     };
     fetchUser();
+
+    const handleProfileUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && isMounted) {
+        const u = customEvent.detail;
+        if (u.name !== undefined) setUserName(u.name || "");
+        if (u.email !== undefined) setUserEmail(u.email || "");
+        if ("avatarUrl" in u) setUserAvatar(u.avatarUrl || null);
+      }
+    };
+
+    window.addEventListener("curalink-profile-updated", handleProfileUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("curalink-profile-updated", handleProfileUpdated);
+    };
   }, []);
 
-  const handleSwitchRole = async (targetRole: "DOCTOR" | "PATIENT") => {
-    try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
-          : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(`${apiBase}/auth/switch-role`, {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({ role: targetRole }),
-      });
-      const data = await res.json();
-      if (data.success && data.data?.token) {
-        localStorage.setItem("curalink_token", data.data.token);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k" && userRole === "PATIENT") {
+        e.preventDefault();
+        setSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 40);
       }
-      setProfileOpen(false);
-      if (targetRole === "DOCTOR") {
-        window.location.href = "/doctor-dashboard";
-      } else {
-        window.location.href = "/dashboard";
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+        setNotificationsOpen(false);
+        setProfileOpen(false);
+        setMobileMenuOpen(false);
       }
-    } catch (err) {
-      console.error("Role switch failed:", err);
-    }
-  };
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [userRole]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -130,9 +132,6 @@ export function TopNavbar() {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
       }
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -140,19 +139,7 @@ export function TopNavbar() {
 
   const handleLogout = async () => {
     try {
-      localStorage.removeItem("curalink_token");
-      sessionStorage.removeItem("curalink_token");
-
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const csrfRes = await fetch(`${apiBase}/auth/csrf-token`, { credentials: "include" });
-      const csrfData = await csrfRes.json().catch(() => ({ token: "" }));
-      await fetch(`${apiBase}/auth/logout`, {
-        method: "POST",
-        headers: { "X-CSRF-Token": csrfData?.token || "" },
-        credentials: "include",
-      });
-    } catch (err) {
-      console.error("Logout failed:", err);
+      await api.post("/auth/logout").catch(() => {});
     } finally {
       localStorage.removeItem("curalink_token");
       sessionStorage.removeItem("curalink_token");
@@ -162,328 +149,355 @@ export function TopNavbar() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
+    if (searchQuery.trim() && userRole === "PATIENT") {
       router.push(`/find-doctor?q=${encodeURIComponent(searchQuery.trim())}`);
       setSearchOpen(false);
+      setMobileMenuOpen(false);
     }
   };
 
-  const isDoctor = userRole === "DOCTOR" || pathname?.startsWith("/doctor-dashboard");
-  const navLinks = isDoctor ? DOCTOR_NAV : PATIENT_NAV;
+  const isAdmin = userRole === "ADMIN";
+  const isDoctor = userRole === "DOCTOR";
+  const isPatient = !isAdmin && !isDoctor;
+
+  const homeHref = isAdmin ? "/admin-dashboard" : isDoctor ? "/doctor-dashboard" : "/dashboard";
+  const navLinks = isAdmin ? ADMIN_NAV : isDoctor ? DOCTOR_NAV : PATIENT_NAV;
 
   const isActive = (href: string) => {
-    // Strip hash for comparison — hash anchors are on the same page
     const basePath = href.split("#")[0] || href;
     if (basePath === "/dashboard") return pathname === "/dashboard";
+    if (basePath === "/admin-dashboard") return pathname.startsWith("/admin-dashboard");
     if (basePath === "/doctor-dashboard") {
-      // The "Dashboard" link (no hash) is only active on the exact route
       if (!href.includes("#")) return pathname === "/doctor-dashboard";
-      // Hash-anchored links are "active" when we're on the doctor-dashboard page
       return pathname === "/doctor-dashboard" || pathname.startsWith("/doctor-dashboard/");
     }
     return pathname.startsWith(basePath);
   };
 
+  const userInitial = userName ? userName.trim().charAt(0).toUpperCase() : "U";
+
   return (
-    <header className="sticky top-0 z-30 w-full bg-white/95 dark:bg-[#0F172A]/95 border-b border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md transition-colors duration-200">
-      <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* ── LEFT: CuraLink Brand ── */}
-        <div className="flex items-center gap-6">
-          <Logo href={isDoctor ? "/doctor-dashboard" : "/dashboard"} size="sm" />
-        </div>
-
-        {/* ── CENTER: Role-Adaptive Main Navigation ── */}
-        <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
-          {navLinks.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                target="_self"
-                id={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
-                className={`relative px-3.5 py-2 text-[13px] font-medium rounded-lg transition-colors duration-150 ${
-                  active
-                    ? "text-[#0D9488] dark:text-[#14B8A6] font-semibold bg-teal-50/70 dark:bg-teal-950/40"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                }`}
-              >
-                {item.label}
-                {active && (
-                  <motion.div
-                    layoutId="top-nav-active-pill"
-                    className="absolute bottom-0 inset-x-3.5 h-[2px] bg-[#0D9488] dark:bg-[#14B8A6] rounded-full"
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                  />
-                )}
-              </Link>
-            );
-          })}
-
-          {/* Secondary Features Dropdown (More) */}
-          {!isDoctor && (
-            <div className="relative" ref={moreRef}>
-              <button
-                type="button"
-                onClick={() => setMoreOpen(!moreOpen)}
-                className={`flex items-center gap-1 px-3 py-2 text-[13px] font-medium rounded-lg transition-colors duration-150 ${
-                  moreOpen
-                    ? "text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800"
-                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                }`}
-              >
-                <span>More</span>
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${moreOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              <AnimatePresence>
-                {moreOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute left-0 mt-1.5 w-48 rounded-xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-lg z-50"
-                  >
-                    <Link
-                      href="/vitals"
-                      onClick={() => setMoreOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <Activity className="h-4 w-4 text-[#0D9488]" />
-                      <span>Vitals & Trends</span>
-                    </Link>
-                    <Link
-                      href="/health-risk"
-                      onClick={() => setMoreOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                      <span>Health Risk Score</span>
-                    </Link>
-                    <Link
-                      href="/dashboard"
-                      onClick={() => setMoreOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <Home className="h-4 w-4 text-slate-500" />
-                      <span>Patient Dashboard</span>
-                    </Link>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-        </nav>
-
-        {/* ── RIGHT: Search, Messages, Notifications, Theme, Profile ── */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Quick Search */}
-          <div className="relative">
-            {searchOpen ? (
-              <form onSubmit={handleSearchSubmit} className="flex items-center">
-                <input
-                  type="text"
-                  placeholder="Search doctors, specialties..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
-                  onBlur={() => !searchQuery && setSearchOpen(false)}
-                  className="h-8 w-44 sm:w-56 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#0D9488]"
-                />
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
-                aria-label="Search doctors"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-            )}
+    <header className="sticky top-0 z-40 w-full h-[68px] bg-white/90 dark:bg-[#0B1F33]/90 backdrop-blur-xl border-b border-slate-200/75 dark:border-white/[0.08] shadow-[0_1px_16px_-6px_rgba(11,31,51,0.08)]">
+      <div className="mx-auto flex h-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        {/* LEFT: Brand Logo + Role-Locked Curved Pill Navigation */}
+        <div className="flex items-center gap-7 min-w-0">
+          <div className="shrink-0">
+            <Logo href={homeHref} size="sm" />
           </div>
 
-          {/* Messages link */}
-          <Link
-            href="/messages"
-            className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-              pathname === "/messages"
-                ? "text-[#0D9488] bg-teal-50 dark:bg-teal-950/40"
-                : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-            aria-label="Messages"
+          <nav
+            className="hidden lg:flex items-center gap-1 rounded-full bg-slate-100/70 dark:bg-white/[0.05] p-1 border border-slate-200/60 dark:border-white/[0.06] shrink-0"
+            aria-label="Main navigation"
           >
-            <MessageSquare className="h-4 w-4" />
-          </Link>
+            {navLinks.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  target="_self"
+                  id={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  className={`inline-flex items-center px-4 py-1.5 text-sm font-medium whitespace-nowrap shrink-0 rounded-full transition-all duration-150 ${
+                    active
+                      ? "bg-white dark:bg-[#006D77] text-[#006D77] dark:text-white shadow-[0_1px_6px_rgba(11,31,51,0.08)] font-semibold"
+                      : "text-slate-600 dark:text-slate-300 hover:text-[#0B1F33] dark:hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
 
-          {/* Notifications Dropdown */}
-          <div className="relative" ref={notifRef}>
+        {/* RIGHT: Role-Specific Actions & Profile */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          {/* Patient-only Search Bar */}
+          {isPatient && (
+            <div className="relative shrink-0">
+              {searchOpen ? (
+                <form onSubmit={handleSearchSubmit} className="flex items-center">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search doctors, records..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    autoFocus
+                    onBlur={() => !searchQuery && setSearchOpen(false)}
+                    className="h-10 w-56 xl:w-64 rounded-full border border-[#006D77] bg-white dark:bg-[#071320] px-4 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#006D77]/20"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchOpen(true);
+                    setTimeout(() => searchInputRef.current?.focus(), 40);
+                  }}
+                  className="hidden md:flex h-10 w-48 xl:w-64 px-4 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-slate-100/65 dark:bg-white/[0.05] text-sm text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.18] items-center justify-between gap-2 whitespace-nowrap overflow-hidden transition-all shrink-0 cursor-pointer"
+                  aria-label="Search doctors and records"
+                >
+                  <span className="flex items-center gap-2 min-w-0 overflow-hidden">
+                    <Search className="h-4 w-4 text-slate-400 shrink-0" />
+                    <span className="xl:hidden truncate">Search...</span>
+                    <span className="hidden xl:inline truncate">Search doctors, records...</span>
+                  </span>
+                  <kbd className="shrink-0 rounded-full border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0B1F33] px-2 py-0.5 text-[10px] font-mono leading-none text-slate-400">
+                    ⌘K
+                  </kbd>
+                </button>
+              )}
+
+              {!searchOpen && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchOpen(true);
+                    setTimeout(() => searchInputRef.current?.focus(), 40);
+                  }}
+                  className="md:hidden flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                  aria-label="Search"
+                >
+                  <Search className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Messages (Patient & Doctor) */}
+          {!isAdmin && (
+            <Link
+              href="/messages"
+              className={`flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full border transition-all ${
+                pathname === "/messages"
+                  ? "border-[#006D77]/30 bg-[#006D77]/10 text-[#006D77] dark:text-[#83C5BE]"
+                  : "border-transparent text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.08]"
+              }`}
+              aria-label="Messages"
+              title="Messages"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Link>
+          )}
+
+          {/* Notifications */}
+          <div className="relative shrink-0" ref={notifRef}>
             <button
               type="button"
               id="navbar-notification-btn"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+              className="relative flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
               aria-label="Notifications"
             >
               <Bell className="h-4 w-4" />
-              <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-[#0D9488]" />
+              <span className="absolute top-2 right-2.5 h-1.5 w-1.5 rounded-full bg-[#006D77] dark:bg-[#83C5BE]" />
             </button>
 
-            <AnimatePresence>
-              {notificationsOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 6 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-xl z-50"
-                >
-                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                      Notifications
-                    </h3>
-                    <span className="text-[11px] font-medium text-[#0D9488]">All caught up</span>
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-3 w-80 rounded-2xl border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] p-4 shadow-[0_16px_40px_-10px_rgba(11,31,51,0.16)] z-50">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.08] pb-3">
+                  <h3 className="font-serif text-lg text-[#0B1F33] dark:text-white">
+                    Notifications
+                  </h3>
+                  <Link
+                    href="/notifications"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="text-xs font-medium text-[#006D77] dark:text-[#83C5BE] hover:underline"
+                  >
+                    View all
+                  </Link>
+                </div>
+
+                <div className="py-3 space-y-2.5">
+                  <div className="flex items-start gap-3 rounded-xl bg-[#F4F7F8] dark:bg-white/[0.04] p-3">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <p className="font-semibold text-[#0B1F33] dark:text-white">Account Active</p>
+                      <p className="text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                        Signed in as {isAdmin ? "System Administrator" : isDoctor ? "Verified Clinician" : "Patient"}.
+                      </p>
+                    </div>
                   </div>
-                  <div className="py-6 text-center">
-                    <CheckCircle2 className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      No unread medical alerts or appointment reminders.
-                    </p>
-                  </div>
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-2 text-center">
-                    <Link
-                      href="/notifications"
-                      onClick={() => setNotificationsOpen(false)}
-                      className="text-xs font-medium text-[#0D9488] hover:underline"
-                    >
-                      View notification history
-                    </Link>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Theme toggle */}
-          <ThemeToggle />
+          {/* Patient-only Book Appointment CTA */}
+          {isPatient && (
+            <Link
+              href="/find-doctor"
+              className="hidden sm:inline-flex items-center gap-1.5 h-10 px-4.5 rounded-full bg-[#006D77] hover:bg-[#005860] text-white text-sm font-medium whitespace-nowrap shrink-0 shadow-[0_4px_14px_-3px_rgba(0,109,119,0.45)] hover:shadow-[0_6px_18px_-3px_rgba(0,109,119,0.55)] transition-all"
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              <span>Book Appointment</span>
+            </Link>
+          )}
 
-          {/* Profile / Account Dropdown */}
-          <div className="relative" ref={profileRef}>
+          {/* Profile Menu with Real Uploaded Avatar */}
+          <div className="relative shrink-0" ref={profileRef}>
             <button
               type="button"
               id="navbar-profile-menu-btn"
               onClick={() => setProfileOpen(!profileOpen)}
-              className="flex items-center gap-2 rounded-xl p-1 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Profile and account"
+              className="flex items-center gap-1.5 rounded-full p-1 pr-2 border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-white/[0.05] text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-white/[0.2] transition-all shrink-0 cursor-pointer"
+              aria-label="Account menu"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6] font-semibold text-xs border border-teal-200/60 dark:border-teal-800/60">
-                {userName ? userName.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
+              <div className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0B1F33] dark:bg-[#006D77] text-white font-semibold text-xs">
+                {userAvatar ? (
+                  <img
+                    src={userAvatar}
+                    alt={userName || "Profile"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span>{userInitial}</span>
+                )}
               </div>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden sm:block" />
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400 hidden sm:block shrink-0" />
             </button>
 
-            <AnimatePresence>
-              {profileOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 6 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-xl z-50"
-                >
-                  <div className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                      {userName || "CuraLink User"}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {userEmail || "user@curalink.health"}
-                    </p>
-                    {userRole && (
-                      <span className="mt-1 inline-block rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
-                        {userRole === "ADMIN"
-                          ? "System Administrator"
-                          : userRole === "DOCTOR"
-                          ? "Licensed Physician"
-                          : "Verified Patient"}
-                      </span>
-                    )}
-                  </div>
+            {profileOpen && (
+              <div className="absolute right-0 mt-3 w-64 rounded-2xl border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] p-2 shadow-[0_16px_40px_-10px_rgba(11,31,51,0.16)] z-50">
+                <div className="px-3 py-2.5 border-b border-slate-100 dark:border-white/[0.08]">
+                  <p className="text-sm font-semibold text-[#0B1F33] dark:text-white truncate">
+                    {userName || "CuraLink Account"}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    {userEmail || "account@curalink.health"}
+                  </p>
+                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#006D77]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#006D77] dark:text-[#83C5BE]">
+                    <ShieldCheck className="h-3 w-3" />
+                    {isAdmin ? "Admin Portal" : isDoctor ? "Doctor Portal" : "Patient Portal"}
+                  </span>
+                </div>
 
-                  <div className="py-1">
-                    {userRole === "ADMIN" && (
+                <div className="py-1.5 space-y-0.5">
+                  <Link
+                    href="/profile"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] rounded-xl"
+                  >
+                    <User className="h-4 w-4 text-slate-400" />
+                    <span>My Profile &amp; Photo</span>
+                  </Link>
+
+                  {isPatient && (
+                    <>
                       <Link
-                        href="/admin-dashboard"
+                        href="/vitals"
                         onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] rounded-xl"
                       >
-                        <ShieldCheck className="h-4 w-4" />
-                        <span>Admin Control Center</span>
+                        <Activity className="h-4 w-4 text-slate-400" />
+                        <span>Health Vitals</span>
                       </Link>
-                    )}
-                    <Link
-                      href="/profile"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <User className="h-4 w-4 text-slate-400" />
-                      <span>Account Profile</span>
-                    </Link>
-                    <Link
-                      href="/settings"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <Settings className="h-4 w-4 text-slate-400" />
-                      <span>Preferences & Security</span>
-                    </Link>
-                    <Link
-                      href="/help"
-                      onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                      <HelpCircle className="h-4 w-4 text-slate-400" />
-                      <span>Help & Support</span>
-                    </Link>
-
-                    {/* Role Quick Toggle */}
-                    {userRole === "DOCTOR" ? (
-                      <button
-                        type="button"
-                        onClick={() => handleSwitchRole("PATIENT")}
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-lg transition-colors cursor-pointer text-left"
+                      <Link
+                        href="/records"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] rounded-xl"
                       >
-                        <User className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                        <span>Switch to Patient Mode</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSwitchRole("DOCTOR")}
-                        className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-lg transition-colors cursor-pointer text-left"
-                      >
-                        <Stethoscope className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                        <span>Switch to Doctor Mode</span>
-                      </button>
-                    )}
-                  </div>
+                        <FileText className="h-4 w-4 text-slate-400" />
+                        <span>Health Records &amp; e-Rx</span>
+                      </Link>
+                    </>
+                  )}
 
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                  {isDoctor && (
+                    <Link
+                      href="/settings?tab=practice"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] rounded-xl"
                     >
-                      <LogOut className="h-4 w-4" />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      <Stethoscope className="h-4 w-4 text-slate-400" />
+                      <span>Practice Settings</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/settings"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] rounded-xl"
+                  >
+                    <Settings className="h-4 w-4 text-slate-400" />
+                    <span>Settings</span>
+                  </Link>
+                  <Link
+                    href="/help"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06] rounded-xl"
+                  >
+                    <HelpCircle className="h-4 w-4 text-slate-400" />
+                    <span>Help &amp; Support</span>
+                  </Link>
+                </div>
+
+                <div className="border-t border-slate-100 dark:border-white/[0.08] pt-1">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Mobile Hamburger */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/[0.08] cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden border-b border-slate-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0B1F33]/95 backdrop-blur-xl px-4 py-4 space-y-3 shadow-lg">
+          {isPatient && (
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search doctors, records..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-10 rounded-full border border-slate-200 dark:border-white/[0.1] bg-slate-50 dark:bg-white/[0.05] pl-10 pr-4 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#006D77]"
+              />
+            </form>
+          )}
+
+          <div className="flex flex-col space-y-1">
+            {navLinks.map((item) => {
+              const active = isActive(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-full text-sm font-medium ${
+                    active
+                      ? "bg-[#006D77]/10 text-[#006D77] dark:text-[#83C5BE] font-semibold"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

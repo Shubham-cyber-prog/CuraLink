@@ -50,20 +50,40 @@ const VALUE_PROPS = [
 
 export function ValueProposition() {
   return (
-    <section className="py-20 sm:py-24 border-b border-border bg-background">
+    <section className="py-20 sm:py-24 border-b border-border bg-background relative overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Header */}
         <div className="max-w-3xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#006D77]/10 px-3 py-1 text-xs font-semibold text-[#006D77] dark:text-[#83C5BE]">
+          <motion.span
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-semibold text-[#006D77] dark:text-[#83C5BE]"
+          >
             <Zap className="h-3.5 w-3.5" />
             <span>The CuraLink Advantage</span>
-          </span>
-          <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#0B1F33] dark:text-white leading-tight">
-            Engineered for clinical precision. Built for patient ease.
-          </h2>
-          <p className="mt-3 text-base text-muted leading-relaxed">
+          </motion.span>
+          <motion.h2
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.05 }}
+            className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#0B1F33] dark:text-white leading-tight"
+          >
+            Engineered for clinical precision.{" "}
+            <span className="font-serif italic font-normal text-[#006D77] dark:text-[#83C5BE]">
+              Built for human ease.
+            </span>
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="mt-3 text-base text-muted leading-relaxed"
+          >
             Every feature on CuraLink is designed by practicing Indian physicians to deliver the most reliable, secure, and rapid virtual care experience.
-          </p>
+          </motion.p>
         </div>
 
         {/* 4 Core Value Proposition Cards */}
@@ -73,27 +93,31 @@ export function ValueProposition() {
             return (
               <motion.div
                 key={prop.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                whileHover={{ y: -8, scale: 1.02 }}
                 viewport={{ once: true }}
-                transition={{ delay: index * 0.08, duration: 0.35 }}
-                className="group flex flex-col justify-between rounded-2xl border border-border bg-surface p-6 hover:border-[#83C5BE]/60 hover:shadow-[0_12px_32px_rgba(0,109,119,0.12)] transition-all duration-300"
+                transition={{ delay: index * 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="group relative flex flex-col justify-between rounded-3xl border border-slate-200/80 dark:border-white/[0.08] bg-white/90 dark:bg-[#0B1F33]/70 backdrop-blur-xl p-6.5 shadow-sm hover:border-teal-500/40 hover:shadow-[0_16px_40px_rgba(0,109,119,0.14)] dark:hover:shadow-[0_16px_40px_rgba(0,109,119,0.35)] transition-all duration-300 overflow-hidden"
               >
+                {/* Top decorative gradient sheen */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-teal-500/30 to-transparent group-hover:via-[#83C5BE] transition-all" />
+
                 <div>
                   <div className="flex items-center justify-between">
-                    <div className="h-11 w-11 rounded-xl bg-[#006D77]/10 text-[#006D77] dark:text-[#83C5BE] flex items-center justify-center transition-transform group-hover:scale-105">
-                      <Icon className="h-5 w-5" />
+                    <div className="h-12 w-12 rounded-2xl bg-teal-500/10 text-[#006D77] dark:text-[#83C5BE] flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-xs">
+                      <Icon className="h-6 w-6" />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-muted/60 text-muted px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-full font-mono">
                       {prop.metric}
                     </span>
                   </div>
 
-                  <span className="mt-4 inline-block text-[11px] font-semibold text-[#006D77] dark:text-[#83C5BE]">
+                  <span className="mt-5 inline-block text-[11px] font-bold text-[#006D77] dark:text-[#83C5BE]">
                     {prop.badge}
                   </span>
 
-                  <h3 className="mt-1 text-base font-bold text-foreground group-hover:text-[#006D77] dark:group-hover:text-[#83C5BE] transition-colors">
+                  <h3 className="mt-1 text-base font-bold text-slate-900 dark:text-white group-hover:text-[#006D77] dark:group-hover:text-[#83C5BE] transition-colors">
                     {prop.title}
                   </h3>
 
@@ -102,10 +126,10 @@ export function ValueProposition() {
                   </p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border/70">
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-white/[0.06]">
                   <Link
                     href={prop.actionHref}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#006D77] dark:text-[#83C5BE] group-hover:underline"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#006D77] dark:text-[#83C5BE] group-hover:underline"
                   >
                     <span>{prop.actionText}</span>
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />

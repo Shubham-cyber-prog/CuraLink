@@ -12,6 +12,8 @@ const router = Router();
 // Public routes (Rate limited & Bot Protected)
 router.post('/register', authLimiter, verifyTurnstile, (req, res, next) => authController.register(req, res, next));
 router.post('/login', authLimiter, verifyTurnstile, (req, res, next) => authController.login(req, res, next));
+router.post('/2fa/verify-login', authLimiter, (req, res, next) => authController.verifyTwoFactorLogin(req, res, next));
+router.post('/biometric/login', authLimiter, (req, res, next) => authController.biometricLogin(req, res, next));
 router.post('/google', authLimiter, (req, res, next) => authController.googleLogin(req, res, next));
 router.get('/google/mobile-login', (req, res) => authController.googleMobileLogin(req, res));
 router.get('/google/callback', (req, res, next) => authController.googleMobileCallback(req, res, next));
@@ -38,7 +40,14 @@ router.get('/csrf-token', (req, res) => {
 
 // Protected routes
 router.get('/me', authenticate, (req, res, next) => authController.getMe(req, res, next));
-router.put('/profile', authenticate, authorize(Role.PATIENT, Role.DOCTOR), (req, res, next) => authController.updateProfile(req, res, next));
+router.put('/profile', authenticate, authorize(Role.PATIENT, Role.DOCTOR, Role.ADMIN), (req, res, next) => authController.updateProfile(req, res, next));
+router.post('/profile/avatar', authenticate, authorize(Role.PATIENT, Role.DOCTOR, Role.ADMIN), (req, res, next) => authController.uploadAvatar(req, res, next));
+router.delete('/profile/avatar', authenticate, authorize(Role.PATIENT, Role.DOCTOR, Role.ADMIN), (req, res, next) => authController.removeAvatar(req, res, next));
+router.post('/2fa/setup', authenticate, (req, res, next) => authController.setupTwoFactor(req, res, next));
+router.post('/2fa/verify-enable', authenticate, (req, res, next) => authController.verifyEnableTwoFactor(req, res, next));
+router.post('/2fa/disable', authenticate, (req, res, next) => authController.disableTwoFactor(req, res, next));
+router.post('/biometric/register', authenticate, (req, res, next) => authController.registerBiometric(req, res, next));
+router.delete('/biometric/disable', authenticate, (req, res, next) => authController.disableBiometric(req, res, next));
 router.post('/switch-role', authenticate, (req, res, next) => authController.switchRole(req, res, next));
 
 // Test-only role authorization route (never exposed in staging/production)

@@ -3,27 +3,45 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Stethoscope, Calendar, MessageSquare, User } from "lucide-react";
+import { Home, Calendar, FileText, MessageSquare, User, ShieldCheck, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
-export function FloatingMobileNav() {
+interface FloatingMobileNavProps {
+  role?: "PATIENT" | "DOCTOR" | "ADMIN";
+}
+
+export function FloatingMobileNav({ role = "PATIENT" }: FloatingMobileNavProps) {
   const pathname = usePathname();
 
-  const navItems = [
-    { label: "Home", href: "/dashboard", icon: Home },
-    { label: "Doctors", href: "/find-doctor", icon: Stethoscope },
-    { label: "Visits", href: "/appointments", icon: Calendar },
-    { label: "Messages", href: "/messages", icon: MessageSquare },
-    { label: "Profile", href: "/profile", icon: User },
-  ];
+  const navItems =
+    role === "ADMIN"
+      ? [
+          { label: "Admin", href: "/admin-dashboard", icon: ShieldCheck },
+          { label: "Profile", href: "/profile", icon: User },
+        ]
+      : role === "DOCTOR"
+      ? [
+          { label: "Practice", href: "/doctor-dashboard", icon: Home },
+          { label: "Schedule", href: "/doctor-dashboard#schedule", icon: Clock },
+          { label: "Messages", href: "/messages", icon: MessageSquare },
+          { label: "Profile", href: "/profile", icon: User },
+        ]
+      : [
+          { label: "Home", href: "/dashboard", icon: Home },
+          { label: "Visits", href: "/appointments", icon: Calendar },
+          { label: "Records", href: "/records", icon: FileText },
+          { label: "Messages", href: "/messages", icon: MessageSquare },
+          { label: "Profile", href: "/profile", icon: User },
+        ];
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-white/95 dark:bg-[#0F172A]/95 border-t border-slate-200/90 dark:border-slate-800/90 backdrop-blur-md pb-safe">
+    <div className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-white/95 dark:bg-[#0B1F33]/95 border-t border-slate-200/80 dark:border-white/[0.08] backdrop-blur-md pb-safe">
       <nav className="flex h-16 items-center justify-around px-2 max-w-md mx-auto" aria-label="Mobile navigation">
         {navItems.map((item) => {
+          const basePath = item.href.split("#")[0];
           const isActive =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            pathname === basePath ||
+            (basePath !== "/dashboard" && basePath !== "/doctor-dashboard" && pathname.startsWith(basePath));
 
           const Icon = item.icon;
 
@@ -43,7 +61,7 @@ export function FloatingMobileNav() {
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-xl transition-colors ${
                     isActive
-                      ? "text-[#0D9488] bg-teal-50 dark:bg-teal-950/60 dark:text-[#14B8A6]"
+                      ? "text-[#006D77] bg-[#006D77]/10 dark:bg-[#83C5BE]/15 dark:text-[#83C5BE]"
                       : "text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200"
                   }`}
                 >
@@ -52,18 +70,17 @@ export function FloatingMobileNav() {
                 <span
                   className={`mt-0.5 text-[10px] font-medium transition-colors ${
                     isActive
-                      ? "text-[#0D9488] dark:text-[#14B8A6] font-semibold"
+                      ? "text-[#006D77] dark:text-[#83C5BE] font-semibold"
                       : "text-slate-500 dark:text-slate-400"
                   }`}
                 >
                   {item.label}
                 </span>
 
-                {/* Subtle active underline indicator */}
                 {isActive && (
                   <motion.div
                     layoutId="mobile-active-nav-dot"
-                    className="absolute -bottom-1 h-1 w-3 rounded-full bg-[#0D9488] dark:bg-[#14B8A6]"
+                    className="absolute -bottom-1 h-1 w-3 rounded-full bg-[#006D77] dark:bg-[#83C5BE]"
                     transition={{ duration: 0.2, ease: "easeOut" }}
                   />
                 )}

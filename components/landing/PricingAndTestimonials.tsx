@@ -139,17 +139,23 @@ export function PricingAndTestimonials() {
 
         {/* 3 Pricing Cards */}
         <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-          {PRICING_PLANS.map((plan) => (
-            <div
+          {PRICING_PLANS.map((plan, idx) => (
+            <motion.div
               key={plan.name}
-              className={`rounded-3xl p-7 sm:p-8 flex flex-col justify-between transition-all duration-300 relative ${
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: idx * 0.12, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: plan.popular ? -12 : -6 }}
+              className={`rounded-3xl p-7 sm:p-8 flex flex-col justify-between transition-shadow duration-300 relative ${
                 plan.popular
-                  ? "border-2 border-[#006D77] dark:border-[#83C5BE] bg-surface shadow-[0_16px_50px_rgba(0,109,119,0.18)] -translate-y-2"
-                  : "border border-border bg-surface hover:border-[#83C5BE]/60"
+                  ? "border-2 border-[#006D77] dark:border-[#83C5BE] bg-surface shadow-[0_20px_50px_rgba(0,109,119,0.18)] dark:shadow-[0_20px_50px_rgba(131,197,190,0.1)] -translate-y-2"
+                  : "border border-border bg-surface hover:border-[#83C5BE]/60 hover:shadow-lg"
               }`}
             >
               {plan.popular && (
-                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-[#006D77] px-4 py-1 text-xs font-bold text-white shadow-sm">
+                <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#006D77] to-[#0A8896] px-4 py-1 text-xs font-bold text-white shadow-md flex items-center gap-1.5">
+                  <Sparkles className="h-3 w-3" />
                   {plan.badge}
                 </span>
               )}
@@ -186,17 +192,17 @@ export function PricingAndTestimonials() {
               <div className="mt-8 pt-6 border-t border-border">
                 <Link
                   href={plan.ctaHref}
-                  className={`w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold transition-all ${
+                  className={`w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold transition-all group ${
                     plan.popular
-                      ? "bg-[#006D77] hover:bg-[#00565e] text-white shadow-sm hover:shadow-[0_0_20px_rgba(131,197,190,0.5)]"
+                      ? "bg-gradient-to-r from-[#006D77] via-[#0D9488] to-[#0A8896] hover:brightness-110 text-white shadow-md hover:shadow-[0_0_24px_rgba(13,148,136,0.5)]"
                       : "bg-[#f4f8f8] dark:bg-[#112a44] hover:bg-[#e2eeee] dark:hover:bg-[#1a3c60] text-foreground border border-border"
                   }`}
                 >
                   <span>{plan.ctaText}</span>
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
 

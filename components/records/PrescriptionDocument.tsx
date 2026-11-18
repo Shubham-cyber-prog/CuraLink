@@ -500,14 +500,14 @@ export function PrescriptionDocument({
           <div className="sm:col-span-3 text-right flex flex-col items-end">
             <div className="relative mb-2 pr-2">
               {/* Doctor Cursive Signature Graphic */}
-              <div className="font-serif italic text-lg sm:text-xl font-bold text-[#0D9488] dark:text-teal-400 tracking-wider">
-                Dr. Priya Sharma
+              <div className="font-serif italic text-lg sm:text-xl font-bold text-[#006D77] dark:text-[#83C5BE] tracking-wider">
+                {prescription.doctor.name}
               </div>
-              <div className="absolute -bottom-1 right-0 w-28 border-b-2 border-[#0D9488]/40" />
+              <div className="absolute -bottom-1 right-0 w-32 border-b-2 border-[#006D77]/40 dark:border-[#83C5BE]/40" />
 
               {/* Official Stamp Badge */}
-              <div className="mt-1 inline-flex items-center gap-1 text-[9px] uppercase font-bold text-slate-400 tracking-wider">
-                <span>[ Digitally Signed & Sealed ]</span>
+              <div className="mt-1.5 inline-flex items-center gap-1 text-[9px] uppercase font-bold text-slate-400 tracking-wider">
+                <span>[ Digitally Signed &amp; Sealed ]</span>
               </div>
             </div>
 
@@ -547,17 +547,17 @@ export function PrescriptionDocument({
           <button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <Printer className="h-3.5 w-3.5" />
-            <span>Print Prescription</span>
+            <span>Print / Save PDF</span>
           </button>
 
           {onDownloadPdf && (
             <button
               type="button"
               onClick={onDownloadPdf}
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#0D9488] hover:bg-[#0F766E] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#006D77] hover:bg-[#005a63] text-white text-xs font-medium shadow-xs transition-colors cursor-pointer"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Download PDF</span>

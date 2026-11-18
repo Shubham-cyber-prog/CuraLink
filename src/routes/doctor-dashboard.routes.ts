@@ -7,10 +7,8 @@ import { Role } from '../types/role';
 import { VitalsAiService } from '../services/vitals-ai.service';
 import { validateRequest } from '../middleware/validate.middleware';
 import { issuePrescriptionSchema } from '../validators/prescription.validator';
-
 import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 import { doctorController } from '../controllers/doctor.controller';
-
 
 const router = Router();
 
@@ -46,7 +44,7 @@ router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFun
   try {
     const doctorUserId = req.user!.id;
     const doctorIds = await getDoctorIds(doctorUserId);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
     const [
       todayAppointments,
@@ -54,6 +52,10 @@ router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFun
       completedConsultations,
       uniquePatientGroups,
       doctorProfile,
+      paidPayments,
+      todayPaidPayments,
+      reviewStats,
+      prescriptionCount,
     ] = await Promise.all([
       // Count today's active appointments directly in DB
       prisma.appointment.count({
@@ -93,9 +95,53 @@ router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFun
           verificationStatus: true,
           consultationModes: true,
           city: true,
+          bio: true,
+          experienceYears: true,
+          medicalLicenseNumber: true,
+        },
+      }),
+      // Total revenue from paid appointments
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          status: 'SUCCESS',
+          appointment: {
+            doctorId: { in: doctorIds },
+            status: { not: 'CANCELLED' },
+          },
+        },
+      }),
+      // Today's revenue
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: {
+          status: 'SUCCESS',
+          appointment: {
+            doctorId: { in: doctorIds },
+            date: todayStr,
+            status: { not: 'CANCELLED' },
+          },
+        },
+      }),
+      // Doctor rating summary
+      prisma.review.aggregate({
+        _avg: { rating: true },
+        _count: { id: true },
+        where: {
+          doctorId: { in: doctorIds },
+        },
+      }),
+      // Total prescriptions issued
+      prisma.prescription.count({
+        where: {
+          doctorId: { in: doctorIds },
         },
       }),
     ]);
+
+    const fee = doctorProfile?.consultationFee || 500;
+    const totalRevenue = paidPayments._sum.amount ?? completedConsultations * fee;
+    const todayRevenue = todayPaidPayments._sum.amount ?? 0;
 
     res.status(200).json({
       success: true,
@@ -104,11 +150,19 @@ router.get('/dashboard-stats', async (req: Request, res: Response, next: NextFun
         totalPatients: uniquePatientGroups.length,
         pendingRequests,
         completedConsultations,
-        consultationFee: doctorProfile?.consultationFee || 500,
+        consultationFee: fee,
         specialization: doctorProfile?.specialization || 'General Practice',
         verificationStatus: doctorProfile?.verificationStatus || 'APPROVED',
         consultationModes: doctorProfile?.consultationModes || ['VIDEO'],
         city: doctorProfile?.city || null,
+        bio: doctorProfile?.bio || '',
+        experienceYears: doctorProfile?.experienceYears || 0,
+        medicalLicenseNumber: doctorProfile?.medicalLicenseNumber || '',
+        totalRevenue,
+        todayRevenue,
+        averageRating: reviewStats._avg.rating ? Number(reviewStats._avg.rating.toFixed(2)) : 4.9,
+        totalReviews: reviewStats._count.id || 0,
+        prescriptionsIssued: prescriptionCount,
       },
     });
   } catch (error) {
@@ -176,18 +230,40 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
     }),
   ]);
 
-    // Query platform-wide completed appointment counts for all patient users in this list
+    // Query platform-wide completed appointment counts & latest vitals for all patient users in this list
     const patientIds = Array.from(new Set(appointments.map((a) => a.userId)));
-    const completedCounts = await prisma.appointment.groupBy({
-      by: ['userId'],
-      where: {
-        userId: { in: patientIds },
-        status: 'COMPLETED',
-      },
-      _count: { id: true },
-    });
+    const [completedCounts, latestVitalRows] = await Promise.all([
+      prisma.appointment.groupBy({
+        by: ['userId'],
+        where: {
+          userId: { in: patientIds },
+          status: 'COMPLETED',
+        },
+        _count: { id: true },
+      }),
+      patientIds.length > 0
+        ? prisma.vitalLog.findMany({
+            where: { userId: { in: patientIds } },
+            orderBy: { recordedAt: 'desc' },
+            distinct: ['userId'],
+            select: {
+              userId: true,
+              systolicBp: true,
+              diastolicBp: true,
+              bloodGlucose: true,
+              heartRate: true,
+              spO2: true,
+              temperature: true,
+              notes: true,
+              recordedAt: true,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
     const completedMap = new Map<string, number>();
     completedCounts.forEach((c) => completedMap.set(c.userId, c._count.id));
+    const vitalsMap = new Map<string, any>();
+    latestVitalRows.forEach((v) => vitalsMap.set(v.userId, v));
 
     const mapped = appointments.map((appt) => {
       const u = appt.user;
@@ -208,11 +284,29 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
         noShowCount: (u as any)?.noShowCount || 0,
       };
 
+      const v = vitalsMap.get(appt.userId) || null;
+      const latestVitals = v
+        ? {
+            bloodPressure: v.systolicBp && v.diastolicBp ? `${v.systolicBp}/${v.diastolicBp}` : null,
+            systolicBp: v.systolicBp ?? null,
+            diastolicBp: v.diastolicBp ?? null,
+            heartRate: v.heartRate ?? null,
+            spO2: v.spO2 ?? null,
+            temperature: v.temperature ?? null,
+            bloodGlucose: v.bloodGlucose ?? null,
+            notes: v.notes ?? null,
+            recordedAt: v.recordedAt,
+          }
+        : null;
+
       return {
         id: appt.id,
         patientId: appt.userId,
         patientName: appt.user?.name || 'Unknown Patient',
         patientEmail: appt.user?.email || '',
+        patientPhone: (appt.user as any)?.phone || null,
+        patientAge: (appt.user as any)?.age || null,
+        patientGender: (appt.user as any)?.gender || null,
         date: appt.date,
         time: appt.time,
         status: appt.status,
@@ -227,12 +321,115 @@ router.get('/appointments', async (req: Request, res: Response, next: NextFuncti
         doctor: appt.doctor,
         user: appt.user,
         trustCard,
+        latestVitals,
       };
     });
 
     res.status(200).json({
       success: true,
       ...buildPaginatedResponse(mapped, total, limit, page),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/doctor/me/appointments
+ * Quick schedule a walk-in or follow-up patient appointment
+ */
+router.post('/appointments', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const doctorUserId = req.user!.id;
+    const { patientName, patientEmail, patientPhone, age, gender, date, time, notes } = req.body;
+
+    if (!patientName || !date || !time) {
+      res.status(400).json({
+        success: false,
+        message: 'Patient name, date, and time are required',
+      });
+      return;
+    }
+
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId: doctorUserId },
+      select: { consultationFee: true },
+    });
+    const fee = doctorProfile?.consultationFee || 500;
+
+    const cleanEmail =
+      (patientEmail && String(patientEmail).trim().toLowerCase()) ||
+      `${String(patientName).toLowerCase().replace(/[^a-z0-9]/g, '.')}.${Date.now().toString().slice(-4)}@patient.curalink.in`;
+
+    let patient = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    if (!patient) {
+      patient = await prisma.user.create({
+        data: {
+          name: String(patientName).trim(),
+          email: cleanEmail,
+          role: 'PATIENT',
+          phone: patientPhone ? String(patientPhone).trim() : null,
+          phoneVerified: Boolean(patientPhone),
+          emailVerified: true,
+          age: age ? Number(age) : null,
+          gender: gender ? String(gender) : null,
+          profileCompletedAt: new Date(),
+        },
+      });
+    }
+
+    const shortCode = crypto.randomBytes(3).toString('hex');
+    const appointment = await prisma.appointment.create({
+      data: {
+        userId: patient.id,
+        doctorId: doctorUserId,
+        date: String(date),
+        time: String(time),
+        durationMinutes: 30,
+        timezone: 'Asia/Kolkata',
+        status: 'CONFIRMED',
+        roomName: `curalink-consult-${shortCode}`,
+        roomUrl: `/consultation/pending`,
+      },
+    });
+
+    await prisma.appointment.update({
+      where: { id: appointment.id },
+      data: { roomUrl: `/consultation/${appointment.id}` },
+    });
+
+    await prisma.payment.create({
+      data: {
+        appointmentId: appointment.id,
+        userId: patient.id,
+        amount: fee,
+        currency: 'INR',
+        status: 'SUCCESS',
+        razorpayOrderId: `walkin_${shortCode}`,
+      },
+    });
+
+    if (notes && String(notes).trim()) {
+      await prisma.vitalLog.create({
+        data: {
+          userId: patient.id,
+          notes: String(notes).trim(),
+          recordedAt: new Date(),
+        },
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Patient appointment scheduled successfully',
+      data: {
+        id: appointment.id,
+        patientId: patient.id,
+        patientName: patient.name,
+        date: appointment.date,
+        time: appointment.time,
+        status: appointment.status,
+      },
     });
   } catch (error) {
     next(error);
@@ -445,6 +642,9 @@ router.get('/patients', async (req: Request, res: Response, next: NextFunction) 
         id: group.userId,
         name: u?.name || 'Unknown Patient',
         email: u?.email || '',
+        phone: u?.phone || null,
+        age: u?.age || null,
+        gender: u?.gender || null,
         joinedDate: u?.createdAt,
         lastVisit: appt ? `${appt.date} at ${appt.time}` : 'N/A',
         lastVisitDate: appt?.date || '',

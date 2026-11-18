@@ -72,6 +72,25 @@ export function verifyResetToken(token: string, passwordHash: string): { id: str
   }
 }
 
+export function generateTwoFactorTempToken(userId: string, email: string): string {
+  return jwt.sign({ id: userId, email, purpose: '2fa_login' }, env.JWT_SECRET, { expiresIn: '5m' });
+}
+
+export function verifyTwoFactorTempToken(token: string): { id: string; email: string } {
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET) as { id?: string; email?: string; purpose?: string };
+    if (!decoded || !decoded.id || !decoded.email || decoded.purpose !== '2fa_login') {
+      throw new Error('Invalid 2FA verification token');
+    }
+    return { id: decoded.id, email: decoded.email };
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('2FA verification session expired. Please log in again.');
+    }
+    throw new Error('Invalid 2FA verification token');
+  }
+}
+
 export function decodeToken(token: string): any {
   return jwt.decode(token);
 }

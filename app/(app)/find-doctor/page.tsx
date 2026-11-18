@@ -1,19 +1,40 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { RefreshCw, MapPin, AlertCircle, Sparkles, AlertTriangle } from "lucide-react";
-import { motion, useReducedMotion } from "framer-motion";
+import {
+  Search,
+  MapPin,
+  RefreshCw,
+  AlertTriangle,
+  ShieldCheck,
+  Video,
+  Building2,
+  Stethoscope,
+  SlidersHorizontal,
+  X,
+  CheckCircle2,
+  ArrowUpDown,
+} from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Doctor } from "@/types/doctor";
 import { DoctorCard } from "@/components/doctors/DoctorCard";
-import { DoctorFilters } from "@/components/doctors/DoctorFilters";
-import { LocationInfo } from "@/components/layout/LocationSelector";
+import { LocationInfo, LocationSelector } from "@/components/layout/LocationSelector";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { AIDoctorRecommender } from "@/components/ai/AIDoctorRecommender";
 
+const SPECIALTIES = [
+  "All",
+  "General Practice",
+  "Cardiology",
+  "Dermatology",
+  "Pediatrics",
+  "Neurology",
+  "Psychiatry",
+];
+
+type SortMode = "recommended" | "fee-low" | "rating-high";
+
 export default function FindDoctorPage() {
-  const router = useRouter();
   const shouldReduceMotion = useReducedMotion();
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -22,7 +43,10 @@ export default function FindDoctorPage() {
   const [availability, setAvailability] = useState<"any-time" | "today" | "this-week">("any-time");
   const [rating, setRating] = useState<"all" | "4.8" | "4.9">("all");
   const [visitType, setVisitType] = useState<"all" | "video" | "in-person">("all");
-  const [filterByCity, setFilterByCity] = useState(true);
+  const [sortBy, setSortBy] = useState<SortMode>("recommended");
+  const [filterByCity, setFilterByCity] = useState(false);
+  const [usedNationwideFallback, setUsedNationwideFallback] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
   const [userLocation, setUserLocation] = useState<LocationInfo>({
     city: "Hisar",
     state: "Haryana",
@@ -35,24 +59,18 @@ export default function FindDoctorPage() {
       const saved = localStorage.getItem("curalink_user_location");
       if (saved) {
         const parsed = JSON.parse(saved);
-        setUserLocation(parsed);
-        // If the location was detected and unconfirmed, default filterByCity to false so we don't silently hide doctors
-        if (parsed.isDetected && !parsed.isConfirmed) {
-          setFilterByCity(false);
-        } else {
-          setFilterByCity(true);
+        if (parsed?.city) {
+          setUserLocation(parsed);
         }
       }
-    } catch (e) {}
+    } catch {
+      // Ignore storage error
+    }
 
-    const handleLoc = (e: any) => {
-      if (e.detail) {
-        setUserLocation(e.detail);
-        if (e.detail.isDetected && !e.detail.isConfirmed) {
-          setFilterByCity(false);
-        } else {
-          setFilterByCity(true);
-        }
+    const handleLoc = (e: Event) => {
+      const custom = e as CustomEvent<LocationInfo>;
+      if (custom.detail?.city) {
+        setUserLocation(custom.detail);
       }
     };
     window.addEventListener("curalink-location-changed", handleLoc);
@@ -64,6 +82,8 @@ export default function FindDoctorPage() {
       try {
         setIsLoading(true);
         setError(null);
+        setUsedNationwideFallback(false);
+
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
         const cityToFilter = shouldFilter ? (targetCity ?? userLocation.city) : undefined;
         const url =
@@ -76,10 +96,24 @@ export default function FindDoctorPage() {
         if (!res.ok || !json.success) {
           throw new Error(json.message || "Failed to load doctors");
         }
-        setDoctors(json.data || []);
+
+        const list: Doctor[] = Array.isArray(json.data) ? json.data : [];
+
+        // Smart nationwide fallback so users NEVER hit a dead-end empty page for smaller cities
+        if (shouldFilter && list.length === 0) {
+          const allRes = await fetch(`${apiBase}/doctors`);
+          const allJson = await allRes.json();
+          if (allRes.ok && allJson.success && Array.isArray(allJson.data) && allJson.data.length > 0) {
+            setDoctors(allJson.data);
+            setUsedNationwideFallback(true);
+            return;
+          }
+        }
+
+        setDoctors(list);
       } catch (err: any) {
         console.error("Error fetching verified doctors:", err);
-        setError(err.message || "Could not load doctors from server. Please try again.");
+        setError(err?.message || "Could not load verified specialists. Please retry.");
       } finally {
         setIsLoading(false);
       }
@@ -97,233 +131,368 @@ export default function FindDoctorPage() {
     setAvailability("any-time");
     setRating("all");
     setVisitType("all");
+    setSortBy("recommended");
     setFilterByCity(false);
   };
 
+  const hasActiveFilters =
+    Boolean(search.trim()) ||
+    specialty !== "All" ||
+    availability !== "any-time" ||
+    rating !== "all" ||
+    visitType !== "all" ||
+    filterByCity;
+
   const filteredDoctors = useMemo(() => {
-    return doctors.filter((doc) => {
+    const q = search.trim().toLowerCase();
+    const list = doctors.filter((doc) => {
       const matchesSearch =
-        doc.name.toLowerCase().includes(search.toLowerCase()) ||
-        doc.specialty.toLowerCase().includes(search.toLowerCase()) ||
-        (doc.city && doc.city.toLowerCase().includes(search.toLowerCase()));
+        !q ||
+        doc.name.toLowerCase().includes(q) ||
+        (doc.specialty || "").toLowerCase().includes(q) ||
+        (doc.specialization || "").toLowerCase().includes(q) ||
+        (doc.city || "").toLowerCase().includes(q);
+
       const matchesSpecialty =
         specialty === "All" ||
-        doc.specialty.toLowerCase().includes(specialty.toLowerCase()) ||
-        (doc.specialization && doc.specialization.toLowerCase().includes(specialty.toLowerCase()));
+        (doc.specialty || "").toLowerCase().includes(specialty.toLowerCase()) ||
+        (doc.specialization || "").toLowerCase().includes(specialty.toLowerCase());
+
       const matchesAvailability =
         availability === "any-time" ||
         (availability === "today" && doc.availability === "today") ||
         (availability === "this-week" &&
           (doc.availability === "today" || doc.availability === "this-week"));
-      // Rating filter: null/0 rating doctors are excluded from star filters (expected — no reviews yet)
+
       const matchesRating =
         rating === "all" || (doc.rating != null && Number(doc.rating) >= parseFloat(rating));
 
       let matchesVisitMode = true;
       if (visitType === "video") {
-        // Use real consultationModes array if available, fall back to videoConsultation bool
         matchesVisitMode = Array.isArray(doc.consultationModes)
           ? doc.consultationModes.includes("VIDEO")
-          : doc.videoConsultation;
+          : doc.videoConsultation !== false;
       } else if (visitType === "in-person") {
         matchesVisitMode =
           Boolean(doc.inPersonConsultation) ||
           (Array.isArray(doc.consultationModes) && doc.consultationModes.includes("IN_PERSON"));
       }
 
-      return (
-        matchesSearch &&
-        matchesSpecialty &&
-        matchesAvailability &&
-        matchesRating &&
-        matchesVisitMode
-      );
+      return matchesSearch && matchesSpecialty && matchesAvailability && matchesRating && matchesVisitMode;
     });
-  }, [doctors, search, specialty, availability, rating, visitType, userLocation.city]);
+
+    if (sortBy === "fee-low") {
+      return [...list].sort((a, b) => (a.consultationFee ?? 9999) - (b.consultationFee ?? 9999));
+    }
+    if (sortBy === "rating-high") {
+      return [...list].sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+    }
+    return list;
+  }, [doctors, search, specialty, availability, rating, visitType, sortBy]);
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#E2E8F0] dark:border-[#263049] pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#006D77] dark:text-[#14B8A6] mb-1">
-            <MapPin className="h-3.5 w-3.5" />
+      {/* ── BRANDED HERO SEARCH & QUICK-START BANNER ── */}
+      <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#071525] via-[#0B283C] to-[#006D77] p-6 sm:p-8 text-white shadow-[0_18px_46px_-14px_rgba(11,31,51,0.42)] border border-white/10">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-20 -right-16 h-64 w-64 rounded-full bg-[#83C5BE]/20 blur-3xl"
+        />
+
+        <div className="relative space-y-5">
+          {/* Title Row + Simple 3-Step Booking Guide */}
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/12 border border-white/15 px-3 py-1 text-[11px] font-medium text-[#83C5BE]">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>NMC Verified Specialists &bull; Instant Confirmation</span>
+              </div>
+              <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-[-0.015em] text-white">
+                Find &amp; Book a Specialist
+              </h1>
+              <p className="text-xs sm:text-sm text-white/75 max-w-xl">
+                Search verified doctors for HD Video Consultations or in-person clinic visits with upfront fees.
+              </p>
+            </div>
+
+            {/* Crystal-Clear 3-Step Guide so every user knows how booking works */}
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-white/85">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 border border-white/10 px-3 py-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#83C5BE] text-[#0B1F33] text-[10px] font-bold">
+                  1
+                </span>
+                Choose Doctor
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 border border-white/10 px-3 py-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#83C5BE] text-[#0B1F33] text-[10px] font-bold">
+                  2
+                </span>
+                Pick Time Slot
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 border border-white/10 px-3 py-1.5">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#83C5BE] text-[#0B1F33] text-[10px] font-bold">
+                  3
+                </span>
+                Pay &amp; Confirm
+              </span>
+            </div>
+          </div>
+
+          {/* Unified Single Search Bar + Location Scope + Symptom Matcher Trigger */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5 rounded-[22px] bg-white p-2 shadow-lg">
+            <div className="relative flex-1 flex items-center">
+              <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by doctor name, specialty (Cardiology, Skin), or city..."
+                className="w-full rounded-full bg-transparent pl-10 pr-8 py-2.5 text-sm text-[#0B1F33] placeholder:text-slate-400 focus:outline-none"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2.5 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="hidden md:block h-7 w-px bg-slate-200" />
+
+            {/* Clean Single Location Control */}
+            <div className="flex flex-wrap items-center gap-2 px-1.5 md:px-0">
+              <LocationSelector
+                value={userLocation}
+                onChange={(loc) => {
+                  setUserLocation(loc);
+                  setFilterByCity(true);
+                }}
+                id="doctor-filter-location-btn"
+              />
+
+              <button
+                type="button"
+                onClick={() => setFilterByCity((prev) => !prev)}
+                className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                  filterByCity
+                    ? "bg-[#006D77]/10 text-[#006D77] border border-[#006D77]/25"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200/70"
+                }`}
+              >
+                {filterByCity ? `${userLocation.city} Only` : "All India (24×7 Video)"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAssistant((v) => !v)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+                  showAssistant
+                    ? "bg-[#0B1F33] text-white"
+                    : "bg-[#006D77] hover:bg-[#005860] text-white shadow-sm"
+                }`}
+              >
+                <Stethoscope className="h-3.5 w-3.5" />
+                <span>{showAssistant ? "Hide Helper" : "Not sure? Match by Symptoms"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── OPTIONAL EXPANDABLE SPECIALTY HELPER (Collapsed by default so doctors stay above the fold!) ── */}
+      <AnimatePresence>
+        {showAssistant && (
+          <AIDoctorRecommender
+            onSelectSpecialty={(matched) => {
+              setSpecialty(matched);
+              setShowAssistant(false);
+            }}
+            onClose={() => setShowAssistant(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── COMPACT, CRYSTAL-CLEAR FILTER STRIP ── */}
+      <section className="rounded-[22px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] p-4 shadow-[0_2px_16px_-6px_rgba(11,31,51,0.05)] space-y-3.5">
+        {/* Row 1: Specialty Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {SPECIALTIES.map((spec) => {
+            const active = specialty === spec;
+            return (
+              <button
+                key={spec}
+                type="button"
+                id={`filter-specialty-${spec.toLowerCase().replace(/\s+/g, "-")}`}
+                onClick={() => setSpecialty(spec)}
+                className={`rounded-full px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                  active
+                    ? "bg-[#006D77] text-white shadow-xs"
+                    : "bg-[#F4F7F8] dark:bg-white/[0.06] text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-white/[0.12] hover:text-[#0B1F33] dark:hover:text-white"
+                }`}
+              >
+                {spec}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Row 2: Mode + Availability + Rating + Sort + Live Count */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-100 dark:border-white/[0.07]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1">
+              <SlidersHorizontal className="h-3 w-3" /> Filters:
+            </span>
+
+            {/* Consultation Mode */}
+            <div className="inline-flex rounded-full bg-[#F4F7F8] dark:bg-white/[0.06] p-0.5">
+              {[
+                { id: "all", label: "All Modes" },
+                { id: "video", label: "Video Call", icon: Video },
+                { id: "in-person", label: "Clinic", icon: Building2 },
+              ].map((m) => {
+                const active = visitType === m.id;
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setVisitType(m.id as any)}
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                      active
+                        ? "bg-white dark:bg-[#006D77] text-[#0B1F33] dark:text-white shadow-2xs"
+                        : "text-slate-500 dark:text-slate-300 hover:text-[#0B1F33] dark:hover:text-white"
+                    }`}
+                  >
+                    {Icon && <Icon className="h-3 w-3" />}
+                    <span>{m.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Availability Quick Toggle */}
+            <button
+              type="button"
+              onClick={() => setAvailability(availability === "today" ? "any-time" : "today")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors cursor-pointer ${
+                availability === "today"
+                  ? "border-[#006D77] bg-[#006D77]/10 text-[#006D77] dark:text-[#83C5BE]"
+                  : "border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]"
+              }`}
+            >
+              Available Today
+            </button>
+
+            {/* Rating Quick Toggle */}
+            <button
+              type="button"
+              onClick={() => setRating(rating === "4.8" ? "all" : "4.8")}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors cursor-pointer ${
+                rating === "4.8"
+                  ? "border-[#006D77] bg-[#006D77]/10 text-[#006D77] dark:text-[#83C5BE]"
+                  : "border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.05]"
+              }`}
+            >
+              4.8+ Rated
+            </button>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+                Reset
+              </button>
+            )}
+          </div>
+
+          {/* Right: Sort & Results Counter */}
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {isLoading ? "Loading specialists..." : `${filteredDoctors.length} verified doctor${filteredDoctors.length === 1 ? "" : "s"}`}
+            </span>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-white/10 bg-[#F4F7F8] dark:bg-white/[0.05] px-3 py-1 text-xs">
+              <ArrowUpDown className="h-3 w-3 text-slate-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortMode)}
+                aria-label="Sort doctors"
+                className="bg-transparent font-semibold text-[#0B1F33] dark:text-white focus:outline-none cursor-pointer"
+              >
+                <option value="recommended" className="text-slate-900">Recommended</option>
+                <option value="fee-low" className="text-slate-900">Fee: Low to High</option>
+                <option value="rating-high" className="text-slate-900">Highest Rated</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Friendly Nationwide Fallback Info (only shown if selected city had 0 clinics) */}
+      {usedNationwideFallback && !isLoading && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#006D77]/20 dark:border-[#83C5BE]/20 bg-[#006D77]/[0.06] dark:bg-[#83C5BE]/10 px-4 py-3 text-xs text-[#0B1F33] dark:text-slate-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-[#006D77] dark:text-[#83C5BE] shrink-0" />
             <span>
-              {filterByCity
-                ? `Showing doctors near ${userLocation.city}, ${userLocation.state}`
-                : `Showing all doctors nationwide (Location: ${userLocation.city})`}
+              No local clinic listed in <strong>{userLocation.city}</strong> yet &mdash; showing verified nationwide specialists available for instant <strong>Video Consultation</strong>.
             </span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-[36px] leading-tight font-normal tracking-[-0.015em] text-[#0B1F33] dark:text-white">
-            Book a Specialist
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-            Browse NMC-verified clinicians for video consultations and in-person visits.
-          </p>
-        </div>
-
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] px-3.5 py-1.5 text-xs font-medium text-[#006D77] dark:text-[#83C5BE] shadow-2xs self-start sm:self-auto">
-          <span>NMC Verified Directory</span>
-        </div>
-      </div>
-
-      {/* Location Notice / Detected Suggestion Banner */}
-      {userLocation.isDetected && !userLocation.isConfirmed ? (
-        <div className="rounded-2xl border border-amber-300 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-950/40 p-4 text-xs font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-amber-100 dark:bg-amber-900/60 p-2 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5">
-              <MapPin className="h-4 w-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="font-bold text-[#0F172A] dark:text-[#F1F5F9] text-sm">
-                  📍 Detected: {userLocation.city}, {userLocation.state}
-                </p>
-                <span className="rounded bg-amber-200/80 dark:bg-amber-900/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-900 dark:text-amber-200">
-                  IP / Network Estimate
-                </span>
-              </div>
-              <p className="text-amber-800 dark:text-amber-300 mt-1 text-[11.5px]">
-                Desktop browsers estimate location via IP network and may differ from your actual city. Not correct?
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
-            <button
-              onClick={() => {
-                const confirmed = { ...userLocation, isConfirmed: true };
-                setUserLocation(confirmed);
-                setFilterByCity(true);
-                try {
-                  localStorage.setItem("curalink_user_location", JSON.stringify(confirmed));
-                } catch (e) {}
-              }}
-              className="rounded-xl bg-[#006D77] hover:bg-[#0C8577] text-white px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
-            >
-              ✓ Filter by {userLocation.city}
-            </button>
-            <button
-              onClick={() => {
-                const btn = document.getElementById("doctor-filter-location-btn");
-                btn?.click();
-              }}
-              className="rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-[#1C2338] hover:bg-amber-100/50 dark:hover:bg-[#263049] text-amber-900 dark:text-amber-200 px-3.5 py-2 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              ✏️ Change City Manually
-            </button>
-            <button
-              onClick={() => {
-                setFilterByCity(false);
-              }}
-              className="rounded-xl border border-slate-200 dark:border-[#263049] bg-white dark:bg-[#1C2338] hover:bg-slate-50 dark:hover:bg-[#263049] text-slate-700 dark:text-slate-300 px-3 py-2 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              Browse All Doctors
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-teal-200/80 dark:border-teal-800/60 bg-teal-50/60 dark:bg-teal-950/40 p-4 text-xs font-medium text-teal-900 dark:text-teal-200 flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <MapPin className="h-4 w-4 text-[#006D77] dark:text-[#14B8A6] shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-[#0F172A] dark:text-[#F1F5F9]">
-                {filterByCity
-                  ? `Location-Refined Doctors in ${userLocation.city}`
-                  : "All Nationwide Doctors"}
-              </p>
-              <p className="text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-                {filterByCity
-                  ? `Displaying licensed clinicians available in or near ${userLocation.city}. Video appointments available 24/7.`
-                  : "Browsing all verified clinicians across all cities and nationwide telehealth."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 self-center">
-            <button
-              onClick={() => {
-                const btn = document.getElementById("doctor-filter-location-btn");
-                btn?.click();
-              }}
-              className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline cursor-pointer"
-            >
-              Change City
-            </button>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
-            <button
-              onClick={() => setFilterByCity(!filterByCity)}
-              className="shrink-0 text-xs font-semibold text-[#006D77] dark:text-[#14B8A6] hover:underline cursor-pointer"
-            >
-              {filterByCity ? "View all nationwide" : `Filter by ${userLocation.city}`}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setFilterByCity(false)}
+            className="font-semibold text-[#006D77] dark:text-[#83C5BE] hover:underline cursor-pointer"
+          >
+            Keep All India View
+          </button>
         </div>
       )}
 
-      {/* AI Doctor Recommender */}
-      <AIDoctorRecommender />
-
-      {/* Filters */}
-      <DoctorFilters
-        specialty={specialty}
-        setSpecialty={setSpecialty}
-        availability={availability}
-        setAvailability={setAvailability}
-        rating={rating}
-        setRating={setRating}
-        visitType={visitType}
-        setVisitType={setVisitType}
-        userLocation={userLocation}
-        onLocationChange={(loc) => {
-          setUserLocation(loc);
-          setFilterByCity(true);
-        }}
-        filterByCity={filterByCity}
-        setFilterByCity={setFilterByCity}
-      />
-
-      {/* Doctor Listings */}
+      {/* ── DOCTOR DIRECTORY LISTINGS ── */}
       <div className="space-y-4">
         {error ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30 p-8 text-center space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400">
+          <div className="flex flex-col items-center justify-center rounded-[24px] border border-rose-200 dark:border-rose-900/50 bg-rose-50/60 dark:bg-rose-950/30 p-8 text-center space-y-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-900/60 text-rose-600 dark:text-rose-400">
               <AlertTriangle className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-bold text-red-900 dark:text-red-200">
-              Unable to Load Doctors
+            <h3 className="text-base font-bold text-rose-900 dark:text-rose-200">
+              Unable to Load Specialists
             </h3>
-            <p className="max-w-md text-xs text-red-700 dark:text-red-300">
-              {error}
-            </p>
+            <p className="max-w-md text-xs text-rose-700 dark:text-rose-300">{error}</p>
             <button
+              type="button"
               onClick={() => fetchDoctors(userLocation.city, filterByCity)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.97]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 text-xs font-semibold transition-colors cursor-pointer"
             >
-              <RefreshCw className="h-3.5 w-3.5" /> Retry Connection
+              <RefreshCw className="h-3.5 w-3.5" /> Retry
             </button>
           </div>
         ) : isLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4].map((n) => (
+            {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-28 rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-5 flex items-center justify-between"
+                className="rounded-[24px] border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] p-6 flex items-center justify-between gap-4"
               >
-                <div className="flex items-center gap-4">
-                  <Skeleton className="h-16 w-16 rounded-2xl shrink-0" />
-                  <div className="space-y-2">
+                <div className="flex items-center gap-4 flex-1">
+                  <Skeleton className="h-20 w-20 rounded-[20px] shrink-0" />
+                  <div className="space-y-2.5 flex-1 max-w-md">
                     <Skeleton className="h-5 w-48 rounded-lg" />
                     <Skeleton className="h-4 w-36 rounded-md" />
-                    <Skeleton className="h-3.5 w-60 rounded-md" />
+                    <Skeleton className="h-3.5 w-64 rounded-md" />
                   </div>
                 </div>
-                <Skeleton className="h-11 w-32 rounded-xl shrink-0" />
+                <Skeleton className="h-10 w-32 rounded-full shrink-0" />
               </div>
             ))}
           </div>
         ) : filteredDoctors.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             {filteredDoctors.map((doctor, index) => (
               <motion.div
                 key={doctor.id}
@@ -333,64 +502,37 @@ export default function FindDoctorPage() {
                       initial: { opacity: 0, y: 8 },
                       animate: { opacity: 1, y: 0 },
                       transition: {
-                        duration: 0.25,
-                        delay: index * 0.05,
+                        duration: 0.22,
+                        delay: Math.min(index * 0.04, 0.25),
                         ease: [0.16, 1, 0.3, 1],
                       },
                     })}
               >
-                <DoctorCard
-                  doctor={doctor}
-                  userCity={userLocation.city}
-                />
+                <DoctorCard doctor={doctor} userCity={userLocation.city} />
               </motion.div>
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] p-8 text-center space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+          <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 dark:border-white/15 bg-white dark:bg-[#0B1F33] p-10 text-center space-y-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#006D77]/10 dark:bg-[#83C5BE]/15 text-[#006D77] dark:text-[#83C5BE]">
               <MapPin className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-bold text-[#0F172A] dark:text-[#F1F5F9]">
-              {filterByCity
-                ? `No doctors found in ${userLocation.city} yet`
-                : "No doctors found matching your filters"}
+            <h3 className="font-serif text-xl text-[#0B1F33] dark:text-white">
+              No doctors matched those filters
             </h3>
-            <p className="max-w-md text-xs text-[#64748B] dark:text-[#94A3B8]">
-              {filterByCity
-                ? `We don't have clinicians registered in ${userLocation.city} yet. Try selecting a nearby area or browse all nationwide telehealth doctors!`
-                : "No verified doctors match your current search or specialty criteria. Try resetting filters or browsing all medical specialties!"}
+            <p className="max-w-md text-xs text-slate-500 dark:text-slate-400">
+              Try clearing your filters or viewing all verified specialists available across India via Video Consultation.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  const btn = document.getElementById("doctor-filter-location-btn");
-                  btn?.click();
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-[#263049] bg-white dark:bg-[#1C2338] px-4 py-2 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] transition-colors cursor-pointer"
-              >
-                <MapPin className="h-3.5 w-3.5 text-[#006D77]" /> Change city manually
-              </button>
-              {filterByCity && (
-                <button
-                  onClick={() => setFilterByCity(false)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#006D77] hover:bg-[#0C8577] text-white px-4 py-2 text-xs font-semibold transition-colors cursor-pointer active:scale-[0.97]"
-                >
-                  <Sparkles className="h-3.5 w-3.5" /> Show all nationwide doctors
-                </button>
-              )}
-              <button
-                onClick={handleClearFilters}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#1C2338] px-4 py-2 text-xs font-semibold text-[#0F172A] dark:text-[#F1F5F9] hover:bg-slate-50 dark:hover:bg-[#263049] transition-colors cursor-pointer active:scale-[0.97]"
-              >
-                <RefreshCw className="h-3.5 w-3.5" /> Clear all filters
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#006D77] hover:bg-[#005860] text-white px-5 py-2.5 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Show All Verified Doctors
+            </button>
           </div>
         )}
       </div>
     </div>
   );
 }
-

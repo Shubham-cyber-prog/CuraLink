@@ -2,50 +2,112 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import {
-  Sparkles,
   Send,
   Loader2,
-  Bot,
   ArrowRight,
   AlertTriangle,
   Stethoscope,
+  CheckCircle2,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 
 const EXAMPLE_QUERIES = [
-  "I have lower back pain for 2 weeks",
-  "My child has a rash and mild fever",
-  "Need a Hindi-speaking dermatologist",
-  "Persistent migraines with nausea",
+  "Chest tightness & high BP",
+  "Skin rash or acne flare-up",
+  "Child has mild fever & cough",
+  "Frequent migraines & dizziness",
 ];
 
-export function AIDoctorRecommender() {
+const SPECIALTY_KEYWORDS: Array<{ specialty: string; keywords: string[]; reason: string; urgency: string }> = [
+  {
+    specialty: "Cardiology",
+    keywords: ["heart", "chest", "bp", "blood pressure", "palpitation", "cholesterol", "breathless", "ecg"],
+    reason: "Cardiologists evaluate heart rhythm, blood pressure, and cardiovascular symptoms.",
+    urgency: "If you have severe chest pain or shortness of breath, seek emergency care immediately (112).",
+  },
+  {
+    specialty: "Dermatology",
+    keywords: ["skin", "rash", "acne", "itch", "hair", "eczema", "allergy", "pimple", "fungal"],
+    reason: "Dermatologists diagnose and treat skin rashes, acne, allergies, and scalp concerns.",
+    urgency: "Routine — book a Video or Clinic visit at your convenience.",
+  },
+  {
+    specialty: "Pediatrics",
+    keywords: ["child", "baby", "kid", "infant", "toddler", "son", "daughter", "pediatric"],
+    reason: "Pediatricians specialize in infant, child, and adolescent fevers, infections, and growth care.",
+    urgency: "See a doctor within 24 hours if fever persists above 101°F.",
+  },
+  {
+    specialty: "Neurology",
+    keywords: ["migraine", "headache", "dizzy", "dizziness", "nerve", "numbness", "seizure", "vertigo", "memory"],
+    reason: "Neurologists treat recurring migraines, nerve pain, vertigo, and neurological symptoms.",
+    urgency: "Schedule promptly; seek urgent care for sudden weakness or vision changes.",
+  },
+  {
+    specialty: "Psychiatry",
+    keywords: ["anxiety", "stress", "depress", "sleep", "insomnia", "panic", "mental", "mood", "overwhelmed"],
+    reason: "Psychiatrists provide confidential evaluation and care for anxiety, sleep, and mood concerns.",
+    urgency: "Routine — confidential video consultations are available.",
+  },
+  {
+    specialty: "General Practice",
+    keywords: ["fever", "cold", "cough", "back", "pain", "stomach", "fatigue", "weakness", "throat", "body ache"],
+    reason: "General Physicians are the ideal first step for fevers, body aches, infections, and checkups.",
+    urgency: "Same-day video consultation recommended.",
+  },
+];
+
+function detectSpecialtyFromText(text: string): { specialty: string; reason: string; urgency: string } {
+  const lower = text.toLowerCase();
+  for (const item of SPECIALTY_KEYWORDS) {
+    if (item.keywords.some((kw) => lower.includes(kw))) {
+      return { specialty: item.specialty, reason: item.reason, urgency: item.urgency };
+    }
+  }
+  return {
+    specialty: "General Practice",
+    reason: "A General Physician can thoroughly assess your symptoms and coordinate any specialist follow-up.",
+    urgency: "Schedule a consultation at your convenience.",
+  };
+}
+
+interface AIDoctorRecommenderProps {
+  onSelectSpecialty?: (specialty: string) => void;
+  onClose?: () => void;
+}
+
+export function AIDoctorRecommender({ onSelectSpecialty, onClose }: AIDoctorRecommenderProps) {
   const shouldReduceMotion = useReducedMotion();
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<string>("");
+  const [matchedSpecialty, setMatchedSpecialty] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = useCallback(
     async (searchQuery?: string) => {
-      const q = searchQuery || query;
-      if (!q.trim() || isLoading) return;
+      const q = (searchQuery ?? query).trim();
+      if (!q || isLoading) return;
 
       setIsLoading(true);
       setHasSearched(true);
       setResult("");
 
+      const fallbackMatch = detectSpecialtyFromText(q);
+      setMatchedSpecialty(fallbackMatch.specialty);
+
       try {
         const res = await fetch("/api/ai/recommend-doctor", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: q.trim() }),
+          body: JSON.stringify({ query: q }),
         });
 
         if (!res.ok) {
-          throw new Error("Failed to get recommendation");
+          throw new Error("AI endpoint unavailable");
         }
 
         const reader = res.body?.getReader();
@@ -62,14 +124,23 @@ export function AIDoctorRecommender() {
           }
         }
 
-        if (!fullText) {
+        if (!fullText.trim()) {
           setResult(
-            "I couldn't generate a recommendation. Please try describing your concern in more detail."
+            `**Recommended Specialty: ${fallbackMatch.specialty}**\n\n- ${fallbackMatch.reason}\n- **Guidance:** ${fallbackMatch.urgency}`
           );
+        } else {
+          // Refine matched specialty chip based on AI text
+          const detectedFromAi = SPECIALTY_KEYWORDS.find((s) =>
+            fullText.toLowerCase().includes(s.specialty.toLowerCase())
+          );
+          if (detectedFromAi) {
+            setMatchedSpecialty(detectedFromAi.specialty);
+          }
         }
-      } catch (err) {
+      } catch {
+        // Instant deterministic clinical fallback so users ALWAYS get actionable help
         setResult(
-          "⚠️ AI recommender is temporarily unavailable. Please browse the doctor listings below or try again in a moment."
+          `**Recommended Specialty: ${fallbackMatch.specialty}**\n\n- ${fallbackMatch.reason}\n- **Guidance:** ${fallbackMatch.urgency}`
         );
       } finally {
         setIsLoading(false);
@@ -90,105 +161,124 @@ export function AIDoctorRecommender() {
 
   return (
     <motion.div
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] as const }}
-      className="rounded-2xl border border-[#E2E8F0] dark:border-[#263049] bg-white dark:bg-[#151B2E] shadow-xs overflow-hidden transition-colors duration-200"
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-[24px] border border-[#006D77]/20 dark:border-[#83C5BE]/20 bg-white dark:bg-[#0B1F33] shadow-[0_8px_30px_-8px_rgba(11,31,51,0.08)] overflow-hidden"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-slate-200/90 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 px-5 py-3.5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0D9488] dark:text-[#14B8A6] border border-teal-200/60 dark:border-teal-800/50">
-          <Stethoscope className="h-4 w-4" />
+      <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-white/[0.08] bg-[#F4F7F8]/80 dark:bg-white/[0.03] px-5 py-3.5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#006D77]/10 dark:bg-[#83C5BE]/15 text-[#006D77] dark:text-[#83C5BE]">
+            <Stethoscope className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[#0B1F33] dark:text-white">
+              Smart Specialty Assistant
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Tell us your symptoms in simple words — we&apos;ll suggest the right doctor specialty.
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-            Specialty Matching Assistant
-            <span className="inline-flex items-center rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200/60 dark:border-teal-800/40 px-2 py-0.2 text-[10px] font-medium text-[#0D9488] dark:text-[#14B8A6]">
-              Clinical Triage
-            </span>
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Describe symptoms or needs in plain language to identify the right medical specialty
-          </p>
-        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200/70 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+            aria-label="Close assistant"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
-      {/* Body */}
       <div className="p-5 space-y-4">
-        {/* Search Form */}
-        <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Bot className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#006D77] dark:text-[#83C5BE]" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Describe your health concern…"
-              className="w-full rounded-xl border border-border bg-surface-elevated pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted focus:border-[#006D77] focus:ring-2 focus:ring-[#83C5BE]/25 focus:bg-white dark:focus:bg-[#0B1F33] focus:outline-none transition-colors"
-              disabled={isLoading}
-            />
-          </div>
+        <form onSubmit={handleFormSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="e.g. I have chest tightness and high BP for 3 days..."
+            className="flex-1 rounded-full border border-slate-200 dark:border-white/12 bg-[#F4F7F8] dark:bg-[#071525] px-4 py-2.5 text-sm text-[#0B1F33] dark:text-white placeholder:text-slate-400 focus:border-[#006D77] dark:focus:border-[#83C5BE] focus:bg-white dark:focus:bg-[#071525] focus:outline-none focus:ring-2 focus:ring-[#006D77]/15"
+            disabled={isLoading}
+          />
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
-            className="flex h-10 items-center gap-1.5 rounded-xl bg-[#006D77] px-4 text-sm font-semibold text-white hover:bg-[#00565e] disabled:opacity-40 transition-all active:scale-[0.97] cursor-pointer whitespace-nowrap shadow-xs hover:shadow-[0_0_12px_rgba(131,197,190,0.4)]"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#006D77] hover:bg-[#005860] px-5 text-xs font-semibold text-white disabled:opacity-45 transition-all cursor-pointer whitespace-nowrap"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
                 <Send className="h-3.5 w-3.5" />
-                Find
+                <span>Match Specialty</span>
               </>
             )}
           </button>
         </form>
 
-        {/* Example Queries */}
-        {!hasSearched && (
-          <div className="flex flex-wrap gap-2">
-            {EXAMPLE_QUERIES.map((ex) => (
-              <button
-                key={ex}
-                onClick={() => handleExampleClick(ex)}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted hover:border-[#83C5BE]/60 hover:text-[#006D77] dark:hover:text-[#83C5BE] transition-colors cursor-pointer"
-              >
-                <ArrowRight className="h-3 w-3" />
-                {ex}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Quick-Tap Examples */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium text-slate-400">Try:</span>
+          {EXAMPLE_QUERIES.map((ex) => (
+            <button
+              key={ex}
+              type="button"
+              onClick={() => handleExampleClick(ex)}
+              className="inline-flex items-center gap-1 rounded-full border border-slate-200/90 dark:border-white/10 bg-white dark:bg-white/[0.04] px-3 py-1 text-xs text-slate-600 dark:text-slate-300 hover:border-[#006D77]/50 hover:text-[#006D77] dark:hover:text-[#83C5BE] transition-colors cursor-pointer"
+            >
+              <ArrowRight className="h-3 w-3 opacity-60" />
+              {ex}
+            </button>
+          ))}
+        </div>
 
-        {/* Result */}
         <AnimatePresence>
           {hasSearched && (
             <motion.div
               initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-              className="rounded-xl border border-[#83C5BE]/40 bg-[#006D77]/5 dark:bg-[#006D77]/15 p-4"
+              className="rounded-2xl border border-[#006D77]/20 dark:border-[#83C5BE]/20 bg-[#006D77]/[0.04] dark:bg-[#83C5BE]/[0.06] p-4 space-y-3"
             >
               {isLoading && !result ? (
-                <div className="flex items-center gap-2 text-sm text-muted">
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
                   <Loader2 className="h-4 w-4 animate-spin text-[#006D77] dark:text-[#83C5BE]" />
-                  <span>Analyzing your concern...</span>
+                  <span>Finding the right specialist for your symptoms...</span>
                 </div>
               ) : (
-                <div className="prose-sm prose-slate dark:prose-invert max-w-none [&>p]:text-[13px] [&>p]:leading-relaxed [&>ul]:text-[13px] [&>ul>li]:leading-relaxed">
-                  <ReactMarkdown>{result}</ReactMarkdown>
-                </div>
+                <>
+                  <div className="prose-sm prose-slate dark:prose-invert max-w-none [&>p]:text-[13px] [&>p]:leading-relaxed [&>ul]:text-[13px] [&>ul>li]:leading-relaxed">
+                    <ReactMarkdown>{result}</ReactMarkdown>
+                  </div>
+                  {matchedSpecialty && onSelectSpecialty && (
+                    <div className="pt-2 border-t border-[#006D77]/15 dark:border-white/10 flex flex-wrap items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#006D77] dark:text-[#83C5BE]">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Best match: {matchedSpecialty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onSelectSpecialty(matchedSpecialty)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-[#006D77] hover:bg-[#005860] text-white px-4 py-1.5 text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        <span>Filter {matchedSpecialty} Doctors</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Disclaimer */}
-        <div className="flex items-start gap-1.5 text-[10px] text-amber-600 dark:text-amber-400">
-          <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-          <span>AI-powered guidance only. Not a substitute for professional medical advice.</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-amber-700/90 dark:text-amber-400">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span>Guidance only — not a medical diagnosis. For emergencies, call 112.</span>
         </div>
       </div>
     </motion.div>

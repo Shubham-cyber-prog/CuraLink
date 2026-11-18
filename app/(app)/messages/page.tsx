@@ -11,21 +11,24 @@ import {
   Clock,
   Search,
   FileText,
+  AlertCircle,
+  Loader2,
+  CheckCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { api } from "@/lib/api";
 import {
   formatDateIST,
   formatDoctorName,
   getDoctorAvatar,
 } from "@/lib/clinical-formatters";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
 interface ChatMessage {
   id: string;
   sender: "self" | "other";
   text: string;
   time: string;
+  read?: boolean;
 }
 
 interface ChatContact {
@@ -48,145 +51,121 @@ export default function MessagesPage() {
   const [contactSearch, setContactSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const getHeaders = () => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("curalink_token") || sessionStorage.getItem("curalink_token")
-        : null;
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    return headers;
-  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // 1. Load authenticated user & appointment-linked contacts via shared api client
   useEffect(() => {
+    let mounted = true;
     async function loadContacts() {
       try {
         setIsLoading(true);
-        const meRes = await fetch(`${API_BASE}/auth/me`, {
-          headers: getHeaders(),
-          credentials: "include",
-        });
-        if (!meRes.ok) return;
-        const meData = await meRes.json();
-        const user = meData.data?.user || meData.data;
+        const meRes = await api.get("/auth/me");
+        if (!meRes?.success || !meRes.data) return;
+        const user = meRes.data.user || meRes.data;
+        if (!mounted) return;
         setCurrentUser(user);
 
         if (user.role === "DOCTOR") {
-          const apptRes = await fetch(`${API_BASE}/doctor/me/appointments`, {
-            headers: getHeaders(),
-            credentials: "include",
-          });
-          if (apptRes.ok) {
-            const apptData = await apptRes.json();
-            if (apptData.success && Array.isArray(apptData.data)) {
-              const map = new Map<string, ChatContact>();
-              for (const a of apptData.data) {
-                if (!map.has(a.patientId)) {
-                  map.set(a.patientId, {
-                    id: a.patientId,
-                    name: a.patientName || "Patient",
-                    subtitle: `${formatDateIST(a.date)} • ${a.time} IST`,
-                    appointmentId: a.id,
-                    date: a.date,
-                    time: a.time,
-                    status: (a.status || "PENDING").toUpperCase(),
-                  });
-                }
+          const apptRes = await api.get("/doctor/me/appointments");
+          if (apptRes?.success && Array.isArray(apptRes.data) && mounted) {
+            const map = new Map<string, ChatContact>();
+            for (const a of apptRes.data) {
+              if (!map.has(a.patientId)) {
+                map.set(a.patientId, {
+                  id: a.patientId,
+                  name: a.patientName || "Patient",
+                  subtitle: `${formatDateIST(a.date)} • ${a.time} IST`,
+                  appointmentId: a.id,
+                  date: a.date,
+                  time: a.time,
+                  status: (a.status || "PENDING").toUpperCase(),
+                });
               }
-              const list = Array.from(map.values());
-              setContacts(list);
-              if (list.length > 0) setSelectedContact(list[0]);
             }
+            const list = Array.from(map.values());
+            setContacts(list);
+            if (list.length > 0) setSelectedContact(list[0]);
           }
         } else {
           const [apptRes, docRes] = await Promise.all([
-            fetch(`${API_BASE}/appointments/my-appointments`, {
-              headers: getHeaders(),
-              credentials: "include",
-            }),
-            fetch(`${API_BASE}/doctors/verified`, { headers: getHeaders() }),
+            api.get("/appointments/my-appointments").catch(() => null),
+            api.get("/doctors/verified").catch(() => null),
           ]);
 
           const docMap: Record<string, any> = {};
-          if (docRes.ok) {
-            const docData = await docRes.json();
-            if (docData.success && Array.isArray(docData.data)) {
-              for (const d of docData.data) {
-                docMap[d.id] = d;
-                if (d.userId) docMap[d.userId] = d;
-              }
+          if (docRes?.success && Array.isArray(docRes.data)) {
+            for (const d of docRes.data) {
+              docMap[d.id] = d;
+              if (d.userId) docMap[d.userId] = d;
             }
           }
 
-          if (apptRes.ok) {
-            const apptData = await apptRes.json();
-            if (apptData.success && Array.isArray(apptData.data)) {
-              const map = new Map<string, ChatContact>();
-              const sorted = [...apptData.data].sort((a: any, b: any) => {
-                if (a.status === "CONFIRMED" && b.status !== "CONFIRMED") return -1;
-                if (b.status === "CONFIRMED" && a.status !== "CONFIRMED") return 1;
-                return 0;
-              });
+          if (apptRes?.success && Array.isArray(apptRes.data) && mounted) {
+            const map = new Map<string, ChatContact>();
+            const sorted = [...apptRes.data].sort((a: any, b: any) => {
+              if (a.status === "CONFIRMED" && b.status !== "CONFIRMED") return -1;
+              if (b.status === "CONFIRMED" && a.status !== "CONFIRMED") return 1;
+              return 0;
+            });
 
-              for (const a of sorted) {
-                const doc = a.doctor || docMap[a.doctorId];
-                const docId = a.doctorId;
-                const rawName = doc?.name || "Dr. Priya Sharma";
-                const safeName = rawName.toLowerCase().includes("gregory house")
-                  ? "Dr. Priya Sharma"
-                  : formatDoctorName(rawName);
-                if (!map.has(docId)) {
-                  map.set(docId, {
-                    id: docId,
-                    name: safeName,
-                    subtitle: doc?.specialty || doc?.specialization || "Internal Medicine",
-                    avatarUrl: getDoctorAvatar(safeName, doc?.photoUrl),
-                    appointmentId: a.id,
-                    date: a.date,
-                    time: a.time,
-                    status: (a.status || "PENDING").toUpperCase(),
-                  });
-                }
+            for (const a of sorted) {
+              const doc = a.doctor || docMap[a.doctorId];
+              const docId = a.doctorId;
+              const rawName = doc?.name || "Dr. Priya Sharma";
+              const safeName = rawName.toLowerCase().includes("gregory house")
+                ? "Dr. Priya Sharma"
+                : formatDoctorName(rawName);
+              if (!map.has(docId)) {
+                map.set(docId, {
+                  id: docId,
+                  name: safeName,
+                  subtitle: doc?.specialty || doc?.specialization || "Internal Medicine",
+                  avatarUrl: getDoctorAvatar(safeName, doc?.photoUrl),
+                  appointmentId: a.id,
+                  date: a.date,
+                  time: a.time,
+                  status: (a.status || "PENDING").toUpperCase(),
+                });
               }
-              const list = Array.from(map.values());
-              setContacts(list);
-              if (list.length > 0) setSelectedContact(list[0]);
             }
+            const list = Array.from(map.values());
+            setContacts(list);
+            if (list.length > 0) setSelectedContact(list[0]);
           }
         }
       } catch (err) {
         console.warn("Error loading chat contacts:", err);
       } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     }
     loadContacts();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
+  // 2. Live message polling using shared api client (Bearer + cookies)
   useEffect(() => {
     if (!selectedContact?.appointmentId || !currentUser) return;
     const apptId = selectedContact.appointmentId;
     let isMounted = true;
+    setSendError(null);
 
     async function fetchMessages() {
       try {
-        const res = await fetch(`${API_BASE}/messages?appointmentId=${apptId}`, {
-          headers: getHeaders(),
-          credentials: "include",
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data) && isMounted) {
+        const data = await api.get(`/messages?appointmentId=${encodeURIComponent(apptId)}&limit=100`);
+        if (data?.success && Array.isArray(data.data) && isMounted) {
           const mapped: ChatMessage[] = data.data.map((m: any) => ({
             id: m.id,
             sender: m.senderId === currentUser.id ? "self" : "other",
             text: m.content,
+            read: Boolean(m.read),
             time: new Date(m.createdAt).toLocaleTimeString("en-IN", {
               timeZone: "Asia/Kolkata",
               hour: "2-digit",
@@ -196,55 +175,65 @@ export default function MessagesPage() {
           setMessages(mapped);
         }
       } catch {
-        // Silent retry
+        // Silent polling retry
       }
     }
 
     fetchMessages();
-    const interval = setInterval(fetchMessages, 3500);
+    const interval = setInterval(fetchMessages, 3000);
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
   }, [selectedContact?.appointmentId, currentUser?.id]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !selectedContact?.appointmentId || !currentUser || isSending) return;
+  // 3. Send message with automatic CSRF token + Bearer auth via api.post
+  const sendMessage = async (textToSend: string) => {
+    if (!textToSend.trim() || !selectedContact?.appointmentId || !currentUser || isSending) return;
 
-    const content = input.trim();
+    const content = textToSend.trim();
     setInput("");
+    setSendError(null);
     setIsSending(true);
 
     try {
-      const res = await fetch(`${API_BASE}/messages`, {
-        method: "POST",
-        headers: getHeaders(),
-        credentials: "include",
-        body: JSON.stringify({
-          appointmentId: selectedContact.appointmentId,
-          content,
-        }),
+      const data = await api.post("/messages", {
+        appointmentId: selectedContact.appointmentId,
+        content,
       });
-      const data = await res.json();
-      if (data.success && data.data) {
-        setMessages((prev) => [
+
+      if (!data?.success || !data.data) {
+        throw new Error(data?.message || "Could not send message.");
+      }
+
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === data.data.id)) return prev;
+        return [
           ...prev,
           {
             id: data.data.id,
             sender: "self",
             text: data.data.content,
+            read: false,
             time: new Date(data.data.createdAt).toLocaleTimeString("en-IN", {
               timeZone: "Asia/Kolkata",
               hour: "2-digit",
               minute: "2-digit",
             }),
           },
-        ]);
-      }
+        ];
+      });
+    } catch (err: any) {
+      setInput(content);
+      setSendError(err?.message || "Failed to send message. Please try again.");
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendMessage(input);
   };
 
   const filteredContacts = useMemo(() => {
@@ -254,6 +243,19 @@ export default function MessagesPage() {
       (c) => c.name.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q)
     );
   }, [contacts, contactSearch]);
+
+  const quickReplies =
+    currentUser?.role === "DOCTOR"
+      ? [
+          "Please join the video room when ready.",
+          "Your digital prescription has been uploaded.",
+          "Kindly share your latest BP / glucose reading.",
+        ]
+      : [
+          "Hello Doctor, I am ready for the consultation.",
+          "I have uploaded my latest vitals.",
+          "Quick question about my prescribed dosage.",
+        ];
 
   return (
     <div className="space-y-7">
@@ -266,7 +268,7 @@ export default function MessagesPage() {
           Messages
         </h1>
         <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-          Communicate directly with your consulting doctors regarding appointments and prescriptions.
+          Real-time messaging directly connected to your scheduled consultations.
         </p>
       </div>
 
@@ -303,7 +305,7 @@ export default function MessagesPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-12 h-[620px] rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] overflow-hidden shadow-[0_4px_24px_-6px_rgba(11,31,51,0.07)]">
+        <div className="grid grid-cols-1 md:grid-cols-12 h-[640px] rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] overflow-hidden shadow-[0_4px_24px_-6px_rgba(11,31,51,0.07)]">
           {/* Sidebar */}
           <div className="md:col-span-4 border-b md:border-b-0 md:border-r border-slate-100 dark:border-white/[0.08] bg-[#F7FAFB] dark:bg-[#071320]/60 p-4 flex flex-col gap-3.5 overflow-y-auto">
             <div className="relative">
@@ -325,11 +327,10 @@ export default function MessagesPage() {
                     type="button"
                     key={c.id}
                     onClick={() => setSelectedContact(c)}
-                    className={`w-full text-left flex items-center gap-3 rounded-2xl p-3 border transition-all cursor-pointer ${
-                      isSelected
-                        ? "bg-white dark:bg-[#0B1F33] border-slate-200/90 dark:border-white/[0.12] shadow-xs"
-                        : "border-transparent hover:bg-white/70 dark:hover:bg-white/[0.04]"
-                    }`}
+                    className={`w-full text-left flex items-center gap-3 rounded-2xl p-3 border transition-all cursor-pointer ${isSelected
+                      ? "bg-white dark:bg-[#0B1F33] border-slate-200/90 dark:border-white/[0.12] shadow-xs"
+                      : "border-transparent hover:bg-white/70 dark:hover:bg-white/[0.04]"
+                      }`}
                   >
                     <div className="h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/[0.1] bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
                       {c.avatarUrl ? (
@@ -366,6 +367,7 @@ export default function MessagesPage() {
           </div>
 
           {/* Active Chat Thread */}
+          
           {selectedContact ? (
             <div className="md:col-span-8 flex flex-col h-full bg-white dark:bg-[#0B1F33]">
               <div className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-white/[0.08] px-6 py-4">
@@ -408,7 +410,7 @@ export default function MessagesPage() {
                     <Clock className="h-3.5 w-3.5" />
                     Pending Confirmation
                   </span>
-                ) : (
+                ) : currentUser?.role === "PATIENT" ? (
                   <Link
                     href="/records"
                     className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full border border-slate-200 dark:border-white/[0.12] text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/[0.06] whitespace-nowrap"
@@ -416,9 +418,10 @@ export default function MessagesPage() {
                     <FileText className="h-3.5 w-3.5" />
                     <span>View e-Rx</span>
                   </Link>
-                )}
+                ) : null}
               </div>
 
+              {/* Messages List */}
               <div className="flex-1 overflow-y-auto p-6 space-y-3.5 bg-[#F7FAFB] dark:bg-[#071320]">
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 p-6">
@@ -431,21 +434,26 @@ export default function MessagesPage() {
                   messages.map((m) => (
                     <div
                       key={m.id}
-                      className={`flex flex-col ${
-                        m.sender === "self" ? "items-end" : "items-start"
-                      }`}
+                      className={`flex flex-col ${m.sender === "self" ? "items-end" : "items-start"
+                        }`}
                     >
                       <div
-                        className={`max-w-[80%] sm:max-w-md rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                          m.sender === "self"
-                            ? "bg-[#006D77] text-white rounded-br-sm shadow-xs"
-                            : "bg-white dark:bg-[#0B1F33] text-[#0B1F33] dark:text-slate-100 border border-slate-200/80 dark:border-white/[0.08] rounded-bl-sm shadow-2xs"
-                        }`}
+                        className={`max-w-[80%] sm:max-w-md rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${m.sender === "self"
+                          ? "bg-[#006D77] text-white rounded-br-sm shadow-xs"
+                          : "bg-white dark:bg-[#0B1F33] text-[#0B1F33] dark:text-slate-100 border border-slate-200/80 dark:border-white/[0.08] rounded-bl-sm shadow-2xs"
+                          }`}
                       >
                         {m.text}
                       </div>
-                      <span className="mt-1 text-[11px] text-slate-400 px-1">
+                      <span className="mt-1 text-[11px] text-slate-400 px-1 inline-flex items-center gap-1">
                         {m.time} IST
+                        {m.sender === "self" && (
+                          <CheckCheck
+                            className={`h-3 w-3 ${
+                              m.read ? "text-[#006D77] dark:text-[#83C5BE]" : "text-slate-400"
+                            }`}
+                          />
+                        )}
                       </span>
                     </div>
                   ))
@@ -453,9 +461,33 @@ export default function MessagesPage() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Error banner if send fails */}
+              {sendError && (
+                <div className="px-4 py-2 bg-rose-50 dark:bg-rose-950/40 border-t border-rose-200 dark:border-rose-900 flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{sendError}</span>
+                </div>
+              )}
+
+              {/* Quick Reply Chips */}
+              <div className="px-4 pt-2.5 pb-1 bg-white dark:bg-[#0B1F33] border-t border-slate-100 dark:border-white/[0.06] flex items-center gap-1.5 overflow-x-auto">
+                {quickReplies.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    disabled={isSending}
+                    onClick={() => sendMessage(q)}
+                    className="whitespace-nowrap shrink-0 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-[#F4F7F8] dark:bg-white/[0.04] px-3 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:border-[#006D77]/40 hover:text-[#006D77] dark:hover:text-[#83C5BE] transition-colors cursor-pointer"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input Footer */}
               <form
                 onSubmit={handleSend}
-                className="flex items-center gap-2.5 border-t border-slate-100 dark:border-white/[0.08] p-4 bg-white dark:bg-[#0B1F33]"
+                className="flex items-center gap-2.5 p-4 pt-2.5 bg-white dark:bg-[#0B1F33]"
               >
                 <input
                   type="text"
@@ -470,7 +502,7 @@ export default function MessagesPage() {
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#006D77] hover:bg-[#005860] text-white disabled:opacity-40 shadow-xs transition-colors cursor-pointer"
                   aria-label="Send message"
                 >
-                  <Send className="h-4 w-4" />
+                  {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </form>
             </div>

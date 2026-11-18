@@ -253,10 +253,10 @@ export class AppointmentService {
         : null,
       patient: apt.user
         ? {
-            id: apt.user.id,
-            name: apt.user.name,
-            email: apt.user.email,
-          }
+          id: apt.user.id,
+          name: apt.user.name,
+          email: apt.user.email,
+        }
         : null,
     }));
 

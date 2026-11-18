@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -32,6 +32,8 @@ import {
   Sparkles,
   ExternalLink,
   Award,
+  Camera,
+  Upload,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,7 @@ interface UserProfile {
   phoneVerified?: boolean;
   age?: number | null;
   gender?: string | null;
+  avatarUrl?: string | null;
   profileCompleted?: boolean;
   createdAt: string;
 }
@@ -92,6 +95,12 @@ export default function SettingsPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+
+  // Profile Photo Upload State
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [avatarSuccess, setAvatarSuccess] = useState<string | null>(null);
 
   // Password Form State
   const [passwordData, setPasswordData] = useState({
@@ -168,17 +177,9 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
-          credentials: "include",
-        });
+        const data = await api.get("/auth/me");
 
-        if (res.status === 401) {
-          router.replace("/login?redirect=/settings");
-          return;
-        }
-        const data = await res.json();
-
-        if (res.ok && data.success && data.data) {
+        if (data?.success && data.data) {
           const user = data.data.user || data.data;
           setProfile(user);
           setFormData((prev) => ({
@@ -217,7 +218,11 @@ export default function SettingsPage() {
             }
           }
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (err?.status === 401) {
+          router.replace("/login?redirect=/settings");
+          return;
+        }
         console.error("Settings page fetch error:", err);
       } finally {
         setIsLoading(false);
@@ -277,30 +282,87 @@ export default function SettingsPage() {
     });
   };
 
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError(null);
+    setAvatarSuccess(null);
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setAvatarError("Please choose a JPG, PNG, or WebP photo.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setAvatarError("Photo must be smaller than 3 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Could not read image file"));
+        reader.readAsDataURL(file);
+      });
+
+      const res = await api.post("/auth/profile/avatar", { image: dataUrl });
+      if (!res?.success) {
+        throw new Error(res?.message || "Failed to upload profile photo");
+      }
+
+      const updatedUser = res.data?.user || { ...profile, avatarUrl: res.data?.avatarUrl };
+      setProfile((prev) => (prev ? { ...prev, ...updatedUser } : updatedUser));
+      window.dispatchEvent(new CustomEvent("curalink-profile-updated", { detail: updatedUser }));
+      setAvatarSuccess("Profile photo updated!");
+      setTimeout(() => setAvatarSuccess(null), 4000);
+    } catch (err: any) {
+      setAvatarError(err?.message || "Failed to upload photo. Please try again.");
+    } finally {
+      setIsUploadingAvatar(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setAvatarError(null);
+    setAvatarSuccess(null);
+    setIsUploadingAvatar(true);
+    try {
+      const res = await api.delete("/auth/profile/avatar");
+      if (!res?.success) {
+        throw new Error(res?.message || "Failed to remove photo");
+      }
+      const updatedUser = res.data?.user || { ...profile, avatarUrl: null };
+      setProfile((prev) => (prev ? { ...prev, ...updatedUser, avatarUrl: null } : updatedUser));
+      window.dispatchEvent(
+        new CustomEvent("curalink-profile-updated", { detail: { ...updatedUser, avatarUrl: null } })
+      );
+      setAvatarSuccess("Profile photo removed.");
+      setTimeout(() => setAvatarSuccess(null), 3500);
+    } catch (err: any) {
+      setAvatarError(err?.message || "Could not remove photo.");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleVerifyPhone = async () => {
     setIsVerifyingPhone(true);
     try {
-      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
-      const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.token;
-
-      const res = await fetch(`${API_BASE}/auth/profile`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          phoneVerified: true,
-        }),
+      const data = await api.put("/auth/profile", {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        phoneVerified: true,
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data?.success) {
         const updated = data.data?.user || data.data;
         setProfile(updated);
         setSaveSuccess(true);
@@ -320,37 +382,25 @@ export default function SettingsPage() {
     setSaveError(null);
 
     try {
-      // Persist client extras
       localStorage.setItem("curalink_user_phone", formData.phone);
       localStorage.setItem("curalink_user_blood", formData.bloodGroup);
       localStorage.setItem("curalink_user_emerg", formData.emergencyContact);
 
-      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`);
-      const csrfData = await csrfRes.json();
-      const csrfToken = csrfData.token;
-
-      const res = await fetch(`${API_BASE}/auth/profile`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken,
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone || undefined,
-          age: formData.age ? Number(formData.age) : undefined,
-          gender: formData.gender || undefined,
-        }),
+      const data = await api.put("/auth/profile", {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        age: formData.age ? Number(formData.age) : undefined,
+        gender: formData.gender || undefined,
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update profile settings");
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to update profile settings");
       }
 
-      setProfile(data.data?.user || data.data);
+      const updatedUser = data.data?.user || data.data;
+      setProfile(updatedUser);
+      window.dispatchEvent(new CustomEvent("curalink-profile-updated", { detail: updatedUser }));
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     } catch (err: any) {
@@ -468,20 +518,22 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-slate-200/80 dark:border-white/[0.08] pb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Account Settings
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#006D77] dark:text-[#83C5BE] mb-1">
+            Account &amp; Profile
+          </p>
+          <h1 className="font-serif text-3xl sm:text-[36px] leading-tight font-normal tracking-[-0.015em] text-[#0B1F33] dark:text-white">
+            Profile &amp; Settings
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Manage your personal profile, notifications, security, and HIPAA data controls.
+          <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+            Update your profile photo, personal details, security, and preferences.
           </p>
         </div>
 
-        {/* Brand HIPAA Trust Badge */}
-        <div className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 dark:border-teal-800/60 bg-teal-50 dark:bg-teal-950/40 px-3 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300">
-          <ShieldCheck className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-          <span>HIPAA-aligned Workspace</span>
+        <div className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-white/[0.1] bg-white dark:bg-[#0B1F33] px-3.5 py-1.5 text-xs font-medium text-[#006D77] dark:text-[#83C5BE] shadow-2xs">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>{profile?.role === "ADMIN" ? "Admin Portal" : profile?.role === "DOCTOR" ? "Doctor Portal" : "Patient Portal"}</span>
         </div>
       </div>
 
@@ -635,26 +687,96 @@ export default function SettingsPage() {
                 )}
 
                 <form onSubmit={handleSaveProfile} className="p-6 space-y-6">
-                  {/* Avatar Upload */}
-                  <div className="flex items-center gap-5">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-950/60 font-bold text-teal-700 dark:text-teal-300 text-2xl border border-teal-200 dark:border-teal-800/60 shadow-xs">
-                      {nameInitial}
+                  {/* Real Working Profile Photo Upload */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-5 rounded-2xl bg-[#F4F7F8] dark:bg-white/[0.04] p-4 border border-slate-200/70 dark:border-white/[0.07]">
+                    <div className="relative group h-20 w-20 shrink-0">
+                      <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[#0B1F33] dark:bg-[#006D77] font-semibold text-white text-2xl border-2 border-white dark:border-slate-800 shadow-sm">
+                        {profile?.avatarUrl ? (
+                          <img
+                            src={profile.avatarUrl}
+                            alt={formData.name || "Profile photo"}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span>{nameInitial}</span>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => avatarInputRef.current?.click()}
+                        disabled={isUploadingAvatar}
+                        className="absolute inset-0 flex items-center justify-center rounded-2xl bg-[#0B1F33]/55 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-wait"
+                        title="Upload profile photo"
+                        aria-label="Upload profile photo"
+                      >
+                        {isUploadingAvatar ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Camera className="h-5 w-5" />
+                        )}
+                      </button>
+
+                      <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleAvatarFileChange}
+                        className="hidden"
+                      />
                     </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                        {formData.name || "Patient Profile"}
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-serif text-xl text-[#0B1F33] dark:text-white truncate">
+                        {formData.name || "Account Profile"}
                       </h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {profile?.role === "DOCTOR" ? "Licensed Clinician" : "Verified Patient Account"}
+                        {profile?.role === "ADMIN"
+                          ? "System Administrator"
+                          : profile?.role === "DOCTOR"
+                          ? "Verified Clinician Account"
+                          : "Verified Patient Account"}{" "}
+                        &bull; JPG, PNG or WebP (max 3 MB)
                       </p>
-                      <div className="mt-2 flex gap-2">
+
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1e293b] px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                          onClick={() => avatarInputRef.current?.click()}
+                          disabled={isUploadingAvatar}
+                          className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-[#006D77] hover:bg-[#005860] text-xs font-medium text-white shadow-xs transition-all cursor-pointer disabled:opacity-60"
                         >
-                          Change Photo
+                          {isUploadingAvatar ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Upload className="h-3.5 w-3.5" />
+                          )}
+                          <span>{profile?.avatarUrl ? "Change Photo" : "Upload Photo"}</span>
                         </button>
+
+                        {profile?.avatarUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveAvatar}
+                            disabled={isUploadingAvatar}
+                            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-transparent text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer disabled:opacity-60"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        )}
                       </div>
+
+                      {avatarError && (
+                        <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {avatarError}
+                        </p>
+                      )}
+                      {avatarSuccess && (
+                        <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> {avatarSuccess}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -813,14 +935,14 @@ export default function SettingsPage() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Set your medical specialty, consultation modes (Video Call & In-Person), practice city, and consultation fee. These fields directly control your visibility on the patient-facing Find Doctor page.
+                      Set your medical specialty, consultation modes (Video Call &amp; In-Person), practice city, and consultation fee.
                     </p>
                   </div>
                   <Link
-                    href="/find-doctor"
-                    className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
+                    href="/doctor-dashboard"
+                    className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0"
                   >
-                    <span>View Find Doctor Portal</span>
+                    <span>Back to Doctor Dashboard</span>
                     <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
                   </Link>
                 </div>
@@ -841,10 +963,10 @@ export default function SettingsPage() {
                           </span>
                         </div>
                         <Link
-                          href="/find-doctor"
-                          className="inline-flex items-center gap-1 text-xs font-bold text-[#0D9488] dark:text-teal-300 hover:underline shrink-0"
+                          href="/doctor-dashboard"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[#006D77] dark:text-[#83C5BE] hover:underline shrink-0"
                         >
-                          Verify on Find Doctor →
+                          Return to Practice Dashboard →
                         </Link>
                       </div>
                     )}

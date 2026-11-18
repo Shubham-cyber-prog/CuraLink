@@ -80,6 +80,18 @@ router.get(
         return;
       }
 
+      // Mark unread incoming messages as read when thread is opened
+      await prisma.message
+        .updateMany({
+          where: {
+            appointmentId,
+            receiverId: req.user!.id,
+            read: false,
+          },
+          data: { read: true },
+        })
+        .catch(() => {});
+
       const [total, messages] = await Promise.all([
         prisma.message.count({ where: { appointmentId } }),
         prisma.message.findMany({
@@ -89,7 +101,7 @@ router.get(
           take: limit + 1,
           include: {
             sender: {
-              select: { id: true, name: true, role: true },
+              select: { id: true, name: true, role: true, avatarUrl: true },
             },
           },
         }),
@@ -139,7 +151,7 @@ router.post(
       },
       include: {
         sender: {
-          select: { id: true, name: true, role: true },
+          select: { id: true, name: true, role: true, avatarUrl: true },
         },
       },
     });

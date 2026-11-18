@@ -2,6 +2,7 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { PartnerMarquee } from "@/components/landing/PartnerMarquee";
 import { ValueProposition } from "@/components/landing/ValueProposition";
+import { ThreeMedicalShowcase } from "@/components/landing/ThreeMedicalShowcase";
 import { DoctorSpotlight } from "@/components/landing/DoctorSpotlight";
 import { SpecialtiesPricing } from "@/components/landing/SpecialtiesPricing";
 import { HealthRecordsPreview } from "@/components/landing/HealthRecordsPreview";
@@ -10,6 +11,7 @@ import { DoctorRecruitmentBanner } from "@/components/landing/DoctorRecruitmentB
 import { PricingAndTestimonials } from "@/components/landing/PricingAndTestimonials";
 import { AppDownloadSection } from "@/components/landing/AppDownloadSection";
 import { Security } from "@/components/landing/Security";
+import { GsapLandingOrchestrator } from "@/components/landing/GsapLandingOrchestrator";
 
 export const metadata = {
   title: "CuraLink — India's #1 Rated Telehealth Platform · Consult for ₹199",
@@ -20,41 +22,64 @@ export const metadata = {
 export default function LandingPage() {
   return (
     <main id="main" className="flex flex-1 flex-col bg-background text-foreground">
-      {/* 1. Floating Modern Glassmorphism Navbar */}
-      <Navbar />
+      <GsapLandingOrchestrator>
+        {/* 1. Floating Modern Glassmorphism Navbar */}
+        <Navbar />
 
-      {/* 2. Editorial Hero with ₹199 Badge, Live Countdown & WebRTC Stage */}
-      <Hero />
+        {/* 2. Editorial Hero with Three.js 3D WebGL DNA Scene, Framer Motion & GSAP 3D Scrub Stage */}
+        <Hero />
 
-      {/* 3. Live Trust & Insurance Partner Continuous Marquee */}
-      <PartnerMarquee />
+        {/* 3. Live Trust & Insurance Partner Continuous Marquee */}
+        <PartnerMarquee />
 
-      {/* 4. Core Value Proposition Advantages */}
-      <ValueProposition />
+        {/* 4. Core Value Proposition Advantages */}
+        <div data-gsap-reveal>
+          <ValueProposition />
+        </div>
 
-      {/* 5. Verified Specialists Spotlight (AIIMS, Apollo, Fortis) */}
-      <DoctorSpotlight />
+        {/* 5. Interactive Three.js 3D WebGL Clinical Core + Framer Motion Module Showcase */}
+        <ThreeMedicalShowcase />
 
-      {/* 6. Specialty Advertising Cards with ₹199-₹499 Pricing & Wait Times */}
-      <SpecialtiesPricing />
+        {/* 6. Verified Specialists Spotlight (AIIMS, Apollo, Fortis) */}
+        <div data-gsap-reveal>
+          <DoctorSpotlight />
+        </div>
 
-      {/* 7. Interactive Digital E-Prescription & Records Vault Preview */}
-      <HealthRecordsPreview />
+        {/* 7. Specialty Advertising Cards with ₹199-₹499 Pricing & Wait Times */}
+        <div data-gsap-reveal>
+          <SpecialtiesPricing />
+        </div>
 
-      {/* 8. 3-Step "How It Works" Visual Journey */}
-      <HowItWorksFlow />
+        {/* 8. Interactive Digital E-Prescription & Records Vault Preview */}
+        <div data-gsap-reveal>
+          <HealthRecordsPreview />
+        </div>
 
-      {/* 9. Doctor Recruitment Advertising Banner (0% Fee Promotion) */}
-      <DoctorRecruitmentBanner />
+        {/* 9. 3-Step "How It Works" Visual Journey */}
+        <div data-gsap-reveal>
+          <HowItWorksFlow />
+        </div>
 
-      {/* 10. Transparent Pricing Plans & Patient Testimonial Carousel */}
-      <PricingAndTestimonials />
+        {/* 10. Doctor Recruitment Advertising Banner (0% Fee Promotion) */}
+        <div data-gsap-reveal>
+          <DoctorRecruitmentBanner />
+        </div>
 
-      {/* 11. High-Converting Mobile App Download Section */}
-      <AppDownloadSection />
+        {/* 11. Transparent Pricing Plans & Patient Testimonial Carousel */}
+        <div data-gsap-reveal>
+          <PricingAndTestimonials />
+        </div>
 
-      {/* 12. Security, DPDP 2023 & Indian Compliance */}
-      <Security />
+        {/* 12. High-Converting Mobile App Download Section */}
+        <div data-gsap-reveal>
+          <AppDownloadSection />
+        </div>
+
+        {/* 13. Security, DPDP 2023 & Indian Compliance */}
+        <div data-gsap-reveal>
+          <Security />
+        </div>
+      </GsapLandingOrchestrator>
     </main>
   );
 }

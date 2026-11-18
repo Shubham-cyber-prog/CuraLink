@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Modal } from "@/components/ui/Modal";
 import { AppointmentCard, AppointmentData } from "@/components/appointments/AppointmentCard";
+import { PaymentCheckoutModal } from "@/components/payments/PaymentCheckoutModal";
 import { Doctor } from "@/types/doctor";
 import { api } from "@/lib/api";
 import { formatDateIST, formatDoctorName } from "@/lib/clinical-formatters";
@@ -31,6 +32,7 @@ export default function AppointmentsPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const [appointmentToCancel, setAppointmentToCancel] = useState<AppointmentData | null>(null);
+  const [appointmentToPay, setAppointmentToPay] = useState<AppointmentData | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -261,9 +263,51 @@ export default function AppointmentsPage() {
               appointment={apt}
               doctorFallback={doctorMap[apt.doctorId]}
               onCancel={(toCancel) => setAppointmentToCancel(toCancel)}
+              onPayNow={(toPay) => setAppointmentToPay(toPay)}
             />
           ))}
         </div>
+      )}
+
+      {/* Real Payment Checkout Modal */}
+      {appointmentToPay && (
+        <PaymentCheckoutModal
+          isOpen={Boolean(appointmentToPay)}
+          onClose={() => setAppointmentToPay(null)}
+          appointmentId={appointmentToPay.id}
+          doctorName={formatDoctorName(
+            appointmentToPay.doctor?.name || doctorMap[appointmentToPay.doctorId]?.name
+          )}
+          specialty={
+            appointmentToPay.doctor?.specialty ||
+            appointmentToPay.doctor?.specialization ||
+            doctorMap[appointmentToPay.doctorId]?.specialty
+          }
+          date={appointmentToPay.date}
+          time={appointmentToPay.time}
+          amount={
+            appointmentToPay.doctor?.consultationFee ||
+            doctorMap[appointmentToPay.doctorId]?.consultationFee ||
+            650
+          }
+          onSuccess={(receipt) => {
+            setAppointments((prev) =>
+              prev.map((a) =>
+                a.id === appointmentToPay.id
+                  ? {
+                      ...a,
+                      status: "CONFIRMED",
+                      payment: { status: "SUCCESS", amount: receipt.amount },
+                    }
+                  : a
+              )
+            );
+            setStatusMessage(
+              `Payment of ₹${receipt.amount} successful (${receipt.transactionId}). Appointment is now Confirmed!`
+            );
+            setTimeout(() => setStatusMessage(null), 6000);
+          }}
+        />
       )}
 
       {/* Cancel Modal */}

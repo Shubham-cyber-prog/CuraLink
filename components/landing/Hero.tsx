@@ -26,6 +26,7 @@ import {
   Thermometer,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThreeHeroCanvas } from "@/components/landing/ThreeHeroCanvas";
 
 export function Hero() {
   // Live Countdown Discount Timer State (e.g., starts at 2h 45m 30s)
@@ -70,41 +71,23 @@ export function Hero() {
 
   return (
     <section className="relative pt-36 sm:pt-44 md:pt-48 pb-20 sm:pb-28 overflow-hidden bg-background">
-      {/* Background ambient light & animated floating orbs */}
+      {/* Real Interactive Three.js WebGL 3D DNA Double-Helix & Particle Field */}
+      <ThreeHeroCanvas />
+
+      {/* Subtle ambient glow behind hero copy */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10"
       >
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[650px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,109,119,0.12),rgba(131,197,190,0.06),transparent_70%)]" />
-        
-        {/* Animated Floating Gradient Orb 1 */}
-        <motion.div
-          animate={{
-            x: [-20, 20, -20],
-            y: [-15, 15, -15],
-            scale: [1, 1.08, 1],
-          }}
-          transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -top-12 left-1/4 w-[500px] h-[500px] rounded-full bg-teal-500/15 dark:bg-teal-400/10 blur-3xl"
-        />
-
-        {/* Animated Floating Gradient Orb 2 */}
-        <motion.div
-          animate={{
-            x: [20, -20, 20],
-            y: [15, -15, 15],
-            scale: [1.08, 1, 1.08],
-          }}
-          transition={{ duration: 13, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-28 right-1/4 w-[450px] h-[450px] rounded-full bg-[#83C5BE]/15 dark:bg-[#83C5BE]/10 blur-3xl"
-        />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[650px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(0,109,119,0.10),rgba(131,197,190,0.05),transparent_70%)]" />
       </div>
 
-      {/* Floating Healthcare Badges (Large screens) */}
+      {/* Floating Healthcare Badges (GSAP Scroll Parallax + Framer Motion Spring Float) */}
       <motion.div
+        data-gsap-parallax="45"
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-        className="hidden xl:flex absolute top-52 left-10 items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#0B1F33]/80 backdrop-blur-xl px-4 py-2.5 shadow-xl z-20 pointer-events-none"
+        className="hidden xl:flex absolute top-52 left-10 items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#0B1F33]/85 backdrop-blur-xl px-4 py-2.5 shadow-xl z-20 pointer-events-none"
       >
         <div className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
           <ShieldCheck className="h-4.5 w-4.5" />
@@ -116,9 +99,10 @@ export function Hero() {
       </motion.div>
 
       <motion.div
+        data-gsap-parallax="65"
         animate={{ y: [0, 10, 0] }}
         transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        className="hidden xl:flex absolute top-60 right-10 items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#0B1F33]/80 backdrop-blur-xl px-4 py-2.5 shadow-xl z-20 pointer-events-none"
+        className="hidden xl:flex absolute top-60 right-10 items-center gap-3 rounded-2xl border border-slate-200/80 dark:border-white/[0.08] bg-white/85 dark:bg-[#0B1F33]/85 backdrop-blur-xl px-4 py-2.5 shadow-xl z-20 pointer-events-none"
       >
         <div className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-teal-500/15 text-[#006D77] dark:text-[#83C5BE]">
           <Clock className="h-4.5 w-4.5" />
@@ -272,18 +256,15 @@ export function Hero() {
           </motion.div>
         </div>
 
-        {/* ─── 2. INTERACTIVE SIMULATED WEBRTC CONSULTATION STAGE ─── */}
+        {/* ─── 2. INTERACTIVE SIMULATED WEBRTC CONSULTATION STAGE (GSAP 3D Scroll Scrub + Framer Motion) ─── */}
         <motion.div
-          initial={{ opacity: 0, y: 32 }}
+          data-gsap-hero-stage
+          initial={{ opacity: 0, y: 36 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-14 sm:mt-18 max-w-5xl mx-auto"
+          transition={{ type: "spring", stiffness: 120, damping: 20, delay: 0.28 }}
+          className="mt-14 sm:mt-18 max-w-5xl mx-auto will-change-transform"
         >
-          <motion.div
-            animate={{ y: [0, -6, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="rounded-3xl border border-border bg-[#0B1F33] text-white shadow-[0_24px_70px_rgba(11,31,51,0.35)] overflow-hidden"
-          >
+          <div className="rounded-3xl border border-border bg-[#0B1F33] text-white shadow-[0_28px_80px_rgba(11,31,51,0.38)] overflow-hidden">
             {/* Top WebRTC Stage Status Bar */}
             <div className="flex flex-wrap items-center justify-between px-5 py-3.5 bg-[#071320] border-b border-white/10 gap-2">
               <div className="flex items-center gap-3">
@@ -574,7 +555,7 @@ export function Hero() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       </div>
     </section>

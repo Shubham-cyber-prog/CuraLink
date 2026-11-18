@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -35,6 +35,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Download,
+  Fingerprint,
 } from 'lucide-react-native';
 import { Card, Badge } from '../../components/UI';
 import { Button } from '../../components/Button';
@@ -42,6 +43,13 @@ import { useAuth } from '../../lib/auth-context';
 import { useTheme } from '../../lib/theme-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../../lib/api';
+import {
+  checkBiometricAvailability,
+  authenticateWithBiometrics,
+  generateBiometricCredentialId,
+  saveBiometricCredentials,
+  clearBiometricCredentials,
+} from '../../lib/biometric';
 
 interface SettingsItemProps {
   icon: React.ReactNode;
@@ -87,7 +95,7 @@ function SettingsItem({ icon, label, subtitle, onPress, danger }: SettingsItemPr
 }
 
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { themeMode, setThemeMode, isDark, colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -130,12 +138,145 @@ export default function ProfileScreen() {
   const [notifRx, setNotifRx] = useState(true);
   const [notifHealthTips, setNotifHealthTips] = useState(false);
 
-  // Security toggles & forms
-  const [biometricEnabled, setBiometricEnabled] = useState(true);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  // Real Security toggles & forms
+  const [biometricEnabled, setBiometricEnabled] = useState(Boolean(user?.biometricEnabled));
+  const [biometricLabel, setBiometricLabel] = useState('Fingerprint');
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [isUpdatingBiometric, setIsUpdatingBiometric] = useState(false);
+  const [biometricStatusMsg, setBiometricStatusMsg] = useState<string | null>(null);
+
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(Boolean(user?.twoFactorEnabled));
+  const [twoFaSecret, setTwoFaSecret] = useState<string | null>(null);
+  const [twoFaCodeInput, setTwoFaCodeInput] = useState('');
+  const [twoFaBackupCodes, setTwoFaBackupCodes] = useState<string[]>([]);
+  const [showDisable2FAInput, setShowDisable2FAInput] = useState(false);
+  const [isUpdating2FA, setIsUpdating2FA] = useState(false);
+  const [twoFaStatusMsg, setTwoFaStatusMsg] = useState<string | null>(null);
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [passwordFeedback, setPasswordFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBiometricEnabled(Boolean(user?.biometricEnabled));
+    setTwoFactorEnabled(Boolean(user?.twoFactorEnabled));
+  }, [user?.biometricEnabled, user?.twoFactorEnabled]);
+
+  useEffect(() => {
+    checkBiometricAvailability().then((avail) => {
+      setBiometricAvailable(avail.available);
+      setBiometricLabel(avail.label);
+    });
+  }, []);
+
+  const handleToggleBiometric = async (nextVal: boolean) => {
+    if (!user) return;
+    setBiometricStatusMsg(null);
+    setIsUpdatingBiometric(true);
+    try {
+      if (nextVal) {
+        const avail = await checkBiometricAvailability();
+        if (!avail.available) {
+          setBiometricStatusMsg(
+            'No Fingerprint / Biometric sensor enrolled on this device. Enable it in Phone Settings first.'
+          );
+          return;
+        }
+        const verified = await authenticateWithBiometrics(`Verify your ${avail.label} to enable quick sign-in`);
+        if (!verified.success) {
+          setBiometricStatusMsg(verified.error || 'Fingerprint verification cancelled.');
+          return;
+        }
+        const credentialId = generateBiometricCredentialId();
+        await api.post('/auth/biometric/register', { credentialId });
+        await saveBiometricCredentials({
+          email: user.email,
+          name: user.name,
+          credentialId,
+        });
+        setBiometricEnabled(true);
+        setBiometricStatusMsg(`${avail.label} unlock enabled on this device!`);
+        await refreshUser();
+      } else {
+        await api.delete('/auth/biometric/disable');
+        await clearBiometricCredentials();
+        setBiometricEnabled(false);
+        setBiometricStatusMsg(`${biometricLabel} unlock disabled.`);
+        await refreshUser();
+      }
+    } catch (err: unknown) {
+      setBiometricStatusMsg(err instanceof Error ? err.message : 'Could not update biometric settings.');
+    } finally {
+      setIsUpdatingBiometric(false);
+    }
+  };
+
+  const handleToggleTwoFactor = async (nextVal: boolean) => {
+    setTwoFaStatusMsg(null);
+    if (nextVal) {
+      setIsUpdating2FA(true);
+      try {
+        const res = await api.post<{ secret: string; otpauthUri: string }>('/auth/2fa/setup', {});
+        if (res.data?.secret) {
+          setTwoFaSecret(res.data.secret);
+          setTwoFaCodeInput('');
+          setTwoFaBackupCodes([]);
+          setTwoFaStatusMsg('Add this setup key in Google Authenticator / Authy, then enter the 6-digit code.');
+        }
+      } catch (err: unknown) {
+        setTwoFaStatusMsg(err instanceof Error ? err.message : 'Failed to start 2FA setup');
+      } finally {
+        setIsUpdating2FA(false);
+      }
+    } else {
+      setShowDisable2FAInput(true);
+      setTwoFaCodeInput('');
+    }
+  };
+
+  const handleConfirmEnable2FA = async () => {
+    if (!/^\d{6}$/.test(twoFaCodeInput.trim())) {
+      setTwoFaStatusMsg('Enter a valid 6-digit code from your authenticator app.');
+      return;
+    }
+    setIsUpdating2FA(true);
+    try {
+      const res = await api.post<{ backupCodes?: string[] }>('/auth/2fa/verify-enable', {
+        code: twoFaCodeInput.trim(),
+      });
+      setTwoFactorEnabled(true);
+      setTwoFaSecret(null);
+      setTwoFaCodeInput('');
+      setTwoFaBackupCodes(res.data?.backupCodes || []);
+      setTwoFaStatusMsg('2FA is now active! Save your backup codes below.');
+      await refreshUser();
+    } catch (err: unknown) {
+      setTwoFaStatusMsg(err instanceof Error ? err.message : 'Invalid 6-digit code.');
+    } finally {
+      setIsUpdating2FA(false);
+    }
+  };
+
+  const handleConfirmDisable2FA = async () => {
+    if (!twoFaCodeInput.trim()) {
+      setTwoFaStatusMsg('Enter your 6-digit authenticator code or backup code.');
+      return;
+    }
+    setIsUpdating2FA(true);
+    try {
+      await api.post('/auth/2fa/disable', { code: twoFaCodeInput.trim() });
+      setTwoFactorEnabled(false);
+      setShowDisable2FAInput(false);
+      setTwoFaCodeInput('');
+      setTwoFaBackupCodes([]);
+      setTwoFaStatusMsg('Two-Factor Authentication disabled.');
+      await refreshUser();
+    } catch (err: unknown) {
+      setTwoFaStatusMsg(err instanceof Error ? err.message : 'Invalid verification code.');
+    } finally {
+      setIsUpdating2FA(false);
+    }
+  };
 
   const handleSaveProfile = () => {
     setProfileSavedToast(true);
@@ -563,39 +704,123 @@ export default function ProfileScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} className="space-y-4">
-              {/* Toggles */}
-              <View className="flex-row items-center justify-between py-2 border-b border-slate-100 dark:border-[#263049]">
-                <View className="flex-1 pr-3">
-                  <Text className="font-inter-semibold text-sm text-charcoal dark:text-[#F1F5F9]">
-                    Biometric Unlock
-                  </Text>
-                  <Text className="font-inter text-xs text-muted dark:text-slate-400 mt-0.5">
-                    FaceID / Fingerprint unlock on app launch
-                  </Text>
+              {/* Real Biometric / Fingerprint Toggle */}
+              <View className="py-2 border-b border-slate-100 dark:border-[#263049]">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1 pr-3">
+                    <View className="flex-row items-center gap-1.5">
+                      <Fingerprint size={15} color={colors.teal} />
+                      <Text className="font-inter-semibold text-sm text-charcoal dark:text-[#F1F5F9]">
+                        {biometricLabel} Unlock &amp; Sign-In
+                      </Text>
+                    </View>
+                    <Text className="font-inter text-xs text-muted dark:text-slate-400 mt-0.5">
+                      {biometricAvailable
+                        ? `Use your phone's ${biometricLabel} sensor on login and app launch`
+                        : 'Enroll a fingerprint in your phone settings to activate'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={biometricEnabled}
+                    disabled={isUpdatingBiometric}
+                    onValueChange={handleToggleBiometric}
+                    trackColor={{ false: '#CBD5E1', true: colors.teal }}
+                    thumbColor="#FFFFFF"
+                  />
                 </View>
-                <Switch
-                  value={biometricEnabled}
-                  onValueChange={setBiometricEnabled}
-                  trackColor={{ false: '#CBD5E1', true: colors.teal }}
-                  thumbColor="#FFFFFF"
-                />
+                {biometricStatusMsg && (
+                  <Text className="font-inter-medium text-xs text-teal-700 dark:text-teal-400 mt-2">
+                    {biometricStatusMsg}
+                  </Text>
+                )}
               </View>
 
-              <View className="flex-row items-center justify-between py-2 border-b border-slate-100 dark:border-[#263049]">
-                <View className="flex-1 pr-3">
-                  <Text className="font-inter-semibold text-sm text-charcoal dark:text-[#F1F5F9]">
-                    Two-Factor Authentication (2FA)
-                  </Text>
-                  <Text className="font-inter text-xs text-muted dark:text-slate-400 mt-0.5">
-                    Requires authenticator code on new logins
-                  </Text>
+              {/* Real Two-Factor Authentication (TOTP) */}
+              <View className="py-2 border-b border-slate-100 dark:border-[#263049]">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1 pr-3">
+                    <Text className="font-inter-semibold text-sm text-charcoal dark:text-[#F1F5F9]">
+                      Two-Factor Authentication (2FA)
+                    </Text>
+                    <Text className="font-inter text-xs text-muted dark:text-slate-400 mt-0.5">
+                      {twoFactorEnabled
+                        ? 'Active — requires 6-digit authenticator code on login'
+                        : 'Protect logins with Google Authenticator or Authy'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={twoFactorEnabled || Boolean(twoFaSecret)}
+                    disabled={isUpdating2FA}
+                    onValueChange={handleToggleTwoFactor}
+                    trackColor={{ false: '#CBD5E1', true: colors.teal }}
+                    thumbColor="#FFFFFF"
+                  />
                 </View>
-                <Switch
-                  value={twoFactorEnabled}
-                  onValueChange={setTwoFactorEnabled}
-                  trackColor={{ false: '#CBD5E1', true: colors.teal }}
-                  thumbColor="#FFFFFF"
-                />
+
+                {twoFaStatusMsg && (
+                  <Text className="font-inter-medium text-xs text-teal-700 dark:text-teal-400 mt-2">
+                    {twoFaStatusMsg}
+                  </Text>
+                )}
+
+                {twoFaSecret && !twoFactorEnabled && (
+                  <View className="mt-3 rounded-xl border border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/30 p-3 space-y-2.5">
+                    <Text className="font-inter-semibold text-xs text-charcoal dark:text-[#F1F5F9]">
+                      Authenticator Setup Key:
+                    </Text>
+                    <Text
+                      selectable
+                      className="font-mono text-xs text-teal-800 dark:text-teal-300 bg-white dark:bg-[#0B1120] p-2.5 rounded-lg border border-slate-200 dark:border-[#263049]"
+                    >
+                      {twoFaSecret}
+                    </Text>
+                    <TextInput
+                      value={twoFaCodeInput}
+                      onChangeText={(t) => setTwoFaCodeInput(t.replace(/\D/g, '').slice(0, 6))}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      placeholder="Enter 6-digit code"
+                      placeholderTextColor="#94A3B8"
+                      className="rounded-xl border border-slate-200 dark:border-[#263049] bg-white dark:bg-[#0B1120] px-3.5 py-2.5 font-mono text-sm text-center text-charcoal dark:text-[#F1F5F9]"
+                    />
+                    <Button
+                      title={isUpdating2FA ? 'Verifying...' : 'Verify & Activate 2FA'}
+                      onPress={handleConfirmEnable2FA}
+                      isLoading={isUpdating2FA}
+                    />
+                  </View>
+                )}
+
+                {showDisable2FAInput && twoFactorEnabled && (
+                  <View className="mt-3 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 p-3 space-y-2.5">
+                    <Text className="font-inter-semibold text-xs text-red-700 dark:text-red-300">
+                      Enter 6-digit code or backup code to disable 2FA:
+                    </Text>
+                    <TextInput
+                      value={twoFaCodeInput}
+                      onChangeText={setTwoFaCodeInput}
+                      placeholder="6-digit code or XXXX-XXXX"
+                      placeholderTextColor="#94A3B8"
+                      className="rounded-xl border border-red-200 dark:border-red-800/60 bg-white dark:bg-[#0B1120] px-3.5 py-2 font-mono text-sm text-charcoal dark:text-[#F1F5F9]"
+                    />
+                    <Button
+                      title={isUpdating2FA ? 'Disabling...' : 'Confirm Disable 2FA'}
+                      onPress={handleConfirmDisable2FA}
+                      isLoading={isUpdating2FA}
+                    />
+                  </View>
+                )}
+
+                {twoFaBackupCodes.length > 0 && (
+                  <View className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/70 dark:bg-amber-950/20 p-3">
+                    <Text className="font-inter-bold text-xs text-amber-900 dark:text-amber-200 mb-1.5">
+                      Save Your Backup Codes:
+                    </Text>
+                    <Text selectable className="font-mono text-xs text-amber-900 dark:text-amber-100 leading-5">
+                      {twoFaBackupCodes.join('   •   ')}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* Password update */}

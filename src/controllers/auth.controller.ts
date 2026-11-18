@@ -37,8 +37,23 @@ export class AuthController {
       const validatedInput = loginSchema.parse(req.body);
       
       try {
-        const { user, accessToken, refreshToken } = await authService.login(validatedInput);
-        
+        const result = await authService.login(validatedInput);
+
+        if ('requiresTwoFactor' in result && result.requiresTwoFactor) {
+          res.status(200).json({
+            success: true,
+            requiresTwoFactor: true,
+            message: 'Two-factor verification required',
+            data: {
+              requiresTwoFactor: true,
+              tempToken: result.tempToken,
+              email: result.email,
+            },
+          });
+          return;
+        }
+
+        const { user, accessToken, refreshToken } = result;
         setAuthCookies(res, accessToken, refreshToken);
         await auditService.logAction(AuditAction.LOGIN, user.id, 'User', user.id, req.ip, req.headers['user-agent']);
 
@@ -435,6 +450,200 @@ export class AuthController {
         success: true,
         message: 'Profile photo removed',
         data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async setupTwoFactor(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const setup = await authService.setupTwoFactor(req.user.id);
+      res.status(200).json({
+        success: true,
+        message: 'Scan the QR code in Google Authenticator, Authy, or Microsoft Authenticator and enter the 6-digit code.',
+        data: setup,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyEnableTwoFactor(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const code = String(req.body?.code || '').trim();
+      if (!code) {
+        throw new BadRequestError('6-digit authenticator code is required');
+      }
+
+      const { user, backupCodes } = await authService.verifyAndEnableTwoFactor(req.user.id, code);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: '2fa_enabled' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Two-factor authentication is now active on your account.',
+        data: { user, backupCodes },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async disableTwoFactor(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const code = String(req.body?.code || '').trim();
+      if (!code) {
+        throw new BadRequestError('Enter your current 6-digit authenticator code or a backup code to disable 2FA');
+      }
+
+      const { user } = await authService.disableTwoFactor(req.user.id, code);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: '2fa_disabled' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Two-factor authentication has been disabled.',
+        data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async verifyTwoFactorLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const tempToken = String(req.body?.tempToken || '').trim();
+      const code = String(req.body?.code || '').trim();
+
+      if (!tempToken || !code) {
+        throw new BadRequestError('Verification token and 6-digit code are required');
+      }
+
+      const { user, accessToken, refreshToken, usedBackupCode } = await authService.verifyTwoFactorLogin(tempToken, code);
+      setAuthCookies(res, accessToken, refreshToken);
+      await auditService.logAction(
+        AuditAction.LOGIN,
+        user.id,
+        'User',
+        user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { method: usedBackupCode ? '2fa_backup_code' : '2fa_totp' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Two-factor verification successful',
+        data: { user, token: accessToken, accessToken, refreshToken, usedBackupCode },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async registerBiometric(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const credentialId = String(req.body?.credentialId || '').trim();
+      const { user } = await authService.registerBiometric(req.user.id, credentialId);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'biometric_registered' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Fingerprint / biometric login enabled on this device.',
+        data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async disableBiometric(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) {
+        throw new UnauthorizedError('Authentication required');
+      }
+
+      const { user } = await authService.disableBiometric(req.user.id);
+      await auditService.logAction(
+        AuditAction.PROFILE_UPDATE,
+        req.user.id,
+        'User',
+        req.user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { action: 'biometric_disabled' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Fingerprint / biometric login disabled.',
+        data: { user },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async biometricLogin(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const email = String(req.body?.email || '').trim().toLowerCase();
+      const credentialId = String(req.body?.credentialId || '').trim();
+
+      const { user, accessToken, refreshToken } = await authService.biometricLogin(email, credentialId);
+      setAuthCookies(res, accessToken, refreshToken);
+      await auditService.logAction(
+        AuditAction.LOGIN,
+        user.id,
+        'User',
+        user.id,
+        req.ip,
+        req.headers['user-agent'],
+        { method: 'biometric_fingerprint' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Biometric sign-in successful',
+        data: { user, token: accessToken, accessToken, refreshToken },
       });
     } catch (error) {
       next(error);

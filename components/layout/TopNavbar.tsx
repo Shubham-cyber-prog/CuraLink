@@ -25,7 +25,6 @@ import {
   Plus,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { api } from "@/lib/api";
 
 export interface NavLink {
@@ -323,11 +322,6 @@ export function TopNavbar() {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Theme Toggle */}
-          <div className="shrink-0">
-            <ThemeToggle />
           </div>
 
           {/* Patient-only Book Appointment CTA */}

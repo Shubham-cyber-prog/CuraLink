@@ -22,6 +22,11 @@ model User {
   age          Int?
   gender       String?
   avatarUrl    String?
+  twoFactorEnabled      Boolean  @default(false)
+  twoFactorSecret       String?
+  twoFactorBackupCodes  String[] @default([])
+  biometricEnabled      Boolean  @default(false)
+  biometricCredentialId String?
   profileCompletedAt DateTime?
   noShowCount  Int      @default(0)
   createdAt    DateTime @default(now())

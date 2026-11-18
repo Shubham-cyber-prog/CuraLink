@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.curalink.app",
       "infoPlist": {
         "NSCameraUsageDescription": "CuraLink needs access to your camera for secure video consultations with doctors.",
-        "NSMicrophoneUsageDescription": "CuraLink needs access to your microphone for secure video consultations with doctors."
+        "NSMicrophoneUsageDescription": "CuraLink needs access to your microphone for secure video consultations with doctors.",
+        "NSFaceIDUsageDescription": "CuraLink uses Face ID / Touch ID to securely unlock your medical records and consultations."
       }
     },
     "android": {
@@ -25,7 +26,9 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ]
     },
     "web": {
@@ -48,7 +51,13 @@
         }
       ],
       "expo-secure-store",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow CuraLink to use Face ID and Fingerprint to securely unlock your health records."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

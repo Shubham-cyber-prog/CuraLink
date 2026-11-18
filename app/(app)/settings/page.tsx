@@ -35,10 +35,19 @@ import {
   Camera,
   Upload,
   Copy,
+  Fingerprint,
+  QrCode,
+  ShieldAlert,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import {
+  isPlatformBiometricSupported,
+  enrollPlatformBiometric,
+  saveStoredBiometric,
+  clearStoredBiometric,
+} from "@/lib/webauthn";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -52,6 +61,8 @@ interface UserProfile {
   age?: number | null;
   gender?: string | null;
   avatarUrl?: string | null;
+  twoFactorEnabled?: boolean;
+  biometricEnabled?: boolean;
   profileCompleted?: boolean;
   createdAt: string;
 }
@@ -121,9 +132,24 @@ export default function SettingsPage() {
   const [aiInsights, setAiInsights] = useState(true);
   const [emailDigest, setEmailDigest] = useState(false);
 
-  // Security Toggles
+  // Real 2FA (TOTP) & Biometric (Fingerprint / Passkey) State
   const [twoFactorAuth, setTwoFactorAuth] = useState(false);
-  const [biometricUnlock, setBiometricUnlock] = useState(true);
+  const [twoFaSetup, setTwoFaSetup] = useState<{ secret: string; otpauthUri: string; qrCodeUrl: string } | null>(null);
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaBackupCodes, setTwoFaBackupCodes] = useState<string[]>([]);
+  const [showDisableTwoFa, setShowDisableTwoFa] = useState(false);
+  const [disableTwoFaCode, setDisableTwoFaCode] = useState("");
+  const [isProcessing2FA, setIsProcessing2FA] = useState(false);
+  const [twoFaError, setTwoFaError] = useState<string | null>(null);
+  const [twoFaSuccess, setTwoFaSuccess] = useState<string | null>(null);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedBackups, setCopiedBackups] = useState(false);
+
+  const [biometricUnlock, setBiometricUnlock] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState<boolean | null>(null);
+  const [isProcessingBiometric, setIsProcessingBiometric] = useState(false);
+  const [biometricError, setBiometricError] = useState<string | null>(null);
+  const [biometricSuccess, setBiometricSuccess] = useState<string | null>(null);
 
   // Data Privacy Modal & Download State
   const [isDownloading, setIsDownloading] = useState(false);
@@ -153,11 +179,7 @@ export default function SettingsPage() {
       const savedDigest = localStorage.getItem("curalink_notif_digest");
       if (savedDigest !== null) setEmailDigest(savedDigest === "true");
 
-      const saved2FA = localStorage.getItem("curalink_2fa");
-      if (saved2FA !== null) setTwoFactorAuth(saved2FA === "true");
-
-      const savedBio = localStorage.getItem("curalink_bio");
-      if (savedBio !== null) setBiometricUnlock(savedBio === "true");
+      isPlatformBiometricSupported().then(setBiometricSupported).catch(() => setBiometricSupported(false));
 
       const savedPhone = localStorage.getItem("curalink_user_phone");
       const savedBlood = localStorage.getItem("curalink_user_blood");
@@ -184,6 +206,8 @@ export default function SettingsPage() {
         if (data?.success && data.data) {
           const user = data.data.user || data.data;
           setProfile(user);
+          setTwoFactorAuth(Boolean(user.twoFactorEnabled));
+          setBiometricUnlock(Boolean(user.biometricEnabled));
           setFormData((prev) => ({
             ...prev,
             name: user.name || "",
@@ -444,6 +468,150 @@ export default function SettingsPage() {
       setPasswordError(err.message || "Could not update password. Please check your current password.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleStartTwoFactorSetup = async () => {
+    setTwoFaError(null);
+    setTwoFaSuccess(null);
+    setTwoFaBackupCodes([]);
+    setIsProcessing2FA(true);
+    try {
+      const res = await api.post("/auth/2fa/setup", {});
+      if (!res?.success || !res?.data) {
+        throw new Error(res?.message || "Failed to start 2FA setup");
+      }
+      setTwoFaSetup(res.data);
+      setTwoFaCode("");
+    } catch (err: any) {
+      setTwoFaError(err?.message || "Could not generate authenticator QR code.");
+    } finally {
+      setIsProcessing2FA(false);
+    }
+  };
+
+  const handleVerifyEnableTwoFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTwoFaError(null);
+    setTwoFaSuccess(null);
+
+    const cleaned = twoFaCode.replace(/\s+/g, "");
+    if (!/^\d{6}$/.test(cleaned)) {
+      setTwoFaError("Enter the 6-digit code from your authenticator app.");
+      return;
+    }
+
+    setIsProcessing2FA(true);
+    try {
+      const res = await api.post("/auth/2fa/verify-enable", { code: cleaned });
+      if (!res?.success) {
+        throw new Error(res?.message || "Invalid verification code");
+      }
+      setTwoFactorAuth(true);
+      setTwoFaSetup(null);
+      setTwoFaCode("");
+      setTwoFaBackupCodes(res.data?.backupCodes || []);
+      setTwoFaSuccess("Two-Factor Authentication is now active! Save your recovery backup codes below.");
+      if (res.data?.user) {
+        setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+      }
+    } catch (err: any) {
+      setTwoFaError(err?.message || "Invalid 6-digit code. Please check your authenticator app.");
+    } finally {
+      setIsProcessing2FA(false);
+    }
+  };
+
+  const handleDisableTwoFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTwoFaError(null);
+    setTwoFaSuccess(null);
+
+    if (!disableTwoFaCode.trim()) {
+      setTwoFaError("Enter your 6-digit authenticator code or a backup code.");
+      return;
+    }
+
+    setIsProcessing2FA(true);
+    try {
+      const res = await api.post("/auth/2fa/disable", { code: disableTwoFaCode.trim() });
+      if (!res?.success) {
+        throw new Error(res?.message || "Could not disable 2FA");
+      }
+      setTwoFactorAuth(false);
+      setShowDisableTwoFa(false);
+      setDisableTwoFaCode("");
+      setTwoFaBackupCodes([]);
+      setTwoFaSuccess("Two-Factor Authentication has been disabled.");
+      if (res.data?.user) {
+        setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+      }
+    } catch (err: any) {
+      setTwoFaError(err?.message || "Invalid verification code.");
+    } finally {
+      setIsProcessing2FA(false);
+    }
+  };
+
+  const handleToggleBiometric = async () => {
+    setBiometricError(null);
+    setBiometricSuccess(null);
+
+    if (!biometricUnlock) {
+      if (!profile) return;
+      setIsProcessingBiometric(true);
+      try {
+        const { credentialId, rawId } = await enrollPlatformBiometric({
+          id: profile.id,
+          email: profile.email,
+          name: profile.name || formData.name || profile.email,
+        });
+
+        const res = await api.post("/auth/biometric/register", { credentialId });
+        if (!res?.success) {
+          throw new Error(res?.message || "Failed to register fingerprint credential");
+        }
+
+        saveStoredBiometric({
+          email: profile.email,
+          name: profile.name,
+          credentialId,
+          rawId,
+          enrolledAt: new Date().toISOString(),
+        });
+
+        setBiometricUnlock(true);
+        setBiometricSuccess("Fingerprint / Passkey enabled! You can now sign in with one touch on the login screen.");
+        if (res.data?.user) {
+          setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+        }
+      } catch (err: any) {
+        if (err?.name === "NotAllowedError") {
+          setBiometricError("Fingerprint prompt was cancelled or timed out. Please try again.");
+        } else {
+          setBiometricError(err?.message || "Could not enroll fingerprint on this device.");
+        }
+      } finally {
+        setIsProcessingBiometric(false);
+      }
+    } else {
+      setIsProcessingBiometric(true);
+      try {
+        const res = await api.delete("/auth/biometric/disable");
+        if (!res?.success) {
+          throw new Error(res?.message || "Failed to disable fingerprint login");
+        }
+        clearStoredBiometric();
+        setBiometricUnlock(false);
+        setBiometricSuccess("Fingerprint / Passkey login disabled on this account.");
+        if (res.data?.user) {
+          setProfile((prev) => (prev ? { ...prev, ...res.data.user } : res.data.user));
+        }
+      } catch (err: any) {
+        setBiometricError(err?.message || "Failed to disable biometric login.");
+      } finally {
+        setIsProcessingBiometric(false);
+      }
     }
   };
 
@@ -1612,76 +1780,287 @@ export default function SettingsPage() {
                 </form>
               </section>
 
-              {/* Two-Factor Authentication & Biometrics */}
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xs p-6 space-y-5">
-                <div className="flex items-start justify-between gap-4">
+              {/* Real Two-Factor Authentication (RFC 6238 TOTP) */}
+              <section className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] shadow-[0_4px_24px_-6px_rgba(11,31,51,0.06)] p-6 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex gap-3.5">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
+                    <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-[#006D77]/10 dark:bg-[#83C5BE]/15 text-[#006D77] dark:text-[#83C5BE]">
                       <Key className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Two-Factor Authentication (2FA)
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                        Add an extra layer of security to your medical records using an authenticator app (TOTP).
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-serif text-xl font-normal text-[#0B1F33] dark:text-white">
+                          Two-Factor Authentication (2FA)
+                        </h3>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                            twoFactorAuth
+                              ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/50"
+                              : "bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400"
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${twoFactorAuth ? "bg-emerald-500" : "bg-slate-400"}`} />
+                          {twoFactorAuth ? "Active & Protected" : "Not Enabled"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                        Protect your medical records and logins with real 6-digit TOTP codes from Google Authenticator, Microsoft Authenticator, or Authy.
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={twoFactorAuth}
-                    onClick={() => {
-                      const val = !twoFactorAuth;
-                      setTwoFactorAuth(val);
-                      localStorage.setItem("curalink_2fa", String(val));
-                    }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 ${
-                      twoFactorAuth ? "bg-teal-600" : "bg-slate-300 dark:bg-slate-700"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        twoFactorAuth ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
+
+                  {!twoFactorAuth ? (
+                    <button
+                      type="button"
+                      onClick={handleStartTwoFactorSetup}
+                      disabled={isProcessing2FA}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#006D77] hover:bg-[#005860] text-white px-5 py-2.5 text-xs font-semibold shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-60"
+                    >
+                      {isProcessing2FA ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <QrCode className="h-3.5 w-3.5" />}
+                      <span>{twoFaSetup ? "Regenerate QR" : "Set Up 2FA"}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDisableTwoFa((v) => !v);
+                        setTwoFaError(null);
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full border border-rose-200 dark:border-rose-800/60 bg-rose-50/70 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/50 text-rose-700 dark:text-rose-300 px-4 py-2 text-xs font-semibold transition-colors shrink-0 cursor-pointer"
+                    >
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      <span>{showDisableTwoFa ? "Cancel" : "Disable 2FA"}</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="border-t border-slate-100 dark:border-slate-800 pt-4 flex items-start justify-between gap-4">
-                  <div className="flex gap-3.5">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300">
-                      <Smartphone className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                        Biometric / Fast Session Unlock
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                        Quickly unlock consultations with your device biometric passkey (Windows Hello / Touch ID).
-                      </p>
+                {twoFaError && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/30 px-4 py-3 text-xs font-medium text-rose-700 dark:text-rose-300">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{twoFaError}</span>
+                  </div>
+                )}
+
+                {twoFaSuccess && (
+                  <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/80 dark:bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>{twoFaSuccess}</span>
+                  </div>
+                )}
+
+                {/* 2FA QR Setup Panel */}
+                {twoFaSetup && !twoFactorAuth && (
+                  <div className="rounded-2xl border border-[#006D77]/20 dark:border-[#83C5BE]/20 bg-[#F4F7F8]/80 dark:bg-white/[0.03] p-5 space-y-5">
+                    <div className="grid gap-6 md:grid-cols-[200px_1fr] items-center">
+                      <div className="mx-auto flex flex-col items-center justify-center rounded-2xl bg-white p-3.5 shadow-sm border border-slate-200">
+                        <img
+                          src={twoFaSetup.qrCodeUrl}
+                          alt="2FA Authenticator QR Code"
+                          className="h-44 w-44 object-contain"
+                        />
+                        <span className="mt-2 text-[10px] font-medium text-slate-500">Scan with Authenticator App</span>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-xs font-semibold text-[#0B1F33] dark:text-white">
+                            Step 1: Scan QR Code or enter key manually
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Open Google Authenticator, Microsoft Authenticator, or Authy and scan the QR code.
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <code className="flex-1 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#071525] px-3 py-2 font-mono text-xs tracking-wider text-[#0B1F33] dark:text-[#83C5BE] break-all">
+                              {twoFaSetup.secret}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard?.writeText(twoFaSetup.secret);
+                                setCopiedSecret(true);
+                                setTimeout(() => setCopiedSecret(false), 2000);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#071525] px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 cursor-pointer"
+                            >
+                              {copiedSecret ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                              <span>{copiedSecret ? "Copied" : "Copy"}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <form onSubmit={handleVerifyEnableTwoFactor} className="space-y-2.5">
+                          <label className="block text-xs font-semibold text-[#0B1F33] dark:text-white">
+                            Step 2: Enter the 6-digit verification code
+                          </label>
+                          <div className="flex flex-col sm:flex-row gap-2.5">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={twoFaCode}
+                              onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                              placeholder="000000"
+                              className="w-full sm:w-44 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-[#071525] px-4 py-2.5 text-center font-mono text-base tracking-[0.3em] text-[#0B1F33] dark:text-white focus:border-[#006D77] focus:outline-none focus:ring-2 focus:ring-[#006D77]/20"
+                              required
+                            />
+                            <button
+                              type="submit"
+                              disabled={isProcessing2FA || twoFaCode.length !== 6}
+                              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#006D77] hover:bg-[#005860] disabled:opacity-50 text-white px-5 py-2.5 text-xs font-semibold shadow-sm cursor-pointer"
+                            >
+                              {isProcessing2FA ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                              <span>Verify &amp; Activate 2FA</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTwoFaSetup(null);
+                                setTwoFaError(null);
+                              }}
+                              className="rounded-full border border-slate-200 dark:border-white/10 px-4 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={biometricUnlock}
-                    onClick={() => {
-                      const val = !biometricUnlock;
-                      setBiometricUnlock(val);
-                      localStorage.setItem("curalink_bio", String(val));
-                    }}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 ${
-                      biometricUnlock ? "bg-teal-600" : "bg-slate-300 dark:bg-slate-700"
-                    }`}
+                )}
+
+                {/* Backup Recovery Codes Display (shown right after activation) */}
+                {twoFaBackupCodes.length > 0 && (
+                  <div className="rounded-2xl border border-amber-200/80 dark:border-amber-800/50 bg-amber-50/70 dark:bg-amber-950/20 p-5 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          Save Your One-Time Recovery Backup Codes
+                        </p>
+                        <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
+                          Store these codes safely. Each code can unlock your account once if you lose your authenticator device.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(twoFaBackupCodes.join("\n"));
+                          setCopiedBackups(true);
+                          setTimeout(() => setCopiedBackups(false), 2000);
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-[#0B1F33] border border-amber-200 dark:border-amber-800/60 px-3.5 py-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200 cursor-pointer"
+                      >
+                        {copiedBackups ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                        <span>{copiedBackups ? "Copied All" : "Copy Codes"}</span>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {twoFaBackupCodes.map((code) => (
+                        <div
+                          key={code}
+                          className="rounded-xl bg-white dark:bg-[#071525] border border-amber-200/70 dark:border-amber-800/40 px-3 py-2 text-center font-mono text-xs font-semibold text-[#0B1F33] dark:text-[#83C5BE]"
+                        >
+                          {code}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Disable 2FA Verification Form */}
+                {showDisableTwoFa && twoFactorAuth && (
+                  <form
+                    onSubmit={handleDisableTwoFactor}
+                    className="rounded-2xl border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 p-4 space-y-3"
                   >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        biometricUnlock ? "translate-x-5" : "translate-x-0"
+                    <p className="text-xs font-semibold text-rose-800 dark:text-rose-200">
+                      Confirm disabling 2FA with a 6-digit authenticator code or backup code:
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      <input
+                        type="text"
+                        value={disableTwoFaCode}
+                        onChange={(e) => setDisableTwoFaCode(e.target.value)}
+                        placeholder="6-digit code or XXXX-XXXX"
+                        className="flex-1 rounded-xl border border-rose-200 dark:border-rose-800/60 bg-white dark:bg-[#071525] px-3.5 py-2 font-mono text-sm text-[#0B1F33] dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={isProcessing2FA}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 text-xs font-semibold cursor-pointer disabled:opacity-60"
+                      >
+                        {isProcessing2FA && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        <span>Confirm Disable</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Real Fingerprint / Biometric Passkey Authentication */}
+                <div className="border-t border-slate-100 dark:border-white/[0.08] pt-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="flex gap-3.5">
+                      <div className="h-11 w-11 shrink-0 flex items-center justify-center rounded-2xl bg-[#006D77]/10 dark:bg-[#83C5BE]/15 text-[#006D77] dark:text-[#83C5BE]">
+                        <Fingerprint className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-serif text-xl font-normal text-[#0B1F33] dark:text-white">
+                            Fingerprint &amp; Biometric Sign-In
+                          </h3>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                              biometricUnlock
+                                ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/50"
+                                : "bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400"
+                            }`}
+                          >
+                            {biometricUnlock ? "Enrolled" : "Off"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                          Sign in instantly with your mobile Fingerprint sensor, Touch ID, Face ID, or Windows Hello passkey.
+                        </p>
+                        {biometricSupported === false && (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                            Hardware biometric authenticator not detected on this browser — open on a mobile phone or Windows Hello device.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleBiometric}
+                      disabled={isProcessingBiometric}
+                      className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs font-semibold shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-60 ${
+                        biometricUnlock
+                          ? "border border-slate-200 dark:border-white/15 bg-slate-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                          : "bg-[#006D77] hover:bg-[#005860] text-white"
                       }`}
-                    />
-                  </button>
+                    >
+                      {isProcessingBiometric ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Fingerprint className="h-3.5 w-3.5" />
+                      )}
+                      <span>{biometricUnlock ? "Disable Fingerprint" : "Enable Fingerprint"}</span>
+                    </button>
+                  </div>
+
+                  {biometricError && (
+                    <div className="flex items-center gap-2 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/80 dark:bg-rose-950/30 px-4 py-3 text-xs font-medium text-rose-700 dark:text-rose-300">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>{biometricError}</span>
+                    </div>
+                  )}
+
+                  {biometricSuccess && (
+                    <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/80 dark:bg-emerald-950/30 px-4 py-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      <span>{biometricSuccess}</span>
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
@@ -1690,13 +2069,13 @@ export default function SettingsPage() {
           {/* TAB 4: APPEARANCE */}
           {activeTab === "appearance" && (
             <div className="space-y-6">
-              <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] shadow-xs overflow-hidden">
-                <div className="border-b border-slate-200 dark:border-slate-800 px-6 py-5">
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                    Appearance & Theme
+              <section className="rounded-[24px] border border-slate-200/75 dark:border-white/[0.08] bg-white dark:bg-[#0B1F33] shadow-[0_4px_24px_-6px_rgba(11,31,51,0.06)] overflow-hidden">
+                <div className="border-b border-slate-100 dark:border-white/[0.08] px-6 py-5">
+                  <h2 className="font-serif text-2xl font-normal text-[#0B1F33] dark:text-white">
+                    Appearance &amp; Theme
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Choose how CuraLink looks across all your desktop and mobile browser sessions.
+                    Switch between Light Mode, Dark Mode, or System Sync here. Theme controls are managed centrally in Settings.
                   </p>
                 </div>
 
@@ -1712,7 +2091,7 @@ export default function SettingsPage() {
                       {
                         id: "dark",
                         label: "Dark Mode",
-                        desc: "Calm navy slate palette",
+                        desc: "Calm deep navy palette",
                         icon: Moon,
                       },
                       {
@@ -1729,30 +2108,30 @@ export default function SettingsPage() {
                           key={mode.id}
                           type="button"
                           onClick={() => setTheme(mode.id)}
-                          className={`flex flex-col items-center justify-center p-5 rounded-2xl border text-center transition-all duration-200 cursor-pointer ${
+                          className={`flex flex-col items-center justify-center p-6 rounded-[22px] border text-center transition-all duration-200 cursor-pointer ${
                             isSelected
-                              ? "border-teal-500 bg-teal-50/60 dark:bg-teal-950/40 shadow-sm"
-                              : "border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-[#070b14] hover:border-slate-300 dark:hover:border-slate-600"
+                              ? "border-[#006D77] bg-[#006D77]/[0.07] dark:bg-[#83C5BE]/10 shadow-sm"
+                              : "border-slate-200/80 dark:border-white/[0.08] bg-[#F4F7F8]/60 dark:bg-[#071525] hover:border-[#006D77]/40"
                           }`}
                         >
                           <div
-                            className={`h-11 w-11 rounded-xl flex items-center justify-center mb-3 ${
+                            className={`h-12 w-12 rounded-2xl flex items-center justify-center mb-3.5 ${
                               isSelected
-                                ? "bg-teal-600 text-white shadow-sm shadow-teal-700/20"
-                                : "bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                                ? "bg-[#006D77] text-white shadow-sm"
+                                : "bg-slate-200/80 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300"
                             }`}
                           >
                             <Icon className="h-5 w-5" />
                           </div>
-                          <p className={`text-sm font-semibold ${isSelected ? "text-teal-900 dark:text-teal-200" : "text-slate-900 dark:text-white"}`}>
+                          <p className={`text-sm font-semibold ${isSelected ? "text-[#006D77] dark:text-[#83C5BE]" : "text-[#0B1F33] dark:text-white"}`}>
                             {mode.label}
                           </p>
                           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                             {mode.desc}
                           </p>
                           {isSelected && (
-                            <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-teal-700 dark:text-teal-300">
-                              <Check className="h-3.5 w-3.5" /> Active
+                            <span className="mt-2.5 inline-flex items-center gap-1 rounded-full bg-[#006D77]/12 dark:bg-[#83C5BE]/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#006D77] dark:text-[#83C5BE]">
+                              <Check className="h-3 w-3" /> Active
                             </span>
                           )}
                         </button>

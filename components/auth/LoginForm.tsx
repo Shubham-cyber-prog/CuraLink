@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Lock, Loader2, ArrowRight } from "lucide-react";
+import { ShieldCheck, Lock, Loader2, ArrowRight, Fingerprint, ArrowLeft, KeyRound } from "lucide-react";
 import { PasswordInput } from "./PasswordInput";
 import { AuthError } from "./AuthError";
 import { GoogleAuthButton } from "./GoogleAuthButton";
 import { TurnstileWidget } from "./TurnstileWidget";
+import {
+  getStoredBiometric,
+  isPlatformBiometricSupported,
+  verifyPlatformBiometric,
+  type StoredBiometricCredential,
+} from "@/lib/webauthn";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -24,6 +30,34 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Real 2FA Challenge State
+  const [twoFaChallenge, setTwoFaChallenge] = useState<{ tempToken: string; email: string } | null>(null);
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [isVerifying2FA, setIsVerifying2FA] = useState(false);
+
+  // Real Biometric / Fingerprint Login State
+  const [storedBiometric, setStoredBiometric] = useState<StoredBiometricCredential | null>(null);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    setStoredBiometric(getStoredBiometric());
+    isPlatformBiometricSupported().then(setBiometricSupported).catch(() => setBiometricSupported(false));
+  }, []);
+
+  const fetchCsrfToken = async (): Promise<string> => {
+    try {
+      const csrfRes = await fetch(`${API_BASE}/auth/csrf-token`, { credentials: "include" });
+      if (csrfRes.ok) {
+        const csrfData = await csrfRes.json();
+        return csrfData.token || "";
+      }
+    } catch {
+      // Ignore CSRF prefetch error
+    }
+    return "";
+  };
 
   const handleTurnstileVerify = useCallback((token: string) => {
     setTurnstileToken(token);
@@ -104,6 +138,16 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         return;
       }
 
+      if (data.requiresTwoFactor || data.data?.requiresTwoFactor) {
+        setTwoFaChallenge({
+          tempToken: data.data?.tempToken || "",
+          email: data.data?.email || email.trim().toLowerCase(),
+        });
+        setTwoFaCode("");
+        setError(null);
+        return;
+      }
+
       const { user, token } = data.data;
       finishLogin(user, token || "");
     } catch (err) {
@@ -112,6 +156,159 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       setIsLoading(false);
     }
   };
+
+  const handleVerifyTwoFactor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!twoFaChallenge) return;
+    setError(null);
+
+    const cleanedCode = twoFaCode.trim();
+    if (!cleanedCode) {
+      setError("Please enter the 6-digit code from your authenticator app or a backup code.");
+      return;
+    }
+
+    setIsVerifying2FA(true);
+    try {
+      const csrfToken = await fetchCsrfToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+
+      const res = await fetch(`${API_BASE}/auth/2fa/verify-login`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ tempToken: twoFaChallenge.tempToken, code: cleanedCode }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setError(data.message || "Invalid verification code. Please try again.");
+        return;
+      }
+
+      const { user, token } = data.data;
+      finishLogin(user, token || "");
+    } catch {
+      setError("Could not verify 2FA code. Please check your connection.");
+    } finally {
+      setIsVerifying2FA(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!storedBiometric) return;
+    setError(null);
+    setIsBiometricLoading(true);
+    try {
+      const verified = await verifyPlatformBiometric(storedBiometric.rawId);
+      if (!verified) {
+        setError("Fingerprint verification was cancelled.");
+        return;
+      }
+
+      const csrfToken = await fetchCsrfToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
+
+      const res = await fetch(`${API_BASE}/auth/biometric/login`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          email: storedBiometric.email,
+          credentialId: storedBiometric.credentialId,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        setError(data.message || "Biometric sign-in failed. Please sign in with your password.");
+        return;
+      }
+
+      const { user, token } = data.data;
+      finishLogin(user, token || "");
+    } catch (err: any) {
+      if (err?.name === "NotAllowedError") {
+        setError("Fingerprint prompt was cancelled or timed out.");
+      } else {
+        setError(err?.message || "Fingerprint authentication failed on this device.");
+      }
+    } finally {
+      setIsBiometricLoading(false);
+    }
+  };
+
+  if (twoFaChallenge) {
+    return (
+      <form onSubmit={handleVerifyTwoFactor} noValidate className="space-y-5">
+        <div className="space-y-2">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#006D77]/10 dark:bg-[#83C5BE]/15 border border-[#006D77]/20 text-[#006D77] dark:text-[#83C5BE]">
+            <KeyRound className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-[#F1F5F9]">
+              Two-Factor Verification
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Enter the 6-digit code from your authenticator app for{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{twoFaChallenge.email}</span>
+            </p>
+          </div>
+        </div>
+
+        <AuthError message={error} />
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="login-2fa-code" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Authenticator Code (or 8-character Backup Code)
+          </label>
+          <input
+            id="login-2fa-code"
+            type="text"
+            autoFocus
+            autoComplete="one-time-code"
+            placeholder="000000"
+            value={twoFaCode}
+            onChange={(e) => setTwoFaCode(e.target.value)}
+            className="w-full rounded-xl border border-slate-200 dark:border-[#263049] bg-slate-50/50 dark:bg-[#0B1120] px-4 py-3 text-center font-mono text-lg tracking-[0.28em] text-slate-900 dark:text-[#F1F5F9] focus:bg-white dark:focus:bg-[#0B1120] focus:border-[#006D77] dark:focus:border-[#83C5BE] focus:outline-none focus:ring-2 focus:ring-[#006D77]/20"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isVerifying2FA}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#006D77] hover:bg-[#00565e] text-sm font-semibold text-white shadow-md shadow-[#006D77]/20 transition-all cursor-pointer disabled:opacity-60"
+        >
+          {isVerifying2FA ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Verifying code...</span>
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="h-4 w-4" />
+              <span>Verify &amp; Sign In</span>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTwoFaChallenge(null);
+            setTwoFaCode("");
+            setError(null);
+          }}
+          className="flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#006D77] dark:text-slate-400 dark:hover:text-[#83C5BE] py-1 cursor-pointer"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back to email &amp; password</span>
+        </button>
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -134,6 +331,33 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         onError={setError}
         onSuccess={(user, token) => finishLogin(user, token)}
       />
+
+      {/* Real Fingerprint / Biometric One-Tap Sign-In (Android Fingerprint, Touch ID, Face ID, Windows Hello) */}
+      {storedBiometric && (
+        <button
+          type="button"
+          onClick={handleBiometricLogin}
+          disabled={isBiometricLoading}
+          className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[#006D77]/30 bg-[#006D77]/[0.06] hover:bg-[#006D77]/[0.12] dark:border-[#83C5BE]/30 dark:bg-[#83C5BE]/10 dark:hover:bg-[#83C5BE]/15 px-4 py-3 text-sm font-semibold text-[#006D77] dark:text-[#83C5BE] transition-all cursor-pointer disabled:opacity-60"
+        >
+          {isBiometricLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Fingerprint className="h-5 w-5" />
+          )}
+          <span className="truncate">
+            {isBiometricLoading
+              ? "Verifying Fingerprint..."
+              : `Sign in with Fingerprint (${storedBiometric.name || storedBiometric.email})`}
+          </span>
+        </button>
+      )}
+      {!storedBiometric && biometricSupported && (
+        <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+          <Fingerprint className="h-3.5 w-3.5 text-[#006D77] dark:text-[#83C5BE]" />
+          <span>Fingerprint &amp; Passkey sign-in available in Settings &rarr; Security after login</span>
+        </p>
+      )}
 
       {/* Refined Divider */}
       <div className="relative my-2">

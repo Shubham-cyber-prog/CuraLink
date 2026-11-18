@@ -1,15 +1,28 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { View, Text, Modal, Linking, Pressable } from 'react-native';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
-import { ShieldAlert, ExternalLink, LogOut } from 'lucide-react-native';
+import { ShieldAlert, ExternalLink, LogOut, Fingerprint } from 'lucide-react-native';
 import { api, subscribeSessionExpired } from './api';
 import { saveTokens, getToken, getRefreshToken, removeToken } from './secure-store';
+import {
+  authenticateWithBiometrics,
+  checkBiometricAvailability,
+  getBiometricCredentials,
+} from './biometric';
 
 interface User {
   id: string;
   name: string;
   email: string;
   role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
+  twoFactorEnabled?: boolean;
+  biometricEnabled?: boolean;
+}
+
+export interface LoginResult {
+  requiresTwoFactor?: boolean;
+  tempToken?: string;
+  email?: string;
 }
 
 interface AuthState {
@@ -20,7 +33,9 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string, turnstileToken?: string) => Promise<void>;
+  login: (email: string, password: string, turnstileToken?: string) => Promise<LoginResult>;
+  verifyTwoFactorLogin: (tempToken: string, code: string) => Promise<void>;
+  loginWithBiometric: () => Promise<void>;
   register: (name: string, email: string, password: string, role: 'PATIENT' | 'DOCTOR', turnstileToken?: string) => Promise<void>;
   loginWithGoogle: (googleToken: string) => Promise<void>;
   loginWithToken: (authToken: string, refreshToken?: string) => Promise<void>;
@@ -47,10 +62,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: true,
     isAuthenticated: false,
   });
+  const [isBiometricLocked, setIsBiometricLocked] = useState(false);
 
   const router = useRouter();
   const segments = useSegments();
   const rootNavigationState = useRootNavigationState();
+
+  const triggerUnlockPrompt = useCallback(async () => {
+    const authResult = await authenticateWithBiometrics('Unlock CuraLink with your Fingerprint');
+    if (authResult.success) {
+      setIsBiometricLocked(false);
+    }
+  }, []);
 
   // ── Bootstrap: check for existing token on mount ──
   useEffect(() => {
@@ -60,8 +83,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedToken) {
           const res = await api.get<{ user: User }>('/auth/me');
           if (res.success && res.data) {
+            const loadedUser = res.data.user;
+            const bioCred = await getBiometricCredentials();
+            const bioAvail = await checkBiometricAvailability();
+
+            if (loadedUser.biometricEnabled && bioCred && bioAvail.available) {
+              setIsBiometricLocked(true);
+              const unlocked = await authenticateWithBiometrics('Unlock CuraLink with your Fingerprint');
+              if (unlocked.success) {
+                setIsBiometricLocked(false);
+              }
+            }
+
             setState({
-              user: res.data.user,
+              user: loadedUser,
               token: storedToken,
               isLoading: false,
               isAuthenticated: true,
@@ -141,15 +176,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.isAuthenticated, state.isLoading, state.user?.role, segments, router, rootNavigationState?.key]);
 
-  const login = useCallback(async (email: string, password: string, turnstileToken?: string) => {
-    const res = await api.post<{ token?: string; accessToken?: string; refreshToken?: string; user: User }>('/auth/login', {
+  const login = useCallback(async (email: string, password: string, turnstileToken?: string): Promise<LoginResult> => {
+    const res = await api.post<{
+      requiresTwoFactor?: boolean;
+      tempToken?: string;
+      email?: string;
+      token?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      user?: User;
+    }>('/auth/login', {
       email,
       password,
       turnstileToken,
     });
+
+    if (res.data?.requiresTwoFactor && res.data?.tempToken) {
+      return {
+        requiresTwoFactor: true,
+        tempToken: res.data.tempToken,
+        email: res.data.email || email,
+      };
+    }
+
     const authToken = res.data?.token || res.data?.accessToken;
     if (authToken && res.data?.user) {
       await saveTokens(authToken, res.data?.refreshToken);
+      setIsBiometricLocked(false);
+      setState({
+        user: res.data.user,
+        token: authToken,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+    }
+    return { requiresTwoFactor: false };
+  }, []);
+
+  const verifyTwoFactorLogin = useCallback(async (tempToken: string, code: string) => {
+    const res = await api.post<{
+      token?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      user: User;
+    }>('/auth/2fa/verify-login', {
+      tempToken,
+      code,
+    });
+    const authToken = res.data?.token || res.data?.accessToken;
+    if (authToken && res.data?.user) {
+      await saveTokens(authToken, res.data?.refreshToken);
+      setIsBiometricLocked(false);
+      setState({
+        user: res.data.user,
+        token: authToken,
+        isLoading: false,
+        isAuthenticated: true,
+      });
+    }
+  }, []);
+
+  const loginWithBiometric = useCallback(async () => {
+    const stored = await getBiometricCredentials();
+    if (!stored) {
+      throw new Error('Enable Fingerprint Login in Profile → Security first.');
+    }
+
+    const authResult = await authenticateWithBiometrics('Verify your Fingerprint to sign in to CuraLink');
+    if (!authResult.success) {
+      throw new Error(authResult.error || 'Fingerprint verification cancelled.');
+    }
+
+    const res = await api.post<{
+      token?: string;
+      accessToken?: string;
+      refreshToken?: string;
+      user: User;
+    }>('/auth/biometric/login', {
+      email: stored.email,
+      credentialId: stored.credentialId,
+    });
+
+    const authToken = res.data?.token || res.data?.accessToken;
+    if (authToken && res.data?.user) {
+      await saveTokens(authToken, res.data?.refreshToken);
+      setIsBiometricLocked(false);
       setState({
         user: res.data.user,
         token: authToken,
@@ -230,6 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Failed to remove tokens during logout:', e);
     }
+    setIsBiometricLocked(false);
     setState({
       user: null,
       token: null,
@@ -259,9 +371,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ ...state, login, register, loginWithGoogle, loginWithToken, logout, refreshUser }}
+      value={{
+        ...state,
+        login,
+        verifyTwoFactorLogin,
+        loginWithBiometric,
+        register,
+        loginWithGoogle,
+        loginWithToken,
+        logout,
+        refreshUser,
+      }}
     >
       {children}
+      {state.isAuthenticated && isBiometricLocked && (
+        <Modal visible={true} transparent={false} animationType="fade">
+          <View className="flex-1 bg-[#0B1F33] justify-center items-center px-6">
+            <View className="h-20 w-20 rounded-full bg-[#006D77]/25 border border-[#83C5BE]/40 items-center justify-center mb-6">
+              <Fingerprint size={42} color="#83C5BE" />
+            </View>
+            <Text className="font-inter-bold text-2xl text-white text-center mb-2">
+              CuraLink Locked
+            </Text>
+            <Text className="font-inter text-sm text-slate-300 text-center leading-relaxed mb-8 max-w-[300px]">
+              Verify your Fingerprint to unlock your medical records and consultations.
+            </Text>
+            <View className="w-full max-w-[300px] space-y-3">
+              <Pressable
+                onPress={triggerUnlockPrompt}
+                className="w-full flex-row items-center justify-center gap-2 bg-[#006D77] active:bg-[#005860] py-3.5 rounded-full"
+              >
+                <Fingerprint size={18} color="#FFFFFF" />
+                <Text className="font-inter-semibold text-sm text-white">Unlock with Fingerprint</Text>
+              </Pressable>
+              <Pressable
+                onPress={logout}
+                className="w-full flex-row items-center justify-center gap-2 bg-white/10 active:bg-white/20 py-3.5 rounded-full"
+              >
+                <LogOut size={16} color="#CBD5E1" />
+                <Text className="font-inter-semibold text-sm text-slate-200">Sign Out</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      )}
       {isAdminUser && (
         <Modal visible={true} transparent={false} animationType="fade">
           <View className="flex-1 bg-slate-900 justify-center items-center px-6">

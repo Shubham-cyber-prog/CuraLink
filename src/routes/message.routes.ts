@@ -4,7 +4,9 @@ import { authenticate } from '../middleware/auth.middleware';
 import { Role } from '../types/role';
 import { validateRequest } from '../middleware/validate.middleware';
 import { sendMessageSchema, getMessagesQuerySchema } from '../validators/message.validator';
+
 import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
+
 
 const router = Router();
 
@@ -72,7 +74,9 @@ router.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const appointmentId = String(req.query.appointmentId);
+
       const { limit, page, cursor, skip } = parsePaginationParams(req.query);
+
 
       const access = await getAppointmentAndCheckAccess(appointmentId, req.user!.id, req.user!.role);
       if (!access.appointment) {

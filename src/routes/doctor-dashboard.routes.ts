@@ -7,8 +7,10 @@ import { Role } from '../types/role';
 import { VitalsAiService } from '../services/vitals-ai.service';
 import { validateRequest } from '../middleware/validate.middleware';
 import { issuePrescriptionSchema } from '../validators/prescription.validator';
+
 import { parsePaginationParams, buildPaginatedResponse } from '../validators/pagination.validator';
 import { doctorController } from '../controllers/doctor.controller';
+
 
 const router = Router();
 

@@ -227,6 +227,7 @@ export class AppointmentService {
           prescription: true,
           review: true,
         },
+
         orderBy: [
           { scheduledAt: 'asc' },
           { date: 'asc' },
@@ -236,6 +237,20 @@ export class AppointmentService {
         take: limit + 1,
       }),
     ]);
+
+        payment: {
+          select: { status: true, amount: true },
+        },
+        prescription: true,
+        review: true,
+      },
+      orderBy: [
+        { scheduledAt: 'asc' },
+        { date: 'asc' },
+        { time: 'asc' },
+      ],
+    });
+
 
     const mapped = appointments.map((apt) => ({
       ...apt,

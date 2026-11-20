@@ -1,56 +1,40 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { UserCircle, Stethoscope } from 'lucide-react-native';
+import { UserCircle, Stethoscope, ArrowLeft } from 'lucide-react-native';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
+import { MotionView, MotionPressable } from '../../components/Motion';
 import { PasswordStrength } from '../../components/PasswordStrength';
 import { GoogleAuthButton } from '../../components/GoogleAuthButton';
 import { TurnstileWidget } from '../../components/TurnstileWidget';
 import { useAuth } from '../../lib/auth-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../lib/theme-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import logoImg from '../../../assets/images/logo.png';
+import { CuraLinkLogo } from '../../components/CuraLinkLogo';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDark } = useTheme();
   const { register } = useAuth();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'PATIENT' | 'DOCTOR'>('PATIENT');
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
-
-    if (!name.trim()) {
-      errors.name = 'Full name is required';
-    } else if (name.trim().length < 2) {
-      errors.name = 'Name must be at least 2 characters long';
+    if (!name.trim() || name.trim().length < 2) errors.name = 'Enter your full name (min 2 chars)';
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.email = 'Enter a valid email address';
+    if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      errors.password = 'At least 8 characters with 1 letter and 1 number';
     }
-
-    if (!email.trim()) {
-      errors.email = 'Email address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      errors.email = 'Please enter a valid email address';
-    }
-
-    if (!password) {
-      errors.password = 'Password is required';
-    } else if (password.length < 8) {
-      errors.password = 'Password must be at least 8 characters long';
-    } else if (!/[a-zA-Z]/.test(password)) {
-      errors.password = 'Password must contain at least one letter';
-    } else if (!/[0-9]/.test(password)) {
-      errors.password = 'Password must contain at least one number';
-    }
-
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -58,112 +42,114 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setError('');
     if (!validate()) return;
-
     if (!__DEV__ && !turnstileToken) {
-      setError('Please complete the bot security check to continue');
+      setError('Please complete the security check to continue');
       return;
     }
 
     setIsLoading(true);
-
     try {
       await register(name.trim(), email.trim().toLowerCase(), password, role, turnstileToken || undefined);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Registration failed. Please try again.';
-      setError(msg);
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <LinearGradient
-      colors={['#F0FDFA', '#FFFFFF', '#FFFFFF']}
-      style={{ flex: 1 }}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <ScrollView 
-          contentContainerStyle={{ 
-            flexGrow: 1, 
-            paddingHorizontal: 24, 
-            justifyContent: 'center',
-            paddingTop: insets.top + 10,
-            paddingBottom: Math.max(insets.bottom, 24)
+    <View style={{ flex: 1, backgroundColor: isDark ? '#06101B' : '#F6F8F9' }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: Math.max(insets.top + 8, 16),
+            paddingBottom: Math.max(insets.bottom + 24, 40),
           }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CuraLink Logo (clean transparent mark) */}
-          <View className="mb-5 items-center">
-            <View className="mb-2 h-14 w-14 items-center justify-center">
-              <Image
-                source={logoImg}
-                style={{ width: 56, height: 56 }}
-                resizeMode="contain"
-                alt="CuraLink Logo"
-              />
-            </View>
-            <Text className="font-inter-bold text-xl text-charcoal">
-              Cura<Text className="text-teal-600">Link</Text>
-            </Text>
+          {/* Top Bar with Back Button & Logo */}
+          <View className="flex-row items-center justify-between mb-4">
+            <TouchableOpacity
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace('/');
+                }
+              }}
+              activeOpacity={0.7}
+              className="h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-[#0B1F33] border border-[#E6ECEF] dark:border-[#1B3650]"
+            >
+              <ArrowLeft size={18} color={isDark ? '#FFFFFF' : '#0B1F33'} />
+            </TouchableOpacity>
+
+            <CuraLinkLogo size="sm" />
+
+            {/* Spacer for symmetrical centering */}
+            <View style={{ width: 40 }} />
           </View>
 
-          {/* Form Card */}
-          <View className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <View className="mb-4">
-              <Text className="font-inter-bold text-xl text-charcoal">Create account</Text>
-              <Text className="mt-1 font-inter text-xs text-muted">
-                Join CuraLink to get started
-              </Text>
-            </View>
-
-            {error ? (
-              <View className="mb-4 rounded-xl bg-red-50 border border-red-100 p-3">
-                <Text className="font-inter text-xs text-red-600 leading-relaxed">{error}</Text>
+          {/* Registration Card */}
+          <MotionView delay={50}>
+            <View className="rounded-3xl border border-[#E6ECEF] dark:border-[#1B3650] bg-white dark:bg-[#0B1F33] p-5 shadow-sm shadow-slate-100 dark:shadow-none">
+              <View className="mb-4">
+                <Text className="font-inter-bold text-xl text-[#0B1F33] dark:text-white">
+                  Create account
+                </Text>
+                <Text className="mt-0.5 font-inter text-xs text-slate-500 dark:text-slate-400">
+                  Select your role to start booking consultations or managing clinical practice
+                </Text>
               </View>
-            ) : null}
 
-            {/* Role Selector */}
-            <View className="mb-5 flex-row gap-4">
-              <TouchableOpacity
-                onPress={() => setRole('PATIENT')}
-                className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3.5 ${
-                  role === 'PATIENT' ? 'border-teal-600 bg-teal-50/50' : 'border-slate-200 bg-white'
-                }`}
-              >
-                <UserCircle size={20} color={role === 'PATIENT' ? '#0d9488' : '#64748B'} />
-                <Text
-                  className={`font-inter-semibold text-xs ${role === 'PATIENT' ? 'text-teal-700' : 'text-muted'}`}
-                >
-                  Patient
-                </Text>
-              </TouchableOpacity>
+              {error ? (
+                <View className="mb-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-3">
+                  <Text className="font-inter text-xs text-rose-600 dark:text-rose-300">{error}</Text>
+                </View>
+              ) : null}
 
-              <TouchableOpacity
-                onPress={() => setRole('DOCTOR')}
-                className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3.5 ${
-                  role === 'DOCTOR' ? 'border-teal-600 bg-teal-50/50' : 'border-slate-200 bg-white'
-                }`}
-              >
-                <Stethoscope size={20} color={role === 'DOCTOR' ? '#0d9488' : '#64748B'} />
-                <Text
-                  className={`font-inter-semibold text-xs ${role === 'DOCTOR' ? 'text-teal-700' : 'text-muted'}`}
-                >
-                  Doctor
-                </Text>
-              </TouchableOpacity>
-            </View>
+              {/* Role Picker */}
+              <View className="mb-4 flex-row gap-3">
+                {[
+                  { id: 'PATIENT', label: 'Patient Account', icon: UserCircle },
+                  { id: 'DOCTOR', label: 'Doctor / Clinic', icon: Stethoscope },
+                ].map((r) => {
+                  const active = role === r.id;
+                  const Icon = r.icon;
+                  return (
+                    <View key={r.id} className="flex-1">
+                      <MotionPressable
+                        onPress={() => setRole(r.id as any)}
+                        className={`flex-row items-center justify-center gap-2 rounded-2xl border py-3 px-2 ${
+                          active
+                            ? 'border-[#006D77] bg-[#EAF4F5] dark:bg-[#112942] dark:border-[#83C5BE]'
+                            : 'border-[#E6ECEF] dark:border-[#1B3650] bg-[#F8FAFB] dark:bg-[#06101B]'
+                        }`}
+                      >
+                        <Icon size={17} color={active ? (isDark ? '#83C5BE' : '#006D77') : '#64748B'} />
+                        <Text
+                          className={`font-inter-bold text-xs ${
+                            active ? 'text-[#006D77] dark:text-[#83C5BE]' : 'text-slate-500 dark:text-slate-400'
+                          }`}
+                        >
+                          {r.label}
+                        </Text>
+                      </MotionPressable>
+                    </View>
+                  );
+                })}
+              </View>
 
-            <View className="space-y-4">
               <Input
                 label="Full Name"
-                placeholder="John Doe"
+                placeholder="Subham Nayak"
                 autoCapitalize="words"
                 value={name}
-                onChangeText={(t) => { setName(t); setFieldErrors((p) => ({ ...p, name: '' })); }}
+                onChangeText={(t) => {
+                  setName(t);
+                  setFieldErrors((p) => ({ ...p, name: '' }));
+                }}
                 error={fieldErrors.name}
               />
 
@@ -173,67 +159,68 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
-                onChangeText={(t) => { setEmail(t); setFieldErrors((p) => ({ ...p, email: '' })); }}
+                onChangeText={(t) => {
+                  setEmail(t);
+                  setFieldErrors((p) => ({ ...p, email: '' }));
+                }}
                 error={fieldErrors.email}
               />
 
-              <View>
+              <View className="mb-2">
                 <Input
                   label="Password"
-                  placeholder="At least 8 chars (1 letter & 1 number)"
+                  placeholder="Min 8 chars (letters & numbers)"
                   isPassword
                   value={password}
-                  onChangeText={(t) => { setPassword(t); setFieldErrors((p) => ({ ...p, password: '' })); }}
+                  onChangeText={(t) => {
+                    setPassword(t);
+                    setFieldErrors((p) => ({ ...p, password: '' }));
+                  }}
                   error={fieldErrors.password}
                 />
                 <PasswordStrength password={password} />
               </View>
+
+              {!__DEV__ && (
+                <TurnstileWidget
+                  onVerify={(token) => {
+                    setTurnstileToken(token);
+                    setError('');
+                  }}
+                  onExpire={() => setTurnstileToken(null)}
+                  onError={() => setTurnstileToken(null)}
+                />
+              )}
+
+              <View className="mt-3">
+                <Button
+                  title={isLoading ? 'Creating account...' : 'Create Account'}
+                  onPress={handleRegister}
+                  isLoading={isLoading}
+                  disabled={isLoading || (!__DEV__ && !turnstileToken)}
+                  className="w-full"
+                />
+              </View>
+
+              <View className="my-4 flex-row items-center gap-3">
+                <View className="flex-1 h-px bg-[#E6ECEF] dark:bg-[#1B3650]" />
+                <Text className="font-inter-medium text-[11px] text-slate-400">OR</Text>
+                <View className="flex-1 h-px bg-[#E6ECEF] dark:bg-[#1B3650]" />
+              </View>
+
+              <GoogleAuthButton label="Sign up with Google" role={role} onError={(msg) => setError(msg)} />
             </View>
+          </MotionView>
 
-            {/* Turnstile Bot Protection (hidden in dev) */}
-            {!__DEV__ && (
-              <TurnstileWidget
-                onVerify={(token) => {
-                  setTurnstileToken(token);
-                  setError('');
-                }}
-                onExpire={() => setTurnstileToken(null)}
-                onError={() => setTurnstileToken(null)}
-              />
-            )}
-
-            <View className="mt-4">
-              <Button
-                title={isLoading ? "Creating account..." : "Create Account"}
-                onPress={handleRegister}
-                isLoading={isLoading}
-                disabled={isLoading || (!__DEV__ && !turnstileToken)}
-                className="w-full"
-              />
-            </View>
-
-            {/* OR Divider */}
-            <View className="my-5 flex-row items-center gap-3">
-              <View className="flex-1 h-px bg-slate-100" />
-              <Text className="font-inter-medium text-xs text-slate-400">OR</Text>
-              <View className="flex-1 h-px bg-slate-100" />
-            </View>
-
-            <GoogleAuthButton
-              label="Sign up with Google"
-              role={role}
-              onError={(msg) => setError(msg)}
-            />
-          </View>
-
-          <View className="mt-6 flex-row justify-center">
-            <Text className="font-inter text-sm text-muted">Already have an account? </Text>
+          {/* Bottom Switch Link */}
+          <View className="mt-5 flex-row justify-center pb-4">
+            <Text className="font-inter text-sm text-slate-500 dark:text-slate-400">Already have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text className="font-inter-semibold text-sm text-teal-600">Log In</Text>
+              <Text className="font-inter-bold text-sm text-[#006D77] dark:text-[#83C5BE]">Sign In</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }

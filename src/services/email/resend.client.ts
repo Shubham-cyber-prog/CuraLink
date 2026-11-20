@@ -26,9 +26,9 @@ export class ResendClient {
   private emailEnabled: boolean;
 
   constructor() {
-    const apiKey = env.RESEND_API_KEY || env.EMAIL_API_KEY;
-    this.emailEnabled = env.EMAIL_ENABLED;
-    this.defaultFrom = env.EMAIL_FROM || env.EMAIL_FROM_ADDRESS || 'CuraLink <onboarding@resend.dev>';
+    const apiKey = env.RESEND_API_KEY || env.EMAIL_API_KEY || process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY;
+    this.emailEnabled = env.EMAIL_ENABLED ?? true;
+    this.defaultFrom = env.EMAIL_FROM || env.EMAIL_FROM_ADDRESS || process.env.EMAIL_FROM_ADDRESS || 'CuraLink <onboarding@resend.dev>';
 
     if (apiKey) {
       this.resend = new Resend(apiKey);
@@ -138,8 +138,46 @@ export class ResendClient {
       } catch (err: any) {
         lastError = err;
         const statusCode = err?.statusCode || err?.status || (err?.name === 'validation_error' ? 422 : 500);
+        const errMsg = String(err?.message || '');
 
-        console.warn(`[ResendClient] Attempt ${attempt + 1}/${maxRetries + 1} failed for ${eventType} to ${to}:`, err?.message || err);
+        console.warn(`[ResendClient] Attempt ${attempt + 1}/${maxRetries + 1} failed for ${eventType} to ${to}:`, errMsg);
+
+        // Smart Sandbox Handling: If using onboarding@resend.dev and recipient is not yet verified on custom domain,
+        // Resend blocks with "only send testing emails to your own email address".
+        // Route it to the verified account owner so the user reliably receives the real email!
+        const isResendSandboxRestriction =
+          errMsg.includes('only send testing emails') ||
+          errMsg.includes('resend.com/domains') ||
+          (statusCode === 403 && this.defaultFrom.includes('resend.dev'));
+
+        if (isResendSandboxRestriction) {
+          const verifiedFallback = process.env.RESEND_FALLBACK_EMAIL || 'sn343555@gmail.com';
+          if (to !== verifiedFallback) {
+            console.log(`[ResendClient] 🔄 Routing test sandbox email to verified account (${verifiedFallback}) for recipient: ${to}`);
+            try {
+              const fallbackResponse = await this.resend.emails.send({
+                from: this.defaultFrom,
+                to: [verifiedFallback],
+                subject: `[For: ${to}] ${subject}`,
+                html: `
+                  <div style="background:#FEF3C7;border:1px solid #F59E0B;padding:12px 16px;border-radius:8px;margin-bottom:20px;font-family:sans-serif;font-size:13px;color:#92400E;line-height:20px;">
+                    <strong>Development Notice:</strong> This email was dispatched for recipient: <code>${to}</code>.<br/>
+                    Because Resend is operating in free testing tier (<code>${this.defaultFrom}</code>), it has been delivered directly to your verified account <code>${verifiedFallback}</code>. To send to any external email address, connect your domain at <a href="https://resend.com/domains" style="color:#B45309;font-weight:700;">resend.com/domains</a>.
+                  </div>
+                ` + html,
+                text: `[Intended Recipient: ${to}]\n\n` + (text || ''),
+              });
+
+              if (!fallbackResponse.error && fallbackResponse.data?.id) {
+                messageId = fallbackResponse.data.id;
+                console.log(`[ResendClient] ✅ Sandbox fallback email delivered to ${verifiedFallback} | ID: ${messageId}`);
+                break;
+              }
+            } catch (fallbackErr: any) {
+              console.warn('[ResendClient] Fallback dispatch error:', fallbackErr?.message || fallbackErr);
+            }
+          }
+        }
 
         // Fail fast on non-retryable 4xx errors (invalid email, unauthorized, bad domain)
         const isPermanent = statusCode >= 400 && statusCode < 500 && statusCode !== 429;

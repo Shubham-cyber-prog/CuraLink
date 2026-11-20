@@ -1,9 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, Users, CalendarCheck, Stethoscope } from 'lucide-react-native';
+import { LayoutDashboard, Users, CalendarCheck, Calendar, Stethoscope, IndianRupee } from 'lucide-react-native';
 import { useTheme } from '../lib/theme-context';
-import { BlurView } from 'expo-blur';
 
 interface DoctorTabBarProps {
   state: any;
@@ -21,13 +20,21 @@ const DOCTOR_TAB_CONFIGS: Record<string, TabItemConfig> = {
     label: 'Dashboard',
     icon: LayoutDashboard,
   },
+  appointments: {
+    label: 'Visits',
+    icon: CalendarCheck,
+  },
+  earnings: {
+    label: 'Earnings',
+    icon: IndianRupee,
+  },
+  schedule: {
+    label: 'Schedule',
+    icon: Calendar,
+  },
   patients: {
     label: 'Patients',
     icon: Users,
-  },
-  appointments: {
-    label: 'Appointments',
-    icon: CalendarCheck,
   },
   profile: {
     label: 'Practice',
@@ -106,12 +113,12 @@ function AnimatedDoctorTabItem({
             transform: [{ scale: scaleAnim }, { translateY: iconTranslateY }],
           },
           isFocused && {
-            backgroundColor: isDark ? 'rgba(20, 184, 166, 0.16)' : 'rgba(13, 148, 136, 0.1)',
+            backgroundColor: isDark ? 'rgba(131, 197, 190, 0.16)' : 'rgba(0, 109, 119, 0.1)',
           },
         ]}
       >
         <IconComponent
-          size={21}
+          size={19}
           color={iconColor}
           strokeWidth={isFocused ? 2.4 : 1.8}
         />
@@ -210,9 +217,9 @@ export function DoctorTabBar({ state, descriptors, navigation }: DoctorTabBarPro
         style={[
           styles.floatingContainer,
           {
-            backgroundColor: isDark ? '#151B2E' : '#FFFFFF',
-            borderColor: isDark ? '#263049' : '#E2E8F0',
-            shadowColor: isDark ? '#000000' : '#0F172A',
+            backgroundColor: isDark ? '#0B1F33' : '#FFFFFF',
+            borderColor: isDark ? '#1B3650' : '#E2E9EC',
+            shadowColor: isDark ? '#000000' : '#0B1F33',
           },
         ]}
       >
@@ -225,18 +232,18 @@ export function DoctorTabBar({ state, descriptors, navigation }: DoctorTabBarPro
 const styles = StyleSheet.create({
   outerContainer: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: 12,
+    right: 12,
   },
   floatingContainer: {
-    height: 68,
-    borderRadius: 34,
+    height: 64,
+    borderRadius: 22,
     borderWidth: 1,
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 22,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 16,
   },
   blurOverlay: {
     position: 'absolute',
@@ -250,32 +257,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    gap: 2,
+    paddingVertical: 4,
+    gap: 1.5,
   },
   iconCapsule: {
-    height: 32,
-    minWidth: 44,
-    paddingHorizontal: 10,
+    height: 28,
+    minWidth: 36,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 14,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 9.5,
     letterSpacing: -0.1,
     fontFamily: Platform.OS === 'ios' ? 'Inter_600SemiBold' : undefined,
   },
   activePill: {
-    width: 14,
-    height: 3,
+    width: 12,
+    height: 2.5,
     borderRadius: 1.5,
-    marginTop: 2,
+    marginTop: 1,
   },
 });

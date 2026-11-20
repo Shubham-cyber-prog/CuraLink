@@ -36,7 +36,7 @@ export function UniversalEdgeBackGesture({ children }: Props) {
     } catch {
       canGoBackShared.value = false;
     }
-  });
+  }, [router]);
 
   const triggerHaptic = useCallback(() => {
     try {

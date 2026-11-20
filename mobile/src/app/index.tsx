@@ -1,149 +1,97 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Animated, ScrollView, Image } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Bot, CalendarCheck, MessageCircle } from 'lucide-react-native';
+import { CalendarCheck, Video, ShieldCheck, ArrowRight, Sparkles, Heart } from 'lucide-react-native';
 import { Button } from '../components/Button';
-import { LinearGradient } from 'expo-linear-gradient';
+import { MotionView } from '../components/Motion';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import logoImg from '../../assets/images/logo.png';
+import { useTheme } from '../lib/theme-context';
+import { CuraLinkLogo } from '../components/CuraLinkLogo';
+
+const HIGHLIGHTS = [
+  {
+    icon: CalendarCheck,
+    title: 'NMC Board-Certified Specialists',
+    desc: 'Top doctors from AIIMS, Apollo, Fortis with proven clinical experience.',
+  },
+  {
+    icon: Video,
+    title: 'Instant 2-Minute HD Video Visits',
+    desc: 'Consult top doctors 24×7 from ₹199 with encrypted end-to-end video.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Digitally-Signed E-Prescriptions',
+    desc: 'NMC-compliant digital Rx with instant medicine delivery & records vault.',
+  },
+];
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const [fadeAnim] = useState(() => new Animated.Value(0));
-  const [slideAnim] = useState(() => new Animated.Value(20));
-
-  useEffect(() => {
-    // Staged animation: fade in and slide up
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
+  const { isDark } = useTheme();
 
   return (
-    <LinearGradient
-      colors={['#F0FDFA', '#FFFFFF', '#FFFFFF']}
-      style={{ flex: 1 }}
-    >
-      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-        <ScrollView 
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, justifyContent: 'space-between', paddingBottom: 24 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header Area */}
-          <Animated.View 
-            style={{ 
-              opacity: fadeAnim, 
-              transform: [{ translateY: slideAnim }],
-              alignItems: 'center', 
-              marginTop: 40 
-            }}
-          >
-            {/* CuraLink Logo (clean transparent mark) */}
-            <View className="mb-4 h-24 w-24 items-center justify-center">
-              <Image
-                source={logoImg}
-                style={{ width: 88, height: 88 }}
-                resizeMode="contain"
-                alt="CuraLink Logo"
-              />
-            </View>
+    <SafeAreaView className="flex-1 bg-[#F6F8F9] dark:bg-[#071320]" edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          justifyContent: 'space-between',
+          paddingTop: 36,
+          paddingBottom: 28,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Real Logo Brand Header */}
+        <MotionView delay={30} className="items-center">
+          <View className="mb-4">
+            <CuraLinkLogo size="lg" showSubtitle subtitle="India's #1 Rated Telehealth Platform" />
+          </View>
 
-            <Text className="font-inter-bold text-center text-4xl tracking-tight text-charcoal">
-              Cura<Text className="text-teal-600">Link</Text>
-            </Text>
-            
-            <Text className="mt-3 max-w-[280px] text-center font-inter text-base leading-relaxed text-muted">
-              Clinical precision. Secure communication. AI-powered care.
-            </Text>
-          </Animated.View>
+          <Text className="mt-2 max-w-[310px] text-center font-inter text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+            India's most trusted healthcare ecosystem — instant video consults, verified clinic visits, and digital medical records.
+          </Text>
+        </MotionView>
 
-          {/* Features Highlights */}
-          <Animated.View 
-            style={{ 
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-              marginVertical: 32
-            }}
-            className="space-y-6"
-          >
-            {/* Feature 1 */}
-            <View className="flex-row items-start gap-4 rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
-              <View className="h-11 w-11 items-center justify-center rounded-xl bg-teal-50">
-                <Bot size={22} color="#0d9488" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-inter-semibold text-charcoal text-base">
-                  AI Symptom Checker
-                </Text>
-                <Text className="font-inter text-muted text-sm mt-1 leading-relaxed">
-                  Describe what you&apos;re feeling for immediate, clinical-grade guidance.
-                </Text>
-              </View>
-            </View>
+        {/* Feature Cards */}
+        <View className="my-8 space-y-3.5">
+          {HIGHLIGHTS.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <MotionView key={item.title} delay={90 + idx * 70}>
+                <View className="flex-row items-center gap-4 rounded-3xl border border-[#E2E8F0] dark:border-[#163656] bg-white dark:bg-[#0B1F33] p-4 shadow-sm shadow-slate-100 dark:shadow-none">
+                  <View className="h-12 w-12 items-center justify-center rounded-2xl bg-[#EAF4F5] dark:bg-[#112A44]">
+                    <Icon size={22} color={isDark ? '#83C5BE' : '#006D77'} />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="font-inter-bold text-sm text-[#0B1F33] dark:text-white">{item.title}</Text>
+                    <Text className="font-inter text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      {item.desc}
+                    </Text>
+                  </View>
+                </View>
+              </MotionView>
+            );
+          })}
+        </View>
 
-            {/* Feature 2 */}
-            <View className="flex-row items-start gap-4 rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
-              <View className="h-11 w-11 items-center justify-center rounded-xl bg-teal-50">
-                <CalendarCheck size={22} color="#0d9488" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-inter-semibold text-charcoal text-base">
-                  Instant Booking
-                </Text>
-                <Text className="font-inter text-muted text-sm mt-1 leading-relaxed">
-                  Schedule consultations with verified specialists in just a few taps.
-                </Text>
-              </View>
-            </View>
-
-            {/* Feature 3 */}
-            <View className="flex-row items-start gap-4 rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm">
-              <View className="h-11 w-11 items-center justify-center rounded-xl bg-teal-50">
-                <MessageCircle size={22} color="#0d9488" />
-              </View>
-              <View className="flex-1">
-                <Text className="font-inter-semibold text-charcoal text-base">
-                  Secure Consultation Chat
-                </Text>
-                <Text className="font-inter text-muted text-sm mt-1 leading-relaxed">
-                  End-to-end encrypted messaging directly with your physician.
-                </Text>
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* Action Buttons */}
-          <Animated.View 
-            style={{ 
-              opacity: fadeAnim,
-              width: '100%',
-              gap: 12
-            }}
-          >
-            <Button 
-              title="Create Account" 
-              onPress={() => router.push('/(auth)/register')}
-              className="w-full shadow-sm"
-            />
-            <Button 
-              title="Sign In" 
-              variant="outline"
-              onPress={() => router.push('/(auth)/login')}
-              className="w-full"
-            />
-          </Animated.View>
-
-        </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+        {/* Action Buttons */}
+        <MotionView delay={300} className="w-full gap-3">
+          <Button
+            title="Get Started"
+            onPress={() => router.push('/(auth)/register')}
+            icon={ArrowRight}
+            iconPosition="right"
+            className="w-full"
+          />
+          <Button
+            title="Sign In to Existing Account"
+            variant="outline"
+            onPress={() => router.push('/(auth)/login')}
+            className="w-full"
+          />
+        </MotionView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

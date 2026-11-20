@@ -19,6 +19,8 @@ import {
   appointmentCancelledTemplate,
   appointmentRescheduledTemplate,
   appointmentReminderTemplate,
+  appointmentPaymentReceiptTemplate,
+  doctorPaymentCreditTemplate,
 } from './templates/appointment.templates';
 
 export class EmailService {
@@ -222,7 +224,11 @@ export class EmailService {
     const frontendUrl = this.getFrontendUrl();
     const doctorName = apt.doctor.user.name;
     const patientName = apt.user.name;
-    const mode = apt.doctor.consultationModes?.[0] || 'VIDEO';
+    const isOffline = apt.roomName?.startsWith('IN_PERSON');
+    const mode = isOffline ? 'IN_PERSON' : (apt.doctor.consultationModes?.[0] || 'VIDEO');
+    const opdToken = apt.roomName?.startsWith('IN_PERSON:') ? apt.roomName.replace('IN_PERSON:', '') : undefined;
+    const hospitalName = apt.doctor.city ? `${apt.doctor.city} Super Speciality Hospital` : 'CuraLink Partner Hospital';
+    const clinicAddress = apt.doctor.city ? `OPD Block, ${apt.doctor.city}` : 'Main OPD Complex, Ground Floor';
 
     // 1. Patient Confirmation
     const patientTpl = appointmentBookedPatientTemplate({
@@ -235,6 +241,9 @@ export class EmailService {
       status: apt.status,
       detailsUrl: `${frontendUrl}/appointments`,
       videoInstructions: mode === 'VIDEO',
+      hospitalName,
+      clinicAddress,
+      opdToken,
     });
 
     await resendClient.sendEmail({
@@ -266,6 +275,85 @@ export class EmailService {
       eventType: 'APPOINTMENT_BOOKED_DOCTOR',
       recipientId: apt.doctor.userId,
       idempotencyKey: `apt_booked_doc_${apt.id}`,
+    });
+  }
+
+  /**
+   * When payment succeeds: Send instant itemized payment receipt to patient & credit notice to doctor
+   */
+  async sendPaymentReceiptEmail(
+    appointmentId: string,
+    paymentDetails: {
+      amount: number;
+      method: string;
+      transactionId: string;
+      orderId?: string;
+      currency?: string;
+    }
+  ) {
+    const apt = await this.loadAppointment(appointmentId);
+    if (!apt || !apt.user || !apt.doctor?.user) return;
+
+    const frontendUrl = this.getFrontendUrl();
+    const doctorName = apt.doctor.user.name;
+    const patientName = apt.user.name;
+    const isOffline = apt.roomName?.startsWith('IN_PERSON');
+    const mode = isOffline ? 'IN_PERSON' : 'VIDEO';
+    const opdToken = apt.roomName?.startsWith('IN_PERSON:') ? apt.roomName.replace('IN_PERSON:', '') : undefined;
+    const hospitalName = apt.doctor.city ? `${apt.doctor.city} Super Speciality Hospital` : 'CuraLink Partner Hospital';
+    const clinicAddress = apt.doctor.city ? `OPD Block, ${apt.doctor.city}` : 'Main OPD Complex, Ground Floor';
+    const currency = paymentDetails.currency || 'INR';
+
+    // 1. Patient Payment Receipt Email
+    const patientTpl = appointmentPaymentReceiptTemplate({
+      patientName,
+      doctorName,
+      specialty: apt.doctor.specialization,
+      date: apt.date,
+      time: apt.time,
+      mode,
+      amount: paymentDetails.amount,
+      currency,
+      paymentMethod: paymentDetails.method,
+      receiptId: paymentDetails.orderId || `RCPT-${apt.id.slice(0, 8)}`,
+      transactionId: paymentDetails.transactionId,
+      detailsUrl: isOffline ? `${frontendUrl}/appointments` : `${frontendUrl}/consultation/${apt.id}`,
+      hospitalName,
+      clinicAddress,
+      opdToken,
+    });
+
+    await resendClient.sendEmail({
+      to: apt.user.email,
+      subject: patientTpl.subject,
+      html: patientTpl.html,
+      text: patientTpl.text,
+      eventType: 'PAYMENT_RECEIPT_PATIENT',
+      recipientId: apt.user.id,
+      idempotencyKey: `pay_rcpt_pat_${apt.id}_${paymentDetails.transactionId}`,
+    });
+
+    // 2. Doctor Payment Credit Notification Email
+    const doctorTpl = doctorPaymentCreditTemplate({
+      doctorName,
+      patientName,
+      date: apt.date,
+      time: apt.time,
+      mode,
+      amount: paymentDetails.amount,
+      currency,
+      transactionId: paymentDetails.transactionId,
+      dashboardUrl: `${frontendUrl}/doctor-dashboard/earnings`,
+    });
+
+    await resendClient.sendEmail({
+      to: apt.doctor.user.email,
+      subject: doctorTpl.subject,
+      html: doctorTpl.html,
+      text: doctorTpl.text,
+      eventType: 'PAYMENT_CREDIT_DOCTOR',
+      recipientId: apt.doctor.userId,
+      idempotencyKey: `pay_credit_doc_${apt.id}_${paymentDetails.transactionId}`,
     });
   }
 

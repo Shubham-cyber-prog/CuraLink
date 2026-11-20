@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { Pressable, Text, ActivityIndicator, View, Animated, Easing } from 'react-native';
+import React from 'react';
+import { Pressable, Text, ActivityIndicator, View } from 'react-native';
 import type { PressableProps } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../lib/theme-context';
 
 interface ButtonProps extends PressableProps {
   title: string;
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   icon?: LucideIcon;
@@ -23,99 +24,77 @@ export function Button({
   iconPosition = 'left',
   className = '',
   disabled,
+  onPressIn,
+  onPressOut,
   ...props
 }: ButtonProps) {
   const { isDark } = useTheme();
+  const scale = useSharedValue(1);
 
-  // Keep the animated value stable without reading a ref during render.
-  const [scaleAnim] = useState(() => new Animated.Value(1));
-
-  // Calm ease-out press animation (no spring overshoot)
-  const handlePressIn = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 0.97,
-      duration: 150,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 1,
-      duration: 150,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  };
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const isPrimary = variant === 'primary';
+  const isDanger = variant === 'danger';
 
   const sizeStyles = {
-    sm: 'px-3 py-2',
+    sm: 'px-4 py-2.5',
     md: 'px-5 py-3.5',
     lg: 'px-6 py-4',
   };
 
   const variantStyles = {
-    primary: isDark ? 'bg-teal-500' : 'bg-teal-600',
-    secondary: isDark ? 'bg-teal-950/50 border border-teal-800/60' : 'bg-teal-50',
-    outline: isDark ? 'bg-transparent border border-teal-500' : 'bg-transparent border border-teal-600',
+    primary: 'bg-[#006D77]',
+    secondary: isDark ? 'bg-[#112942] border border-[#1B3650]' : 'bg-[#EAF4F5] border border-[#C7E3E5]',
+    outline: isDark ? 'bg-transparent border border-[#83C5BE]/60' : 'bg-transparent border border-[#006D77]',
     ghost: 'bg-transparent',
+    danger: 'bg-rose-600',
   };
 
   const textColor = {
     primary: '#FFFFFF',
-    secondary: isDark ? '#2DD4BF' : '#0f766e',
-    outline: isDark ? '#2DD4BF' : '#0d9488',
-    ghost: isDark ? '#2DD4BF' : '#0d9488',
+    secondary: isDark ? '#83C5BE' : '#006D77',
+    outline: isDark ? '#83C5BE' : '#006D77',
+    ghost: isDark ? '#83C5BE' : '#006D77',
+    danger: '#FFFFFF',
   };
 
   const textSizeStyle = {
-    sm: 'text-sm',
-    md: 'text-base',
-    lg: 'text-lg',
+    sm: 'text-xs',
+    md: 'text-sm',
+    lg: 'text-base',
   };
 
-  const iconSize = size === 'sm' ? 16 : 20;
-  const iconColor = isPrimary ? '#FFFFFF' : (isDark ? '#2DD4BF' : '#0d9488');
+  const iconSize = size === 'sm' ? 15 : 18;
+  const iconColor = isPrimary || isDanger ? '#FFFFFF' : isDark ? '#83C5BE' : '#006D77';
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <Animated.View style={animatedStyle}>
       <Pressable
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPressIn={(e) => {
+          scale.value = withSpring(0.96, { damping: 18, stiffness: 280 });
+          onPressIn?.(e);
+        }}
+        onPressOut={(e) => {
+          scale.value = withSpring(1, { damping: 18, stiffness: 280 });
+          onPressOut?.(e);
+        }}
         disabled={disabled || isLoading}
-        className={`
-          flex-row items-center justify-center rounded-xl
-          ${sizeStyles[size]}
-          ${variantStyles[variant]}
-          ${(disabled || isLoading) ? 'opacity-50' : 'opacity-100'}
-          ${className}
-        `}
-        style={({ pressed }) => ({
-          opacity: pressed ? 0.9 : (disabled || isLoading) ? 0.5 : 1,
-        })}
+        className={`flex-row items-center justify-center rounded-full ${sizeStyles[size]} ${variantStyles[variant]} ${
+          disabled || isLoading ? 'opacity-50' : 'opacity-100'
+        } ${className}`}
         {...props}
       >
         {isLoading ? (
-          <ActivityIndicator color={isPrimary ? '#FFFFFF' : '#0d9488'} size="small" />
+          <ActivityIndicator color={isPrimary || isDanger ? '#FFFFFF' : '#006D77'} size="small" />
         ) : (
           <View className="flex-row items-center gap-2">
-            {Icon && iconPosition === 'left' && (
-              <Icon size={iconSize} color={iconColor} />
-            )}
-
-            <Text
-              className={`font-inter-semibold ${textSizeStyle[size]}`}
-              style={{ color: textColor[variant] }}
-            >
+            {Icon && iconPosition === 'left' && <Icon size={iconSize} color={iconColor} />}
+            <Text className={`font-inter-semibold ${textSizeStyle[size]}`} style={{ color: textColor[variant] }}>
               {title}
             </Text>
-
-            {Icon && iconPosition === 'right' && (
-              <Icon size={iconSize} color={iconColor} />
-            )}
+            {Icon && iconPosition === 'right' && <Icon size={iconSize} color={iconColor} />}
           </View>
         )}
       </Pressable>

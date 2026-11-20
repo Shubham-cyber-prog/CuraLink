@@ -12,7 +12,9 @@ export interface ThemeColors {
   border: string;
   text: string;
   muted: string;
+  navy: string;
   teal: string;
+  aqua: string;
   tealBg: string;
   tealBorder: string;
   accent: string;
@@ -28,29 +30,33 @@ interface ThemeContextType {
 const THEME_STORE_KEY = 'curalink_mobile_theme_mode';
 
 const lightColors: ThemeColors = {
-  bg: '#F8FAFC',
+  bg: '#F4F7F8',
   surface: '#FFFFFF',
-  surfaceElevated: '#F1F5F9',
-  border: '#E2E8F0',
-  text: '#1E293B',
-  muted: '#64748B',
-  teal: '#085041',
-  tealBg: '#F0FDFA',
-  tealBorder: '#CCFBF1',
-  accent: '#085041',
+  surfaceElevated: '#EDF3F4',
+  border: '#E2E9EC',
+  text: '#0B1F33',
+  muted: '#5D7083',
+  navy: '#0B1F33',
+  teal: '#006D77',
+  aqua: '#83C5BE',
+  tealBg: '#EAF4F5',
+  tealBorder: '#C7E3E5',
+  accent: '#006D77',
 };
 
 const darkColors: ThemeColors = {
-  bg: '#0B1120',
-  surface: '#151B2E',
-  surfaceElevated: '#1C2338',
-  border: '#263049',
-  text: '#F1F5F9',
-  muted: '#94A3B8',
-  teal: '#2DD4BF',
-  tealBg: 'rgba(45, 212, 191, 0.15)',
-  tealBorder: 'rgba(45, 212, 191, 0.3)',
-  accent: '#2DD4BF',
+  bg: '#06101B',
+  surface: '#0B1F33',
+  surfaceElevated: '#112942',
+  border: '#1B3650',
+  text: '#F3F7F9',
+  muted: '#94AABF',
+  navy: '#0B1F33',
+  teal: '#83C5BE',
+  aqua: '#83C5BE',
+  tealBg: 'rgba(131, 197, 190, 0.14)',
+  tealBorder: 'rgba(131, 197, 190, 0.28)',
+  accent: '#83C5BE',
 };
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -65,7 +71,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [systemScheme, setSystemScheme] = useState<ColorSchemeName>(Appearance.getColorScheme() ?? 'light');
   const { setColorScheme } = useNativeWindColorScheme();
 
-  // Load saved preference from SecureStore
   useEffect(() => {
     async function loadTheme() {
       try {
@@ -80,7 +85,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     loadTheme();
   }, []);
 
-  // Listen to device system theme changes
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       setSystemScheme(colorScheme ?? 'light');
@@ -95,7 +99,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return themeMode === 'dark';
   }, [themeMode, systemScheme]);
 
-  // Synchronize NativeWind dark mode class
   useEffect(() => {
     setColorScheme(isDark ? 'dark' : 'light');
   }, [isDark, setColorScheme]);

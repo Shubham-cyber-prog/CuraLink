@@ -264,6 +264,34 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
             </p>
           </div>
 
+          {/* OPD Hospital Walk-in Pass for in-person appointments */}
+          {consultationMode === "in-person" && (
+            <div className="rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-4 text-left text-xs space-y-2">
+              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-bold text-sm">
+                <Building2 className="h-4 w-4 text-emerald-600" />
+                <span>Hospital OPD Walk-in Pass</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Hospital / Facility</span>
+                <span className="font-semibold text-[#0B1F33] dark:text-white">
+                  {doctor.hospitalName || "Apollo Multi-Speciality Hospital"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Counter / Location</span>
+                <span className="font-medium text-[#0B1F33] dark:text-white">
+                  {doctor.clinicAddress || `OPD Counter 2, Ground Floor`}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-emerald-200/70 dark:border-emerald-800/40">
+                <span className="text-slate-500 font-semibold">OPD Walk-in Token</span>
+                <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded">
+                  #OPD-{createdAppointmentId ? createdAppointmentId.slice(-4).toUpperCase() : "WALKIN"}
+                </span>
+              </div>
+            </div>
+          )}
+
           {paymentReceipt && (
             <div className="rounded-2xl bg-[#F4F7F8] dark:bg-white/[0.04] border border-slate-200/70 dark:border-white/[0.08] p-4 text-left text-xs space-y-2">
               <div className="flex justify-between">
@@ -287,8 +315,12 @@ export default function BookAppointmentPage({ params }: { params: Promise<{ id: 
             </div>
           )}
 
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            ✉️ Official booking confirmation and receipt have been dispatched to your registered email.
+          </p>
+
           <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-            {paymentReceipt && createdAppointmentId && (
+            {consultationMode === "video" && paymentReceipt && createdAppointmentId && (
               <Link
                 href={`/consultation/${createdAppointmentId}`}
                 className="inline-flex items-center gap-2 h-10 px-5 rounded-full bg-[#006D77] hover:bg-[#005860] text-sm font-medium text-white shadow-sm"

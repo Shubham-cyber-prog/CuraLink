@@ -9,11 +9,14 @@ export const medicationSchema = z.object({
 });
 
 export const createPrescriptionSchema = z.object({
-  consultationId: z.string().min(1, 'Consultation ID is required'),
+  consultationId: z.string().optional(),
+  appointmentId: z.string().optional(),
   patientId: z.string().min(1, 'Patient ID is required'),
   diagnosis: z.string().min(3, 'Diagnosis must be at least 3 characters'),
   medications: z.array(medicationSchema).min(1, 'At least one medication must be prescribed'),
   notes: z.string().optional(),
+}).refine((data) => Boolean(data.consultationId || data.appointmentId), {
+  message: 'Consultation ID or Appointment ID is required',
 });
 
 export const issuePrescriptionSchema = z.object({

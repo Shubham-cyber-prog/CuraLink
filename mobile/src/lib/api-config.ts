@@ -74,3 +74,12 @@ export function getHealthCheckUrl(): string {
   const serverRoot = baseUrl.replace(/\/api\/?$/, '');
   return `${serverRoot}/health`;
 }
+
+export function resolveMediaUrl(url?: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const serverOrigin = getApiBaseUrl().replace(/\/api\/?$/, '');
+  return `${serverOrigin}${url.startsWith('/') ? '' : '/'}${url}`;
+}

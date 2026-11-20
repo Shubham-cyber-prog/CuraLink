@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, FileText, MessageSquare, User, ShieldCheck, Clock } from "lucide-react";
+import { Home, Calendar, FileText, MessageSquare, User, ShieldCheck, Clock, IndianRupee } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface FloatingMobileNavProps {
@@ -22,8 +22,9 @@ export function FloatingMobileNav({ role = "PATIENT" }: FloatingMobileNavProps) 
       : role === "DOCTOR"
       ? [
           { label: "Practice", href: "/doctor-dashboard", icon: Home },
-          { label: "Schedule", href: "/doctor-dashboard#schedule", icon: Clock },
-          { label: "Messages", href: "/messages", icon: MessageSquare },
+          { label: "Visits", href: "/doctor-dashboard/appointments", icon: Calendar },
+          { label: "Schedule", href: "/doctor-dashboard/schedule", icon: Clock },
+          { label: "Earnings", href: "/doctor-dashboard/earnings", icon: IndianRupee },
           { label: "Profile", href: "/profile", icon: User },
         ]
       : [

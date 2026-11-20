@@ -18,16 +18,31 @@ export default function DoctorTabLayout() {
       />
 
       <Tabs.Screen
-        name="patients"
+        name="appointments"
         options={{
-          title: 'Patients',
+          title: 'Appointments',
         }}
       />
 
       <Tabs.Screen
-        name="appointments"
+        name="earnings"
         options={{
-          title: 'Appointments',
+          title: 'Earnings',
+        }}
+      />
+
+      <Tabs.Screen
+        name="schedule"
+        options={{
+          title: 'Schedule',
+        }}
+      />
+
+      <Tabs.Screen
+        name="patients"
+        options={{
+          href: null,
+          title: 'Patients',
         }}
       />
 

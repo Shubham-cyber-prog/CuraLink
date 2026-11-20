@@ -16,6 +16,7 @@ import vitalsRoutes from './routes/vitals.routes';
 import adminRoutes from './routes/admin.routes';
 import messageRoutes from './routes/message.routes';
 import webhookRoutes from './routes/webhook.routes';
+import labRoutes from './routes/lab.routes';
 import { errorHandler } from './middleware/error.middleware';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -170,6 +171,8 @@ app.use('/api/vitals', vitalsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/lab', labRoutes);
+app.use('/api/labs', labRoutes);
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

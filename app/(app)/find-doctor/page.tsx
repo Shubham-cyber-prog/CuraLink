@@ -151,7 +151,10 @@ export default function FindDoctorPage() {
         doc.name.toLowerCase().includes(q) ||
         (doc.specialty || "").toLowerCase().includes(q) ||
         (doc.specialization || "").toLowerCase().includes(q) ||
-        (doc.city || "").toLowerCase().includes(q);
+        (doc.city || "").toLowerCase().includes(q) ||
+        (doc.hospitalName || "").toLowerCase().includes(q) ||
+        (doc.clinicAddress || "").toLowerCase().includes(q) ||
+        (doc.bio || "").toLowerCase().includes(q);
 
       const matchesSpecialty =
         specialty === "All" ||
@@ -246,7 +249,7 @@ export default function FindDoctorPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by doctor name, specialty (Cardiology, Skin), or city..."
+                placeholder="Search doctor, hospital (Apollo, Fortis, Max, Medanta), or specialty..."
                 className="w-full rounded-full bg-transparent pl-10 pr-8 py-2.5 text-sm text-[#0B1F33] placeholder:text-slate-400 focus:outline-none"
               />
               {search && (

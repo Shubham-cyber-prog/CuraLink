@@ -126,6 +126,21 @@ export class PaymentService {
           }),
         ];
 
+    // Asynchronously dispatch payment receipt and confirmed status emails
+    try {
+      const { emailService } = await import('./email/email.service');
+      emailService.sendPaymentReceiptEmail(appointmentId, {
+        amount: updatedPayment.amount,
+        method: 'ONLINE',
+        transactionId: razorpayPaymentId,
+        orderId: razorpayOrderId,
+      }).catch((err) => {
+        console.error('[PaymentService] Failed to dispatch payment receipt email:', err?.message || err);
+      });
+    } catch (err) {
+      console.error('[PaymentService] Error importing email service:', err);
+    }
+
     return updatedPayment;
   }
 
@@ -207,6 +222,22 @@ export class PaymentService {
         data: { status: 'CONFIRMED' },
       }),
     ]);
+
+    // Asynchronously dispatch real payment receipt & appointment confirmation emails
+    try {
+      const { emailService } = await import('./email/email.service');
+      emailService.sendPaymentReceiptEmail(appointment.id, {
+        amount,
+        method: input.method,
+        transactionId: razorpayPaymentId,
+        orderId: razorpayOrderId,
+        currency: 'INR',
+      }).catch((err) => {
+        console.error('[PaymentService] Failed to dispatch payment receipt email:', err?.message || err);
+      });
+    } catch (err) {
+      console.error('[PaymentService] Error importing email service:', err);
+    }
 
     return {
       payment,

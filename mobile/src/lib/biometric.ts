@@ -1,4 +1,4 @@
-import * as LocalAuthentication from 'expo-local-authentication';
+import { requireOptionalNativeModule } from 'expo';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
@@ -16,22 +16,69 @@ export interface BiometricAvailability {
   hasHardware: boolean;
   isEnrolled: boolean;
   label: string;
+  nativeModuleAvailable: boolean;
+}
+
+type LocalAuthModule = typeof import('expo-local-authentication');
+
+let cachedLocalAuth: LocalAuthModule | null | undefined;
+
+/**
+ * Safely lazy-loads expo-local-authentication so the app NEVER crashes in Expo Go
+ * or an older Dev Client APK that doesn't yet include the native ExpoLocalAuthentication module.
+ */
+function getLocalAuth(): LocalAuthModule | null {
+  if (cachedLocalAuth !== undefined) {
+    return cachedLocalAuth;
+  }
+  // Check silently via requireOptionalNativeModule BEFORE requiring expo-local-authentication
+  // so Expo never throws or triggers a red LogBox error when the native binary lacks the module.
+  const nativeModule = requireOptionalNativeModule('ExpoLocalAuthentication');
+  if (!nativeModule) {
+    cachedLocalAuth = null;
+    return null;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('expo-local-authentication') as LocalAuthModule;
+    if (mod && typeof mod.hasHardwareAsync === 'function') {
+      cachedLocalAuth = mod;
+      return mod;
+    }
+    cachedLocalAuth = null;
+    return null;
+  } catch {
+    cachedLocalAuth = null;
+    return null;
+  }
 }
 
 export async function checkBiometricAvailability(): Promise<BiometricAvailability> {
+  const LocalAuth = getLocalAuth();
+  if (!LocalAuth) {
+    return {
+      available: false,
+      hasHardware: false,
+      isEnrolled: false,
+      label: 'Fingerprint',
+      nativeModuleAvailable: false,
+    };
+  }
+
   try {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-    const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+    const hasHardware = await LocalAuth.hasHardwareAsync();
+    const isEnrolled = await LocalAuth.isEnrolledAsync();
+    const types = await LocalAuth.supportedAuthenticationTypesAsync();
 
     let label = 'Fingerprint';
     if (
       Platform.OS === 'ios' &&
-      types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION) &&
-      !types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)
+      types.includes(LocalAuth.AuthenticationType.FACIAL_RECOGNITION) &&
+      !types.includes(LocalAuth.AuthenticationType.FINGERPRINT)
     ) {
       label = 'Face ID';
-    } else if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+    } else if (types.includes(LocalAuth.AuthenticationType.FINGERPRINT)) {
       label = 'Fingerprint';
     } else if (types.length > 0) {
       label = 'Biometrics';
@@ -42,6 +89,7 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
       hasHardware,
       isEnrolled,
       label,
+      nativeModuleAvailable: true,
     };
   } catch {
     return {
@@ -49,6 +97,7 @@ export async function checkBiometricAvailability(): Promise<BiometricAvailabilit
       hasHardware: false,
       isEnrolled: false,
       label: 'Fingerprint',
+      nativeModuleAvailable: false,
     };
   }
 }
@@ -57,8 +106,16 @@ export async function authenticateWithBiometrics(promptMessage = 'Verify your fi
   success: boolean;
   error?: string;
 }> {
+  const LocalAuth = getLocalAuth();
+  if (!LocalAuth) {
+    return {
+      success: false,
+      error: 'Fingerprint native module requires a fresh Android/iOS build (npx expo run:android or eas build).',
+    };
+  }
+
   try {
-    const result = await LocalAuthentication.authenticateAsync({
+    const result = await LocalAuth.authenticateAsync({
       promptMessage,
       cancelLabel: 'Cancel',
       fallbackLabel: 'Use Passcode',

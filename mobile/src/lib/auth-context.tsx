@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { View, Text, Modal, Linking, Pressable } from 'react-native';
+import { View, Text, Modal, Pressable } from 'react-native';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
-import { ShieldAlert, ExternalLink, LogOut, Fingerprint } from 'lucide-react-native';
+import { LogOut, Fingerprint } from 'lucide-react-native';
 import { api, subscribeSessionExpired } from './api';
 import { saveTokens, getToken, getRefreshToken, removeToken } from './secure-store';
 import {
@@ -15,6 +15,7 @@ interface User {
   name: string;
   email: string;
   role: 'PATIENT' | 'DOCTOR' | 'ADMIN';
+  avatarUrl?: string | null;
   twoFactorEnabled?: boolean;
   biometricEnabled?: boolean;
 }
@@ -41,6 +42,7 @@ interface AuthContextValue extends AuthState {
   loginWithToken: (authToken: string, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (updated: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -142,6 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const inAuthGroup = firstSegment === '(auth)';
     const inTabsGroup = firstSegment === '(tabs)';
     const inDoctorTabsGroup = firstSegment === '(doctor-tabs)';
+    const inAdminTabsGroup = firstSegment === '(admin-tabs)';
     const inRootOnboarding = !firstSegment || firstSegment === 'index';
 
     // Critical: Do NOT redirect away from verification or password reset screens
@@ -155,24 +158,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (state.isAuthenticated && (inAuthGroup || inRootOnboarding)) {
       // Logged in but on auth/onboarding screen → go to appropriate dashboard
-      if (state.user?.role === 'DOCTOR') {
+      if (state.user?.role === 'ADMIN') {
+        router.replace('/(admin-tabs)' as any);
+      } else if (state.user?.role === 'DOCTOR') {
         router.replace('/(doctor-tabs)' as any);
       } else if (state.user?.role === 'PATIENT') {
         router.replace('/(tabs)');
       }
-      // ADMIN will be kept on current screen and presented with AdminNoticeModal
-    } else if (state.isAuthenticated && state.user?.role === 'DOCTOR' && inTabsGroup) {
+    } else if (state.isAuthenticated && state.user?.role === 'ADMIN' && (inTabsGroup || inDoctorTabsGroup)) {
+      router.replace('/(admin-tabs)' as any);
+    } else if (state.isAuthenticated && state.user?.role === 'DOCTOR' && (inTabsGroup || inAdminTabsGroup)) {
       router.replace('/(doctor-tabs)' as any);
-    } else if (state.isAuthenticated && state.user?.role === 'PATIENT' && inDoctorTabsGroup) {
+    } else if (state.isAuthenticated && state.user?.role === 'PATIENT' && (inDoctorTabsGroup || inAdminTabsGroup)) {
       router.replace('/(tabs)');
-    } else if (!state.isAuthenticated && (inTabsGroup || inDoctorTabsGroup)) {
-      // Not logged in but on protected screen → dismiss nested tabs and go to onboarding
+    } else if (!state.isAuthenticated && (inTabsGroup || inDoctorTabsGroup || inAdminTabsGroup)) {
+      // Not logged in but on protected screen → dismiss nested tabs and go to login
       try {
         if (router.canGoBack()) {
           router.dismissAll();
         }
       } catch {}
-      router.replace('/');
+      router.replace('/(auth)/login');
     }
   }, [state.isAuthenticated, state.isLoading, state.user?.role, segments, router, rootNavigationState?.key]);
 
@@ -334,7 +340,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     try {
       const refreshToken = await getRefreshToken();
-      await api.post('/auth/logout', { refreshToken }).catch(() => null);
+      if (refreshToken) {
+        await api.post('/auth/logout', { refreshToken }).catch(() => null);
+      }
     } catch {}
     try {
       await removeToken();
@@ -353,7 +361,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.dismissAll();
       }
     } catch {}
-    router.replace('/');
+    router.replace('/(auth)/login');
   }, [router]);
 
   const refreshUser = useCallback(async () => {
@@ -367,7 +375,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const isAdminUser = state.isAuthenticated && state.user?.role === 'ADMIN';
+  const updateUser = useCallback((updated: Partial<User>) => {
+    setState((prev) => {
+      if (!prev.user) return prev;
+      return {
+        ...prev,
+        user: { ...prev.user, ...updated },
+      };
+    });
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -381,6 +397,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithToken,
         logout,
         refreshUser,
+        updateUser,
       }}
     >
       {children}
@@ -410,43 +427,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               >
                 <LogOut size={16} color="#CBD5E1" />
                 <Text className="font-inter-semibold text-sm text-slate-200">Sign Out</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
-      )}
-      {isAdminUser && (
-        <Modal visible={true} transparent={false} animationType="fade">
-          <View className="flex-1 bg-slate-900 justify-center items-center px-6">
-            <View className="h-16 w-16 rounded-full bg-amber-500/20 border border-amber-500/40 items-center justify-center mb-6">
-              <ShieldAlert size={36} color="#F59E0B" />
-            </View>
-
-            <Text className="font-inter-bold text-2xl text-white text-center mb-2">
-              Admin Portal (Web Only)
-            </Text>
-
-            <Text className="font-inter text-sm text-slate-300 text-center leading-relaxed mb-6 max-w-[320px]">
-              System administration, doctor verification audits, and clinical risk analytics are optimized for desktop management.
-            </Text>
-
-            <View className="w-full max-w-[320px] space-y-3">
-              <Pressable
-                onPress={() => {
-                  Linking.openURL('https://curalink-056t.onrender.com/admin').catch(() => null);
-                }}
-                className="w-full flex-row items-center justify-center gap-2 bg-teal-600 active:bg-teal-700 py-3.5 rounded-xl shadow-sm"
-              >
-                <ExternalLink size={18} color="#FFFFFF" />
-                <Text className="font-inter-semibold text-sm text-white">Open Admin Dashboard</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={logout}
-                className="w-full flex-row items-center justify-center gap-2 bg-slate-800 active:bg-slate-700 border border-slate-700 py-3.5 rounded-xl"
-              >
-                <LogOut size={18} color="#CBD5E1" />
-                <Text className="font-inter-semibold text-sm text-slate-200">Log Out</Text>
               </Pressable>
             </View>
           </View>

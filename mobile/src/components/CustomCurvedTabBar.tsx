@@ -112,7 +112,7 @@ function AnimatedTabItem({
             transform: [{ scale: scaleAnim }, { translateY: iconTranslateY }],
           },
           isFocused && {
-            backgroundColor: isDark ? 'rgba(20, 184, 166, 0.14)' : 'rgba(13, 148, 136, 0.08)',
+            backgroundColor: isDark ? 'rgba(131, 197, 190, 0.16)' : 'rgba(0, 109, 119, 0.09)',
           },
         ]}
       >
@@ -226,9 +226,9 @@ function CenterAIButton({
           style={[
             styles.centerFloatingButton,
             {
-              backgroundColor: colors.teal,
-              borderColor: isDark ? '#0B1120' : '#FFFFFF',
-              shadowColor: colors.teal,
+              backgroundColor: '#006D77',
+              borderColor: isDark ? '#06101B' : '#FFFFFF',
+              shadowColor: '#006D77',
               transform: [{ scale: scaleAnim }],
             },
           ]}
@@ -325,9 +325,9 @@ export function CustomCurvedTabBar({ state, descriptors, navigation }: CustomTab
         style={[
           styles.floatingContainer,
           {
-            backgroundColor: isDark ? '#151B2E' : '#FFFFFF',
-            borderColor: isDark ? '#263049' : '#E2E8F0',
-            shadowColor: isDark ? '#000000' : '#0F172A',
+            backgroundColor: isDark ? '#0B1F33' : '#FFFFFF',
+            borderColor: isDark ? '#1B3650' : '#E2E9EC',
+            shadowColor: isDark ? '#000000' : '#0B1F33',
           },
         ]}
       >

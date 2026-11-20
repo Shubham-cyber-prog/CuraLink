@@ -13,6 +13,7 @@ import {
 import { LogBox } from 'react-native';
 import { AuthProvider } from '../lib/auth-context';
 import { ThemeProvider, useTheme } from '../lib/theme-context';
+import { LocationProvider } from '../lib/location-context';
 import { AnimatedSplash } from '../components/AnimatedSplash';
 import { NetworkAlertBanner } from '../components/NetworkAlertBanner';
 
@@ -87,6 +88,13 @@ function MainLayoutContent({
               }}
             />
             <Stack.Screen
+              name="(admin-tabs)"
+              options={{
+                gestureEnabled: false,
+                cardStyleInterpolator: CardStyleInterpolators.forFadeFromCenter,
+              }}
+            />
+            <Stack.Screen
               name="symptom-checker"
               options={{
                 gestureEnabled: true,
@@ -104,6 +112,14 @@ function MainLayoutContent({
             />
             <Stack.Screen
               name="chat"
+              options={{
+                gestureEnabled: true,
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+                gestureResponseDistance: 30,
+              }}
+            />
+            <Stack.Screen
+              name="lab-tests"
               options={{
                 gestureEnabled: true,
                 cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
@@ -166,10 +182,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <MainLayoutContent
-        splashComplete={splashComplete}
-        onSplashComplete={onSplashComplete}
-      />
+      <LocationProvider>
+        <MainLayoutContent
+          splashComplete={splashComplete}
+          onSplashComplete={onSplashComplete}
+        />
+      </LocationProvider>
     </ThemeProvider>
   );
 }

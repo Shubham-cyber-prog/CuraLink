@@ -158,6 +158,7 @@ export default function DoctorPatientDetailScreen() {
       const res = await api.get<any>(`/doctor/me/patients/${patientId}`);
       if (res?.data) {
         const d = res.data;
+        const p = d.patient || d;
         const parsedRx = (d.prescriptions || []).map((rx: any) => {
           let meds = rx.medications;
           if (typeof meds === 'string') {
@@ -172,28 +173,41 @@ export default function DoctorPatientDetailScreen() {
             diagnosis: rx.diagnosis,
             medications: Array.isArray(meds) ? meds : [],
             notes: rx.notes,
-            issuedAt: rx.createdAt ? new Date(rx.createdAt).toLocaleDateString() : 'Recent',
+            issuedAt: rx.createdAt ? new Date(rx.createdAt).toLocaleDateString('en-IN') : 'Recent',
           };
         });
 
+        const latestVital = Array.isArray(d.vitalsHistory) && d.vitalsHistory.length > 0 ? d.vitalsHistory[0] : null;
+        const apptsList = d.appointments || d.consultations || [];
+
         setPatient({
-          id: d.id,
-          name: d.name || 'Patient Record',
-          email: d.email || '',
-          phone: d.phone,
-          age: d.age ?? undefined,
-          gender: d.gender || 'Unknown',
-          riskLevel: d.riskLevel || 'Low',
-          primaryCondition: d.primaryCondition || 'General Consultation',
-          currentVitals: d.currentVitals || EMPTY_PATIENT.currentVitals,
+          id: p.id || d.id || patientId,
+          name: p.name || 'Patient Record',
+          email: p.email || '',
+          phone: p.phone || undefined,
+          age: p.age ?? undefined,
+          gender: p.gender || 'Not specified',
+          riskLevel: p.riskLevel || d.riskLevel || 'Low',
+          primaryCondition: p.primaryCondition || d.primaryCondition || 'General Consultation',
+          currentVitals: d.currentVitals || (latestVital
+            ? {
+                bloodPressure: latestVital.bloodPressure || '--/--',
+                heartRate: latestVital.heartRate ? parseInt(String(latestVital.heartRate), 10) : 0,
+                oxygenSaturation: latestVital.spO2 ? parseInt(String(latestVital.spO2), 10) : 0,
+                temperature: latestVital.temperature ? parseFloat(String(latestVital.temperature)) : 0,
+                glucose: latestVital.rawGlucose || 0,
+                weight: latestVital.rawWeight || 0,
+                recordedAt: latestVital.date || '',
+              }
+            : EMPTY_PATIENT.currentVitals),
           vitalsHistory: d.vitalsHistory || [],
           consultations: d.consultations || [],
           prescriptions: parsedRx,
-          appointments: d.appointments || [],
+          appointments: apptsList,
         });
 
-        if (d.appointments && d.appointments.length > 0) {
-          setSelectedApptId(d.appointments[0].id);
+        if (apptsList.length > 0) {
+          setSelectedApptId(apptsList[0].id);
         }
       }
     } catch {

@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   Plus,
+  IndianRupee,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { api } from "@/lib/api";
@@ -41,10 +42,10 @@ const PATIENT_NAV: NavLink[] = [
 
 const DOCTOR_NAV: NavLink[] = [
   { label: "Dashboard", href: "/doctor-dashboard", icon: Home },
-  { label: "Appointments", href: "/doctor-dashboard#appointments", icon: Calendar },
-  { label: "Patients", href: "/doctor-dashboard#patients", icon: User },
-  { label: "Schedule", href: "/doctor-dashboard#schedule", icon: Clock },
-  { label: "Messages", href: "/messages", icon: MessageSquare },
+  { label: "Appointments", href: "/doctor-dashboard/appointments", icon: Calendar },
+  { label: "Patients", href: "/doctor-dashboard/patients", icon: User },
+  { label: "Schedule", href: "/doctor-dashboard/schedule", icon: Clock },
+  { label: "Earnings", href: "/doctor-dashboard/earnings", icon: IndianRupee },
 ];
 
 const ADMIN_NAV: NavLink[] = [
@@ -166,12 +167,9 @@ export function TopNavbar() {
   const isActive = (href: string) => {
     const basePath = href.split("#")[0] || href;
     if (basePath === "/dashboard") return pathname === "/dashboard";
+    if (basePath === "/doctor-dashboard") return pathname === "/doctor-dashboard";
     if (basePath === "/admin-dashboard") return pathname.startsWith("/admin-dashboard");
-    if (basePath === "/doctor-dashboard") {
-      if (!href.includes("#")) return pathname === "/doctor-dashboard";
-      return pathname === "/doctor-dashboard" || pathname.startsWith("/doctor-dashboard/");
-    }
-    return pathname.startsWith(basePath);
+    return pathname === basePath || pathname.startsWith(basePath + "/");
   };
 
   const userInitial = userName ? userName.trim().charAt(0).toUpperCase() : "U";
@@ -265,7 +263,7 @@ export function TopNavbar() {
             </div>
           )}
 
-          {/* Messages (Patient & Doctor) */}
+          {/* Messages Quick Action for both Patient and Doctor */}
           {!isAdmin && (
             <Link
               href="/messages"

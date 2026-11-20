@@ -14,6 +14,9 @@ export const bookAppointmentSchema = z
       })
       .optional(),
     durationMinutes: z.number().int().min(10).max(180).optional(),
+    type: z.enum(['VIDEO', 'IN_PERSON']).optional(),
+    mode: z.enum(['VIDEO', 'IN_PERSON']).optional(),
+    note: z.string().optional(),
   })
   .refine(
     (data) => Boolean(data.scheduledAt || (data.date && data.time)),

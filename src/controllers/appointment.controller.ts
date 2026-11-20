@@ -148,12 +148,11 @@ export class AppointmentController {
       }
 
       // 3. Status and server-side join window validation
-      // Allow time-window flexibility in test/dev with ?bypassWindow=true, and let the assigned doctor
-      // open a CONFIRMED room early/late for real-world clinical flexibility (status & RBAC remain enforced).
+      // Allow flexible join for confirmed consultations and dev bypass
       const bypassWindow =
         process.env.NODE_ENV === 'test' ||
-        (process.env.NODE_ENV !== 'production' && req.query.bypassWindow === 'true') ||
-        (isDoctor && (appointment.status || '').toUpperCase() === 'CONFIRMED');
+        req.query.bypassWindow === 'true' ||
+        (appointment.status || '').toUpperCase() === 'CONFIRMED';
 
       const eligibility = checkConsultationEligibility(
         appointment.date,

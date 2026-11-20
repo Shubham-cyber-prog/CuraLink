@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, RefreshControl, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, Users, ChevronRight, AlertTriangle, ShieldCheck, HeartPulse, User } from 'lucide-react-native';
+import { Search, Users, ChevronRight, HeartPulse } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Badge } from '../../components/UI';
+import { MotionView, MotionPressable } from '../../components/Motion';
+import { DoctorTopNav } from '../../components/DoctorTopNav';
 import { api } from '../../lib/api';
 import { useTheme } from '../../lib/theme-context';
 
@@ -11,14 +13,11 @@ export interface MobilePatient {
   id: string;
   name: string;
   email: string;
-  phone?: string;
   totalVisits: number;
   lastVisit: string;
   riskLevel: 'High' | 'Moderate' | 'Low';
   primaryCondition?: string;
 }
-
-const FALLBACK_PATIENTS: MobilePatient[] = [];
 
 const RISK_FILTERS = ['All', 'High Risk', 'Moderate', 'Low Risk'];
 
@@ -27,32 +26,28 @@ export default function DoctorPatientsScreen() {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
 
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRiskFilter, setSelectedRiskFilter] = useState('All');
-  const [patients, setPatients] = useState<MobilePatient[]>(FALLBACK_PATIENTS);
+  const [patients, setPatients] = useState<MobilePatient[]>([]);
 
   const fetchPatients = useCallback(async () => {
     try {
       const res = await api.get<any[]>('/doctor/me/patients').catch(() => null);
       if (res?.data && Array.isArray(res.data)) {
-        const mapped: MobilePatient[] = res.data.map((p: any) => ({
-          id: p.id,
-          name: p.name || 'Patient',
-          email: p.email || '',
-          phone: p.phone || undefined,
-          totalVisits: p.totalVisits || p._count?.appointments || 1,
-          lastVisit: p.lastVisit ? new Date(p.lastVisit).toLocaleDateString() : 'Recent',
-          riskLevel: p.riskLevel || (p.totalVisits > 4 ? 'High' : 'Low'),
-          primaryCondition: p.primaryCondition || 'General Consultation',
-        }));
-        setPatients(mapped);
+        setPatients(
+          res.data.map((p: any) => ({
+            id: p.id,
+            name: p.name || 'Patient',
+            email: p.email || '',
+            totalVisits: p.totalVisits || 1,
+            lastVisit: p.lastVisit || 'Recent',
+            riskLevel: p.riskLevel || 'Low',
+            primaryCondition: p.primaryCondition || 'General Consultation',
+          }))
+        );
       }
-    } catch {
-      // Retain fallback list
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   }, []);
@@ -61,14 +56,9 @@ export default function DoctorPatientsScreen() {
     fetchPatients();
   }, [fetchPatients]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchPatients();
-  };
-
   const filteredPatients = useMemo(() => {
+    const q = searchQuery.toLowerCase();
     return patients.filter((patient) => {
-      const q = searchQuery.toLowerCase();
       const matchesSearch =
         patient.name.toLowerCase().includes(q) ||
         patient.email.toLowerCase().includes(q) ||
@@ -84,55 +74,37 @@ export default function DoctorPatientsScreen() {
   }, [patients, searchQuery, selectedRiskFilter]);
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-[#0B1120]">
-      {/* Header */}
-      <View
-        style={{ paddingTop: Math.max(insets.top, 16) }}
-        className="bg-white dark:bg-[#151B2E] px-5 pb-4 border-b border-slate-100 dark:border-[#263049] space-y-3"
-      >
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="font-inter-bold text-2xl text-slate-900 dark:text-[#F1F5F9]">Patient Registry</Text>
-            <Text className="font-inter text-xs text-slate-500 dark:text-slate-400">
-              Clinical charts, longitudinal vitals & records
-            </Text>
-          </View>
-          <View className="h-9 w-9 rounded-full bg-[#085041]/10 dark:bg-teal-950/60 items-center justify-center">
-            <Users size={18} color={isDark ? '#2DD4BF' : '#085041'} />
-          </View>
-        </View>
+    <View className="flex-1 bg-[#F4F7F8] dark:bg-[#06101B]">
+      {/* ── TOP DOCTOR NAVIGATION BAR ── */}
+      <DoctorTopNav currentTab="patients" />
 
-        {/* Search Bar */}
-        <View className="flex-row items-center bg-slate-100 dark:bg-[#1C2338] rounded-xl px-3 py-2 border border-slate-200 dark:border-[#263049]">
-          <Search size={16} color="#94A3B8" />
+      {/* Patient Search & Risk Filters Header */}
+      <View className="bg-white dark:bg-[#0B1F33] px-5 py-3 border-b border-[#E6ECEF] dark:border-[#1B3650]">
+        <View className="flex-row items-center bg-[#F4F7F8] dark:bg-[#06101B] border border-[#E6ECEF] dark:border-[#1B3650] rounded-2xl px-3.5 py-2.5 mb-2.5">
+          <Search size={16} color="#006D77" />
           <TextInput
-            placeholder="Search patient name, email or diagnosis..."
+            placeholder="Search patient name or condition..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            className="flex-1 ml-2 font-inter text-sm text-slate-900 dark:text-[#F1F5F9] py-0"
+            className="flex-1 ml-2.5 font-inter text-sm text-[#0B1F33] dark:text-white py-0"
           />
         </View>
 
-        {/* Filter Pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row gap-2 pt-1">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {RISK_FILTERS.map((filter) => {
-            const isSelected = selectedRiskFilter === filter;
+            const active = selectedRiskFilter === filter;
             return (
               <Pressable
                 key={filter}
                 onPress={() => setSelectedRiskFilter(filter)}
                 className={`px-3.5 py-1.5 rounded-full border ${
-                  isSelected
-                    ? 'bg-[#085041] dark:bg-teal-600 border-[#085041] dark:border-teal-600'
-                    : 'bg-white dark:bg-[#151B2E] border-slate-200 dark:border-[#263049]'
+                  active
+                    ? 'bg-[#006D77] border-[#006D77]'
+                    : 'bg-[#F6F8F9] dark:bg-[#112942] border-[#E6ECEF] dark:border-[#1B3650]'
                 }`}
               >
-                <Text
-                  className={`font-inter-semibold text-xs ${
-                    isSelected ? 'text-white' : 'text-slate-600 dark:text-slate-400'
-                  }`}
-                >
+                <Text className={`font-inter-semibold text-xs ${active ? 'text-white' : 'text-[#0B1F33] dark:text-slate-200'}`}>
                   {filter}
                 </Text>
               </Pressable>
@@ -141,49 +113,47 @@ export default function DoctorPatientsScreen() {
         </ScrollView>
       </View>
 
-      {/* Patient List */}
       <ScrollView
         contentContainerStyle={{
-          padding: 16,
-          paddingBottom: Math.max(insets.bottom + 90, 110),
+          padding: 20,
+          paddingBottom: Math.max(insets.bottom + 100, 115),
           gap: 12,
         }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#085041']} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchPatients();
+            }}
+            colors={['#006D77']}
+          />
+        }
       >
         {filteredPatients.length === 0 ? (
-          <Card className="p-8 items-center justify-center bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049] space-y-2">
-            <Users size={36} color="#94A3B8" />
-            <Text className="font-inter-semibold text-base text-slate-800 dark:text-slate-200">No patients found</Text>
-            <Text className="font-inter text-xs text-slate-400 text-center">
-              Try adjusting your search criteria or triage risk filter.
-            </Text>
+          <Card className="p-8 items-center space-y-2">
+            <Users size={34} color="#94A3B8" />
+            <Text className="font-inter-bold text-sm text-[#0B1F33] dark:text-white">No patients found</Text>
           </Card>
         ) : (
-          filteredPatients.map((patient) => {
-            const isHigh = patient.riskLevel === 'High';
-            const isMod = patient.riskLevel === 'Moderate';
-
-            return (
-              <Pressable
-                key={patient.id}
+          filteredPatients.map((patient, idx) => (
+            <MotionView key={patient.id} delay={Math.min(idx * 50, 240)}>
+              <MotionPressable
                 onPress={() =>
-                  router.push({
-                    pathname: '/(doctor-tabs)/patient-detail',
-                    params: { id: patient.id },
-                  } as any)
+                  router.push({ pathname: '/(doctor-tabs)/patient-detail', params: { id: patient.id } } as any)
                 }
               >
-                <Card className="p-4 bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049] space-y-3">
+                <Card className="p-4 space-y-3">
                   <View className="flex-row items-center justify-between">
                     <View className="flex-row items-center gap-3 flex-1">
-                      <View className="h-11 w-11 rounded-full bg-slate-100 dark:bg-[#1C2338] items-center justify-center border border-slate-200 dark:border-[#263049]">
-                        <Text className="font-inter-bold text-base text-[#085041] dark:text-teal-400">
-                          {patient.name.charAt(0)}
+                      <View className="h-11 w-11 rounded-2xl bg-[#EAF4F5] dark:bg-[#112942] items-center justify-center">
+                        <Text className="font-inter-bold text-base text-[#006D77] dark:text-[#83C5BE]">
+                          {patient.name.charAt(0).toUpperCase()}
                         </Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="font-inter-bold text-base text-slate-900 dark:text-[#F1F5F9]" numberOfLines={1}>
+                        <Text className="font-inter-bold text-base text-[#0B1F33] dark:text-white" numberOfLines={1}>
                           {patient.name}
                         </Text>
                         <Text className="font-inter text-xs text-slate-500 dark:text-slate-400" numberOfLines={1}>
@@ -191,38 +161,34 @@ export default function DoctorPatientsScreen() {
                         </Text>
                       </View>
                     </View>
-
                     <Badge
                       label={`${patient.riskLevel} Risk`}
-                      variant={isHigh ? 'danger' : isMod ? 'warning' : 'success'}
+                      variant={patient.riskLevel === 'High' ? 'danger' : patient.riskLevel === 'Moderate' ? 'warning' : 'success'}
                     />
                   </View>
 
                   {patient.primaryCondition ? (
-                    <View className="bg-slate-50 dark:bg-[#1C2338] px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-800 flex-row items-center gap-2">
-                      <HeartPulse size={14} color="#0D9488" />
-                      <Text className="font-inter text-xs text-slate-700 dark:text-slate-300 font-medium">
+                    <View className="bg-[#F4F7F8] dark:bg-[#112942] px-3 py-2 rounded-xl flex-row items-center gap-2">
+                      <HeartPulse size={14} color={isDark ? '#83C5BE' : '#006D77'} />
+                      <Text className="font-inter-medium text-xs text-[#0B1F33] dark:text-slate-200">
                         {patient.primaryCondition}
                       </Text>
                     </View>
                   ) : null}
 
-                  <View className="flex-row items-center justify-between pt-2 border-t border-slate-100 dark:border-[#263049]">
+                  <View className="flex-row items-center justify-between pt-2 border-t border-[#EDF3F4] dark:border-[#1B3650]">
                     <Text className="font-inter text-xs text-slate-500 dark:text-slate-400">
-                      {patient.totalVisits} visits • Last: {patient.lastVisit}
+                      {patient.totalVisits} visit{patient.totalVisits === 1 ? '' : 's'} • {patient.lastVisit}
                     </Text>
-
                     <View className="flex-row items-center gap-1">
-                      <Text className="font-inter-semibold text-xs text-[#085041] dark:text-teal-400">
-                        Open Chart
-                      </Text>
-                      <ChevronRight size={14} color={isDark ? '#2DD4BF' : '#085041'} />
+                      <Text className="font-inter-semibold text-xs text-[#006D77] dark:text-[#83C5BE]">Open Chart</Text>
+                      <ChevronRight size={14} color={isDark ? '#83C5BE' : '#006D77'} />
                     </View>
                   </View>
                 </Card>
-              </Pressable>
-            );
-          })
+              </MotionPressable>
+            </MotionView>
+          ))
         )}
       </ScrollView>
     </View>

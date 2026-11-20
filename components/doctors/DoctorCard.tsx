@@ -112,6 +112,12 @@ export function DoctorCard({ doctor, userCity = "India" }: DoctorCardProps) {
                   {doctor.experience}
                 </span>
               )}
+              {doctor.hospitalName && (
+                <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 font-medium">
+                  <Building2 className="h-3.5 w-3.5 text-[#006D77] dark:text-[#83C5BE]" />
+                  {doctor.hospitalName}
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
                 <MapPin className="h-3.5 w-3.5 text-slate-400" />
                 {doctor.city ? `${doctor.city}, India` : `Online (${activeLocation})`}

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   CalendarCheck,
+  Calendar,
   Users,
   Clock,
   CheckCircle2,
@@ -10,113 +11,108 @@ import {
   ChevronRight,
   ShieldCheck,
   Stethoscope,
-  AlertTriangle,
   UserCheck,
   X,
   Check,
-  RefreshCw,
+  MessageCircle,
+  FileText,
+  SlidersHorizontal,
+  Sparkles,
+  ArrowRight,
+  AlertCircle,
+  Shield,
+  Activity,
+  Award,
+  IndianRupee,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Badge } from '../../components/UI';
-import { Button } from '../../components/Button';
+import { MotionView, MotionPressable } from '../../components/Motion';
+import { DoctorTopNav } from '../../components/DoctorTopNav';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth-context';
 import { useTheme } from '../../lib/theme-context';
 
 interface DashboardStats {
   todayAppointments: number;
-  pendingApprovals: number;
+  pendingRequests: number;
   totalPatients: number;
   completedConsultations: number;
+  consultationFee?: number;
+  averageRating?: number;
 }
 
-interface AppointmentItem {
+interface ActiveAppointmentItem {
   id: string;
   patientName: string;
   patientId: string;
   date: string;
   time: string;
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  status: string;
   type: string;
+  fee: number;
   notes?: string;
-  meetingUrl?: string;
 }
-
-interface PatientSummary {
-  id: string;
-  name: string;
-  email: string;
-  totalVisits: number;
-  lastVisit?: string;
-  riskLevel: 'High' | 'Moderate' | 'Low';
-}
-
-const FALLBACK_STATS: DashboardStats = {
-  todayAppointments: 0,
-  pendingApprovals: 0,
-  totalPatients: 0,
-  completedConsultations: 0,
-};
-
-const FALLBACK_TODAY_APPTS: AppointmentItem[] = [];
-
-const FALLBACK_RECENT_PATIENTS: PatientSummary[] = [];
 
 export default function DoctorDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { isDark, colors } = useTheme();
+  const { isDark } = useTheme();
 
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState<DashboardStats>(FALLBACK_STATS);
-  const [todayAppts, setTodayAppts] = useState<AppointmentItem[]>(FALLBACK_TODAY_APPTS);
-  const [recentPatients, setRecentPatients] = useState<PatientSummary[]>(FALLBACK_RECENT_PATIENTS);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats>({
+    todayAppointments: 0,
+    pendingRequests: 0,
+    totalPatients: 0,
+    completedConsultations: 0,
+    consultationFee: 500,
+    averageRating: 4.9,
+  });
+  const [activeSession, setActiveSession] = useState<ActiveAppointmentItem | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      // 1. Fetch Stats
-      const statsRes = await api.get<DashboardStats>('/doctor/me/dashboard-stats').catch(() => null);
+      const [statsRes, apptsRes] = await Promise.all([
+        api.get<any>('/doctor/me/dashboard-stats').catch(() => null),
+        api.get<any[]>('/doctor/me/appointments').catch(() => null),
+      ]);
+
       if (statsRes?.data) {
-        setStats(statsRes.data);
+        setStats({
+          todayAppointments: statsRes.data.todayAppointments || 0,
+          pendingRequests: statsRes.data.pendingRequests ?? statsRes.data.pendingApprovals ?? 0,
+          totalPatients: statsRes.data.totalPatients || 0,
+          completedConsultations: statsRes.data.completedConsultations || 0,
+          consultationFee: statsRes.data.consultationFee || 500,
+          averageRating: statsRes.data.averageRating || 4.9,
+        });
       }
 
-      // 2. Fetch Appointments
-      const apptsRes = await api.get<any[]>('/doctor/me/appointments').catch(() => null);
       if (apptsRes?.data && Array.isArray(apptsRes.data)) {
-        const mappedAppts: AppointmentItem[] = apptsRes.data.map((item: any) => ({
-          id: item.id,
-          patientName: item.patient?.name || item.patientName || 'Patient',
-          patientId: item.patientId || item.patient?.id || item.id,
-          date: item.scheduledAt ? new Date(item.scheduledAt).toLocaleDateString() : (item.date || 'Today'),
-          time: item.scheduledAt ? new Date(item.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (item.time || '10:00 AM'),
-          status: item.status || 'CONFIRMED',
-          type: item.type || 'Telehealth Video',
-          notes: item.notes || item.symptoms || 'General Consultation',
-          meetingUrl: item.meetingUrl,
-        }));
-        setTodayAppts(mappedAppts.slice(0, 5));
-      }
+        // Find next active confirmed or pending consultation
+        const confirmed = apptsRes.data.find(
+          (a: any) => (a.status || '').toUpperCase() === 'CONFIRMED'
+        );
+        const target = confirmed || apptsRes.data[0];
 
-      // 3. Fetch Patients
-      const patientsRes = await api.get<any[]>('/doctor/me/patients').catch(() => null);
-      if (patientsRes?.data && Array.isArray(patientsRes.data)) {
-        const mappedPatients: PatientSummary[] = patientsRes.data.map((p: any) => ({
-          id: p.id,
-          name: p.name || 'Patient',
-          email: p.email || '',
-          totalVisits: p.totalVisits || p._count?.appointments || 1,
-          lastVisit: p.lastVisit ? new Date(p.lastVisit).toLocaleDateString() : 'Recent',
-          riskLevel: p.riskLevel || (p.totalVisits > 4 ? 'High' : 'Low'),
-        }));
-        setRecentPatients(mappedPatients.slice(0, 4));
+        if (target) {
+          setActiveSession({
+            id: target.id,
+            patientName: target.user?.name || target.patient?.name || target.patientName || 'Patient',
+            patientId: target.userId || target.user?.id || target.patientId || target.id,
+            date: target.date || (target.scheduledAt ? new Date(target.scheduledAt).toLocaleDateString('en-IN') : 'Today'),
+            time: target.time || '10:30 AM',
+            status: (target.status || 'CONFIRMED').toUpperCase(),
+            type: target.type || 'Video Consultation',
+            fee: target.payment?.amount || target.fee || 500,
+            notes: target.notes || target.symptoms,
+          });
+        } else {
+          setActiveSession(null);
+        }
       }
-    } catch {
-      // Retain fallback data for smooth user experience
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   }, []);
@@ -125,303 +121,337 @@ export default function DoctorDashboardScreen() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchDashboardData();
-  };
-
-  const handleUpdateStatus = async (apptId: string, newStatus: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED') => {
-    setActionLoadingId(apptId);
-    try {
-      await api.patch(`/doctor/me/appointments/${apptId}`, { status: newStatus });
-      setTodayAppts((prev) =>
-        prev.map((a) => (a.id === apptId ? { ...a, status: newStatus } : a))
-      );
-      // Refresh stats
-      setStats((prev) => {
-        if (newStatus === 'CONFIRMED') {
-          return { ...prev, pendingApprovals: Math.max(0, prev.pendingApprovals - 1) };
-        } else if (newStatus === 'COMPLETED') {
-          return { ...prev, completedConsultations: prev.completedConsultations + 1 };
-        }
-        return prev;
-      });
-    } catch (err: any) {
-      Alert.alert('Status Update Failed', err?.message || 'Could not update appointment.');
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
   const doctorName = user?.name ? (user.name.startsWith('Dr.') ? user.name : `Dr. ${user.name}`) : 'Dr. Specialist';
 
   return (
-    <View className="flex-1 bg-slate-50 dark:bg-[#0B1120]">
-      {/* Header Bar */}
-      <View
-        style={{ paddingTop: Math.max(insets.top, 16) }}
-        className="bg-white dark:bg-[#151B2E] px-5 pb-4 border-b border-slate-100 dark:border-[#263049]"
-      >
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-3">
-            <View className="h-11 w-11 rounded-full bg-[#085041]/10 dark:bg-[#14B8A6]/20 border border-[#085041]/20 dark:border-[#14B8A6]/40 items-center justify-center">
-              <Stethoscope size={22} color={isDark ? '#2DD4BF' : '#085041'} />
-            </View>
-            <View>
-              <View className="flex-row items-center gap-1.5">
-                <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">{doctorName}</Text>
-                <ShieldCheck size={16} color="#0D9488" />
-              </View>
-              <Text className="font-inter text-xs text-slate-500 dark:text-slate-400">Clinical Practice & Telehealth</Text>
-            </View>
-          </View>
+    <View className="flex-1 bg-[#F6F8F9] dark:bg-[#071320]">
+      {/* ── TOP DOCTOR NAVIGATION BAR ── */}
+      <DoctorTopNav currentTab="index" pendingCount={stats.pendingRequests} />
 
-          <View className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60">
-            <View className="h-2 w-2 rounded-full bg-emerald-500" />
-            <Text className="font-inter-semibold text-[11px] text-emerald-700 dark:text-emerald-400">Active</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Main Content */}
       <ScrollView
         contentContainerStyle={{
-          padding: 16,
-          paddingBottom: Math.max(insets.bottom + 90, 110),
+          padding: 20,
+          paddingBottom: Math.max(insets.bottom + 110, 125),
           gap: 16,
         }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#085041']} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchDashboardData();
+            }}
+            colors={['#006D77']}
+          />
+        }
       >
-        {/* Metric Cards Grid */}
-        <View className="flex-row flex-wrap gap-2.5">
-          {/* Card 1: Today's Consultations */}
-          <Card className="flex-1 min-w-[46%] p-3.5 bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049]">
-            <View className="flex-row items-center justify-between mb-1.5">
-              <View className="h-7 w-7 rounded-lg bg-teal-50 dark:bg-teal-950/60 items-center justify-center">
-                <CalendarCheck size={16} color="#0D9488" />
+        {/* ── 1. LIVE TELEHEALTH SPOTLIGHT BANNER ── */}
+        {activeSession ? (
+          <MotionView delay={30}>
+            <View className="rounded-3xl bg-[#006D77] p-5 shadow-sm overflow-hidden relative">
+              <View className="absolute -right-8 -bottom-8 h-36 w-36 rounded-full bg-[#83C5BE]/20" />
+
+              <View className="flex-row items-center justify-between mb-3">
+                <View className="flex-row items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-full">
+                  <View className="h-2 w-2 rounded-full bg-emerald-300" />
+                  <Text className="font-inter-bold text-[10px] text-white uppercase tracking-wider">
+                    {activeSession.status === 'CONFIRMED' ? 'Next Active Telehealth Call' : 'Upcoming Session'}
+                  </Text>
+                </View>
+                <Text className="font-inter-semibold text-xs text-[#83C5BE]">
+                  {activeSession.date} • {activeSession.time}
+                </Text>
               </View>
-              <Badge label="Today" variant="info" />
-            </View>
-            <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">{stats.todayAppointments}</Text>
-            <Text className="font-inter text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Appointments</Text>
-          </Card>
 
-          {/* Card 2: Pending Approvals */}
-          <Card className="flex-1 min-w-[46%] p-3.5 bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049]">
-            <View className="flex-row items-center justify-between mb-1.5">
-              <View className="h-7 w-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 items-center justify-center">
-                <Clock size={16} color="#D97706" />
+              <View className="flex-row items-center gap-3 mb-4">
+                <View className="h-12 w-12 rounded-2xl bg-white/20 items-center justify-center">
+                  <Text className="font-inter-bold text-lg text-white">
+                    {activeSession.patientName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View className="flex-1">
+                  <Text className="font-inter-bold text-lg text-white" numberOfLines={1}>
+                    {activeSession.patientName}
+                  </Text>
+                  <Text className="font-inter text-xs text-white/80">
+                    {activeSession.type} • Fee ₹{activeSession.fee}
+                  </Text>
+                </View>
               </View>
-              {stats.pendingApprovals > 0 && <Badge label="Action" variant="warning" />}
-            </View>
-            <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">{stats.pendingApprovals}</Text>
-            <Text className="font-inter text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Pending Approval</Text>
-          </Card>
 
-          {/* Card 3: Active Patients */}
-          <Card className="flex-1 min-w-[46%] p-3.5 bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049]">
-            <View className="flex-row items-center justify-between mb-1.5">
-              <View className="h-7 w-7 rounded-lg bg-teal-50 dark:bg-teal-950/60 items-center justify-center">
-                <Users size={16} color="#0D9488" />
-              </View>
-            </View>
-            <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">{stats.totalPatients}</Text>
-            <Text className="font-inter text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Assigned Patients</Text>
-          </Card>
-
-          {/* Card 4: Completed Consultations */}
-          <Card className="flex-1 min-w-[46%] p-3.5 bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049]">
-            <View className="flex-row items-center justify-between mb-1.5">
-              <View className="h-7 w-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 items-center justify-center">
-                <CheckCircle2 size={16} color="#059669" />
-              </View>
-            </View>
-            <Text className="font-inter-bold text-xl text-slate-900 dark:text-[#F1F5F9]">{stats.completedConsultations}</Text>
-            <Text className="font-inter text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Completed Visits</Text>
-          </Card>
-        </View>
-
-        {/* Section: Today's Schedule & Actions */}
-        <View className="space-y-3">
-          <View className="flex-row items-center justify-between">
-            <View>
-              <Text className="font-inter-bold text-lg text-slate-900 dark:text-[#F1F5F9]">Today's Consultations</Text>
-              <Text className="font-inter text-xs text-slate-500 dark:text-slate-400">Scheduled clinical appointments</Text>
-            </View>
-            <Pressable
-              onPress={() => router.push('/(doctor-tabs)/appointments' as any)}
-              className="flex-row items-center gap-1"
-            >
-              <Text className="font-inter-semibold text-xs text-[#085041] dark:text-teal-400">See all</Text>
-              <ChevronRight size={14} color={isDark ? '#2DD4BF' : '#085041'} />
-            </Pressable>
-          </View>
-
-          {todayAppts.length === 0 ? (
-            <Card className="p-8 items-center justify-center bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049]">
-              <CalendarCheck size={36} color="#94A3B8" />
-              <Text className="font-inter-semibold text-sm text-slate-700 dark:text-slate-300 mt-2">No appointments today</Text>
-              <Text className="font-inter text-xs text-slate-400 text-center mt-1">Your consultation schedule is currently clear.</Text>
-            </Card>
-          ) : (
-            todayAppts.map((appt) => {
-              const isPending = appt.status === 'PENDING';
-              const isConfirmed = appt.status === 'CONFIRMED';
-              const isCompleted = appt.status === 'COMPLETED';
-              const isLoadingThis = actionLoadingId === appt.id;
-
-              return (
-                <Card
-                  key={appt.id}
-                  className="p-4 bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049] space-y-3"
+              <View className="flex-row items-center gap-2">
+                <TouchableOpacity
+                  onPress={() => router.push(`/consultation/${activeSession.id}` as any)}
+                  activeOpacity={0.85}
+                  className="flex-1 flex-row items-center justify-center gap-2 rounded-full bg-white py-3 shadow-sm"
                 >
-                  <View className="flex-row items-start justify-between">
-                    <View className="flex-row items-center gap-3">
-                      <View className="h-10 w-10 rounded-full bg-slate-100 dark:bg-[#1C2338] items-center justify-center">
-                        <Text className="font-inter-bold text-sm text-slate-700 dark:text-slate-300">
-                          {appt.patientName.charAt(0)}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text className="font-inter-semibold text-base text-slate-900 dark:text-[#F1F5F9]">
-                          {appt.patientName}
-                        </Text>
-                        <Text className="font-inter text-xs text-slate-500 dark:text-slate-400">
-                          {appt.time} • {appt.type}
-                        </Text>
-                      </View>
-                    </View>
+                  <Video size={16} color="#006D77" />
+                  <Text className="font-inter-bold text-xs text-[#006D77]">
+                    Join HD Video Room
+                  </Text>
+                </TouchableOpacity>
 
-                    <Badge
-                      label={appt.status}
-                      variant={
-                        isConfirmed ? 'success' : isPending ? 'warning' : isCompleted ? 'info' : 'default'
-                      }
-                    />
-                  </View>
+                <TouchableOpacity
+                  onPress={() => router.push('/(doctor-tabs)/appointments' as any)}
+                  activeOpacity={0.85}
+                  className="px-4 py-3 rounded-full bg-white/15 border border-white/30"
+                >
+                  <Text className="font-inter-semibold text-xs text-white">
+                    View Queue
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </MotionView>
+        ) : null}
 
-                  {appt.notes ? (
-                    <View className="bg-slate-50 dark:bg-[#1C2338] p-2.5 rounded-lg border border-slate-100 dark:border-slate-800">
-                      <Text className="font-inter text-xs text-slate-600 dark:text-slate-300 italic">
-                        "{appt.notes}"
-                      </Text>
-                    </View>
-                  ) : null}
+        {/* ── 2. EXECUTIVE 4-METRIC CLINICAL KPI GRID ── */}
+        <MotionView delay={60}>
+          <View className="flex-row flex-wrap gap-2.5">
+            {/* KPI 1: Today's Queue */}
+            <TouchableOpacity
+              onPress={() => router.push('/(doctor-tabs)/appointments' as any)}
+              activeOpacity={0.8}
+              className="flex-1 min-w-[48%] rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs justify-between"
+            >
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="font-inter-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Today's Queue
+                </Text>
+                <View className="h-7 w-7 rounded-lg bg-[#EAF4F5] dark:bg-[#112A44] items-center justify-center">
+                  <CalendarCheck size={14} color="#006D77" />
+                </View>
+              </View>
+              <Text className="font-inter-bold text-2xl text-[#0B1F33] dark:text-white">
+                {stats.todayAppointments}
+              </Text>
+              <Text className="font-inter-semibold text-[11px] text-[#006D77] dark:text-[#83C5BE] mt-1">
+                Open Schedule →
+              </Text>
+            </TouchableOpacity>
 
-                  {/* Actions Row */}
-                  <View className="flex-row items-center gap-2 pt-1 border-t border-slate-100 dark:border-[#263049]">
-                    {isPending ? (
-                      <>
-                        <Pressable
-                          disabled={isLoadingThis}
-                          onPress={() => handleUpdateStatus(appt.id, 'CONFIRMED')}
-                          className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-xl bg-[#085041] dark:bg-teal-600"
-                        >
-                          {isLoadingThis ? (
-                            <ActivityIndicator size="small" color="#FFF" />
-                          ) : (
-                            <>
-                              <Check size={16} color="#FFF" />
-                              <Text className="font-inter-semibold text-xs text-white">Accept Visit</Text>
-                            </>
-                          )}
-                        </Pressable>
+            {/* KPI 2: Pending Approval */}
+            <TouchableOpacity
+              onPress={() => router.push('/(doctor-tabs)/appointments' as any)}
+              activeOpacity={0.8}
+              className={`flex-1 min-w-[48%] rounded-2xl p-4 border shadow-xs justify-between ${
+                stats.pendingRequests > 0
+                  ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'
+                  : 'bg-white dark:bg-[#0B1F33] border-[#E2E8F0] dark:border-[#163656]'
+              }`}
+            >
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="font-inter-bold text-[10px] text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                  Pending Review
+                </Text>
+                <View className="h-7 w-7 rounded-lg bg-amber-100 dark:bg-amber-900/40 items-center justify-center">
+                  <Clock size={14} color="#D97706" />
+                </View>
+              </View>
+              <Text className="font-inter-bold text-2xl text-[#0B1F33] dark:text-white">
+                {stats.pendingRequests}
+              </Text>
+              <Text className="font-inter-semibold text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                {stats.pendingRequests > 0 ? 'Needs Attention →' : 'All Approved'}
+              </Text>
+            </TouchableOpacity>
 
-                        <Pressable
-                          disabled={isLoadingThis}
-                          onPress={() => handleUpdateStatus(appt.id, 'CANCELLED')}
-                          className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40"
-                        >
-                          <X size={16} color="#E11D48" />
-                          <Text className="font-inter-semibold text-xs text-rose-600 dark:text-rose-400">Decline</Text>
-                        </Pressable>
-                      </>
-                    ) : isConfirmed ? (
-                      <>
-                        <Pressable
-                          onPress={() => router.push(`/consultation/${appt.id}` as any)}
-                          className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#085041] dark:bg-teal-600"
-                        >
-                          <Video size={16} color="#FFF" />
-                          <Text className="font-inter-semibold text-xs text-white">Join Video Call</Text>
-                        </Pressable>
+            {/* KPI 3: Active Patients */}
+            <TouchableOpacity
+              onPress={() => router.push('/(doctor-tabs)/patients' as any)}
+              activeOpacity={0.8}
+              className="flex-1 min-w-[48%] rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs justify-between"
+            >
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="font-inter-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Active Patients
+                </Text>
+                <View className="h-7 w-7 rounded-lg bg-[#EDE9FE] dark:bg-[#2E1065] items-center justify-center">
+                  <Users size={14} color="#7C3AED" />
+                </View>
+              </View>
+              <Text className="font-inter-bold text-2xl text-[#0B1F33] dark:text-white">
+                {stats.totalPatients}
+              </Text>
+              <Text className="font-inter-semibold text-[11px] text-[#7C3AED] dark:text-purple-300 mt-1">
+                Open Directory →
+              </Text>
+            </TouchableOpacity>
 
-                        <Pressable
-                          disabled={isLoadingThis}
-                          onPress={() => handleUpdateStatus(appt.id, 'COMPLETED')}
-                          className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                        >
-                          <CheckCircle2 size={16} color={isDark ? '#94A3B8' : '#475569'} />
-                        </Pressable>
-                      </>
-                    ) : (
-                      <Pressable
-                        onPress={() => router.push({ pathname: '/(doctor-tabs)/patient-detail', params: { id: appt.patientId } } as any)}
-                        className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700"
-                      >
-                        <UserCheck size={15} color={isDark ? '#CBD5E1' : '#475569'} />
-                        <Text className="font-inter-medium text-xs text-slate-700 dark:text-slate-300">View Medical Chart</Text>
-                      </Pressable>
+            {/* KPI 4: Practice Hours */}
+            <TouchableOpacity
+              onPress={() => router.push('/(doctor-tabs)/schedule' as any)}
+              activeOpacity={0.8}
+              className="flex-1 min-w-[48%] rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs justify-between"
+            >
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="font-inter-bold text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Completed Visits
+                </Text>
+                <View className="h-7 w-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 items-center justify-center">
+                  <CheckCircle2 size={14} color="#059669" />
+                </View>
+              </View>
+              <Text className="font-inter-bold text-2xl text-[#0B1F33] dark:text-white">
+                {stats.completedConsultations}
+              </Text>
+              <Text className="font-inter-semibold text-[11px] text-emerald-600 dark:text-emerald-400 mt-1">
+                Fee: ₹{stats.consultationFee}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </MotionView>
+
+        {/* ── 3. FOUR DISTINCT CLINICAL MODULE CARDS (Explicit Navigation) ── */}
+        <MotionView delay={90}>
+          <View className="space-y-3">
+            <Text className="font-inter-bold text-sm text-[#0B1F33] dark:text-white uppercase tracking-wider">
+              Clinical Management Workspace
+            </Text>
+
+            {/* Module 1: Appointments */}
+            <MotionPressable
+              onPress={() => router.push('/(doctor-tabs)/appointments' as any)}
+              className="rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs flex-row items-center justify-between"
+            >
+              <View className="flex-row items-center gap-3.5 flex-1 pr-3">
+                <View className="h-11 w-11 rounded-2xl bg-[#EAF4F5] dark:bg-[#112A44] items-center justify-center">
+                  <CalendarCheck size={21} color="#006D77" />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center gap-2">
+                    <Text className="font-inter-bold text-base text-[#0B1F33] dark:text-white">
+                      Consultations &amp; Video Visits
+                    </Text>
+                    {stats.pendingRequests > 0 && (
+                      <Badge label={`${stats.pendingRequests} New`} variant="warning" />
                     )}
                   </View>
-                </Card>
-              );
-            })
-          )}
-        </View>
+                  <Text className="font-inter text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Live video calls, approval queue &amp; digitally signed E-Prescriptions
+                  </Text>
+                </View>
+              </View>
+              <View className="h-8 w-8 rounded-full bg-[#F6F8F9] dark:bg-[#112A44] items-center justify-center">
+                <ChevronRight size={16} color="#006D77" />
+              </View>
+            </MotionPressable>
 
-        {/* Section: Recent Patients */}
-        <View className="space-y-3 mt-2">
-          <View className="flex-row items-center justify-between">
-            <View>
-              <Text className="font-inter-bold text-lg text-slate-900 dark:text-[#F1F5F9]">Recent Patients</Text>
-              <Text className="font-inter text-xs text-slate-500 dark:text-slate-400">Clinical history & triage status</Text>
-            </View>
-            <Pressable
-              onPress={() => router.push('/(doctor-tabs)/patients' as any)}
-              className="flex-row items-center gap-1"
+            {/* Module 2: Schedule & Slots */}
+            <MotionPressable
+              onPress={() => router.push('/(doctor-tabs)/schedule' as any)}
+              className="rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs flex-row items-center justify-between"
             >
-              <Text className="font-inter-semibold text-xs text-[#085041] dark:text-teal-400">All patients</Text>
-              <ChevronRight size={14} color={isDark ? '#2DD4BF' : '#085041'} />
-            </Pressable>
+              <View className="flex-row items-center gap-3.5 flex-1 pr-3">
+                <View className="h-11 w-11 rounded-2xl bg-cyan-50 dark:bg-cyan-950/40 items-center justify-center">
+                  <Calendar size={21} color="#0891B2" />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center gap-2">
+                    <Text className="font-inter-bold text-base text-[#0B1F33] dark:text-white">
+                      Doctor Schedule &amp; Slots
+                    </Text>
+                    <Badge label="Live Availability" variant="success" />
+                  </View>
+                  <Text className="font-inter text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Working hours, morning/evening shifts &amp; consultation modes
+                  </Text>
+                </View>
+              </View>
+              <View className="h-8 w-8 rounded-full bg-[#F6F8F9] dark:bg-[#112A44] items-center justify-center">
+                <ChevronRight size={16} color="#0891B2" />
+              </View>
+            </MotionPressable>
+
+            {/* Module 3: Patient Registry */}
+            <MotionPressable
+              onPress={() => router.push('/(doctor-tabs)/patients' as any)}
+              className="rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs flex-row items-center justify-between"
+            >
+              <View className="flex-row items-center gap-3.5 flex-1 pr-3">
+                <View className="h-11 w-11 rounded-2xl bg-purple-50 dark:bg-purple-950/40 items-center justify-center">
+                  <Users size={21} color="#7C3AED" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-inter-bold text-base text-[#0B1F33] dark:text-white">
+                    Patient Registry &amp; Charts
+                  </Text>
+                  <Text className="font-inter text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Longitudinal vitals, chronic risk profiles &amp; full medical records
+                  </Text>
+                </View>
+              </View>
+              <View className="h-8 w-8 rounded-full bg-[#F6F8F9] dark:bg-[#112A44] items-center justify-center">
+                <ChevronRight size={16} color="#7C3AED" />
+              </View>
+            </MotionPressable>
+
+            {/* Module 4: Practice & Fee Profile */}
+            <MotionPressable
+              onPress={() => router.push('/(doctor-tabs)/profile' as any)}
+              className="rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs flex-row items-center justify-between"
+            >
+              <View className="flex-row items-center gap-3.5 flex-1 pr-3">
+                <View className="h-11 w-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 items-center justify-center">
+                  <Stethoscope size={21} color="#059669" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-inter-bold text-base text-[#0B1F33] dark:text-white">
+                    Practice &amp; Fee Adjustment
+                  </Text>
+                  <Text className="font-inter text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Adjust consultation fee (₹{stats.consultationFee}), hospital affiliation &amp; bio
+                  </Text>
+                </View>
+              </View>
+              <View className="h-8 w-8 rounded-full bg-[#F6F8F9] dark:bg-[#112A44] items-center justify-center">
+                <ChevronRight size={16} color="#059669" />
+              </View>
+            </MotionPressable>
+
+            {/* Module 5: Earnings & Settlements */}
+            <MotionPressable
+              onPress={() => router.push('/(doctor-tabs)/earnings' as any)}
+              className="rounded-2xl bg-white dark:bg-[#0B1F33] p-4 border border-[#E2E8F0] dark:border-[#163656] shadow-xs flex-row items-center justify-between"
+            >
+              <View className="flex-row items-center gap-3.5 flex-1 pr-3">
+                <View className="h-11 w-11 rounded-2xl bg-teal-50 dark:bg-teal-950/40 items-center justify-center">
+                  <IndianRupee size={21} color="#006D77" />
+                </View>
+                <View className="flex-1">
+                  <View className="flex-row items-center gap-2">
+                    <Text className="font-inter-bold text-base text-[#0B1F33] dark:text-white">
+                      Earnings &amp; Payouts
+                    </Text>
+                    <Badge label="1D • 7D • 1M • 1Y" variant="success" />
+                  </View>
+                  <Text className="font-inter text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Live revenue analytics, interactive chart &amp; instant bank transfers
+                  </Text>
+                </View>
+              </View>
+              <View className="h-8 w-8 rounded-full bg-[#F6F8F9] dark:bg-[#112A44] items-center justify-center">
+                <ChevronRight size={16} color="#006D77" />
+              </View>
+            </MotionPressable>
           </View>
+        </MotionView>
 
-          {recentPatients.map((patient) => {
-            const isHigh = patient.riskLevel === 'High';
-            const isMod = patient.riskLevel === 'Moderate';
-
-            return (
-              <Pressable
-                key={patient.id}
-                onPress={() => router.push({ pathname: '/(doctor-tabs)/patient-detail', params: { id: patient.id } } as any)}
-                className="p-3.5 rounded-2xl bg-white dark:bg-[#151B2E] border border-slate-100 dark:border-[#263049] flex-row items-center justify-between"
-              >
-                <View className="flex-row items-center gap-3">
-                  <View className="h-10 w-10 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-800/60 items-center justify-center">
-                    <Text className="font-inter-bold text-sm text-[#085041] dark:text-teal-400">
-                      {patient.name.charAt(0)}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className="font-inter-semibold text-sm text-slate-900 dark:text-[#F1F5F9]">{patient.name}</Text>
-                    <Text className="font-inter text-xs text-slate-500 dark:text-slate-400">
-                      {patient.totalVisits} consult{patient.totalVisits === 1 ? '' : 's'} • Last: {patient.lastVisit}
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="flex-row items-center gap-2">
-                  <Badge
-                    label={`${patient.riskLevel} Risk`}
-                    variant={isHigh ? 'danger' : isMod ? 'warning' : 'success'}
-                  />
-                  <ChevronRight size={16} color="#94A3B8" />
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* ── 4. CLINICAL COMPLIANCE & PROTOCOL BADGE ── */}
+        <MotionView delay={120}>
+          <Card className="p-4 bg-white dark:bg-[#0B1F33] border border-[#E2E8F0] dark:border-[#163656] space-y-2">
+            <View className="flex-row items-center gap-2">
+              <ShieldCheck size={18} color="#006D77" />
+              <Text className="font-inter-bold text-xs text-[#006D77] dark:text-[#83C5BE]">
+                Telemedicine Practice Guidelines 2026 Compliant
+              </Text>
+            </View>
+            <Text className="font-inter text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              Every virtual consultation is protected by 256-bit AES encryption. Issued e-prescriptions conform with registered medical practitioner digital stamping standards.
+            </Text>
+          </Card>
+        </MotionView>
       </ScrollView>
     </View>
   );

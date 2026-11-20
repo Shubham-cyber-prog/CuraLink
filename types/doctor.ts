@@ -35,6 +35,8 @@ export interface Doctor {
   qualifications: string[];
   availabilitySlots: DaySlot[];
   reviews: DoctorReview[];
+  hospitalName?: string;
+  clinicAddress?: string;
   consultationFee?: number;
   city?: string | null;
   location?: string;

@@ -157,6 +157,7 @@ export class AppointmentService {
       }
 
       // 5. Create appointment with UTC source of truth + backward-compatible string fields
+      const isOfflineInPerson = input.type === 'IN_PERSON' || input.mode === 'IN_PERSON';
       const created = await tx.appointment.create({
         data: {
           userId,
@@ -168,6 +169,7 @@ export class AppointmentService {
           durationMinutes: duration,
           timezone: appointmentTimezone,
           status: 'PENDING',
+          roomName: isOfflineInPerson ? `IN_PERSON:OPD-${Math.floor(1000 + Math.random() * 9000)}` : null,
         },
       });
 
@@ -237,6 +239,8 @@ export class AppointmentService {
 
     const mapped = appointments.map((apt) => ({
       ...apt,
+      type: apt.roomName?.startsWith('IN_PERSON') ? 'IN_PERSON' : 'VIDEO',
+      opdToken: apt.roomName?.startsWith('IN_PERSON:') ? apt.roomName.replace('IN_PERSON:', '') : undefined,
       doctor: apt.doctor
         ? {
             id: apt.doctor.userId,

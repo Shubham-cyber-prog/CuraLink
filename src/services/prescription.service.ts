@@ -38,9 +38,11 @@ export class PrescriptionService {
       throw new NotFoundError('Patient not found');
     }
 
+    const effectiveApptId = (data.consultationId || data.appointmentId)!;
+
     // Verify consultation appointment exists and matches doctor and patient
     const appointment = await prisma.appointment.findUnique({
-      where: { id: data.consultationId },
+      where: { id: effectiveApptId },
     });
 
     if (!appointment) {
@@ -61,7 +63,7 @@ export class PrescriptionService {
 
     // Prevent duplicate prescription for the appointment
     const existingRx = await prisma.prescription.findUnique({
-      where: { appointmentId: data.consultationId },
+      where: { appointmentId: effectiveApptId },
     });
 
     if (existingRx) {
@@ -70,7 +72,7 @@ export class PrescriptionService {
 
     // 3. Generate SHA-256 Digital Signature
     const timestamp = new Date().toISOString();
-    const payloadToSign = `${doctorId}:${data.patientId}:${data.consultationId}:${JSON.stringify(
+    const payloadToSign = `${doctorId}:${data.patientId}:${effectiveApptId}:${JSON.stringify(
       data.medications
     )}:${timestamp}:${PRESCRIPTION_SECRET}`;
     const digitalSignature = crypto.createHash('sha256').update(payloadToSign).digest('hex');
@@ -84,7 +86,7 @@ export class PrescriptionService {
     const prescription = await prisma.prescription.create({
       data: {
         id: prescriptionId,
-        appointmentId: data.consultationId,
+        appointmentId: effectiveApptId,
         doctorId,
         patientId: data.patientId,
         diagnosis: data.diagnosis,

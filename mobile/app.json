@@ -8,19 +8,20 @@
     "scheme": "curalink",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.curalink.app",
       "infoPlist": {
         "NSCameraUsageDescription": "CuraLink needs access to your camera for secure video consultations with doctors.",
         "NSMicrophoneUsageDescription": "CuraLink needs access to your microphone for secure video consultations with doctors.",
-        "NSFaceIDUsageDescription": "CuraLink uses Face ID / Touch ID to securely unlock your medical records and consultations."
+        "NSFaceIDUsageDescription": "CuraLink uses Face ID / Touch ID to securely unlock your medical records and consultations.",
+        "NSLocationWhenInUseUsageDescription": "CuraLink uses your location to find nearby verified doctors and clinics."
       }
     },
     "android": {
       "package": "com.curalink.app",
       "adaptiveIcon": {
-        "backgroundColor": "#F0FDFA",
-        "foregroundImage": "./assets/images/splash-icon.png"
+        "backgroundColor": "#006D77",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
@@ -28,7 +29,9 @@
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
+        "USE_FINGERPRINT",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -40,12 +43,12 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F0FDFA",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 128,
+          "imageWidth": 132,
           "resizeMode": "contain",
           "dark": {
-            "backgroundColor": "#F0FDFA",
+            "backgroundColor": "#06101B",
             "image": "./assets/images/splash-icon.png"
           }
         }
@@ -57,7 +60,14 @@
         {
           "faceIDPermission": "Allow CuraLink to use Face ID and Fingerprint to securely unlock your health records."
         }
-      ]
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow CuraLink to use your location to discover nearby verified doctors and clinics."
+        }
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

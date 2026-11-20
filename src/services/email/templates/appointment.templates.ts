@@ -16,6 +16,9 @@ export function appointmentBookedPatientTemplate(params: {
   status: string;
   detailsUrl: string;
   videoInstructions?: boolean;
+  hospitalName?: string;
+  clinicAddress?: string;
+  opdToken?: string;
 }): EmailRenderOutput {
   const safePatient = escapeHtml(params.patientName);
   const safeDoctor = escapeHtml(params.doctorName);
@@ -54,7 +57,7 @@ export function appointmentBookedPatientTemplate(params: {
             </tr>
             <tr>
               <td style="color: #64748B;">Mode:</td>
-              <td style="font-weight: 600; color: #0F172A;">${isVideo ? '🎥 Secure Video Telehealth' : '🏥 In-Person Consultation'}</td>
+              <td style="font-weight: 600; color: #0F172A;">${isVideo ? '🎥 Secure Video Telehealth' : '🏥 In-Person Hospital OPD Visit'}</td>
             </tr>
             <tr>
               <td style="color: #64748B;">Status:</td>
@@ -74,7 +77,17 @@ export function appointmentBookedPatientTemplate(params: {
       <strong>Video Consultation Instructions:</strong><br/>
       Your private encrypted consultation room will become accessible 15 minutes prior to the scheduled time once the doctor confirms your request. Please test your camera and microphone in advance.
     </div>
-    ` : ''}
+    ` : `
+    <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 16px 20px; margin: 20px 0;">
+      <h4 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 700; color: #065F46;">🏥 Hospital OPD Visit Pass</h4>
+      <p style="margin: 0; font-size: 13px; color: #047857; line-height: 20px;">
+        &bull; <strong>Hospital / Clinic:</strong> ${escapeHtml(params.hospitalName || 'CuraLink Partner Hospital')}<br/>
+        &bull; <strong>Address / Counter:</strong> ${escapeHtml(params.clinicAddress || 'Hospital OPD Block, Ground Floor')}<br/>
+        &bull; <strong>Walk-in Token:</strong> <span style="background-color: #D1FAE5; padding: 2px 8px; border-radius: 4px; font-weight: 700;">#${escapeHtml(params.opdToken || 'OPD-WALKIN')}</span><br/>
+        <em>Please arrive 15 minutes before your slot and present this pass at the registration desk.</em>
+      </p>
+    </div>
+    `}
 
     <div style="text-align: center; margin: 32px 0;">
       <a href="${params.detailsUrl}" style="display: inline-block; background-color: #0D9488; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 10px; box-shadow: 0 2px 4px rgba(13, 148, 136, 0.25);">
@@ -401,6 +414,189 @@ export function appointmentReminderTemplate(params: {
   });
 
   const text = `Hello ${params.recipientName},\n\nReminder: Your appointment with ${params.otherPartyName} is in ${hours} hours.\n\nDate: ${params.date}\nTime: ${params.time}\nMode: ${params.mode}\n\nJoin room:\n${params.detailsUrl}`;
+
+  return { subject, html, text };
+}
+
+/**
+ * 7. Payment Receipt (Sent to Patient)
+ */
+export function appointmentPaymentReceiptTemplate(params: {
+  patientName: string;
+  doctorName: string;
+  specialty?: string;
+  date: string;
+  time: string;
+  timezone?: string;
+  mode: string;
+  amount: number;
+  currency?: string;
+  paymentMethod: string;
+  receiptId: string;
+  transactionId: string;
+  detailsUrl: string;
+  hospitalName?: string;
+  clinicAddress?: string;
+  opdToken?: string;
+}): EmailRenderOutput {
+  const safePatient = escapeHtml(params.patientName);
+  const safeDoctor = escapeHtml(params.doctorName);
+  const safeSpecialty = escapeHtml(params.specialty || 'Medical Specialist');
+  const safeDate = escapeHtml(params.date);
+  const safeTime = escapeHtml(params.time);
+  const isVideo = params.mode?.toUpperCase() === 'VIDEO';
+  const currency = params.currency || 'INR';
+  const subject = `Payment Confirmed: ₹${params.amount} ${currency} for Dr. ${safeDoctor} — CuraLink`;
+
+  const contentHtml = `
+    <h1 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #0F172A; line-height: 28px;">
+      Payment Confirmed & Receipt
+    </h1>
+    <p style="margin: 0 0 20px 0; font-size: 15px; color: #334155; line-height: 24px;">
+      Hello ${safePatient}, your payment of <strong>₹${params.amount} ${currency}</strong> for your upcoming consultation with <strong>Dr. ${safeDoctor}</strong> was successful.
+    </p>
+
+    <!-- Payment Breakdown Receipt -->
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; margin: 20px 0; border-left: 4px solid #10B981;">
+      <tr>
+        <td style="padding: 20px 24px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 700; color: #0F172A;">Official Payment Receipt</h3>
+          <table border="0" cellpadding="4" cellspacing="0" width="100%" style="font-size: 14px; color: #475569;">
+            <tr>
+              <td width="40%" style="color: #64748B;">Receipt ID:</td>
+              <td style="font-weight: 600; color: #0F172A; font-family: monospace;">#${escapeHtml(params.receiptId)}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Transaction ID:</td>
+              <td style="font-weight: 600; color: #0D9488; font-family: monospace;">${escapeHtml(params.transactionId)}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Amount Paid:</td>
+              <td style="font-weight: 700; color: #10B981; font-size: 16px;">₹${params.amount} ${currency}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Payment Method:</td>
+              <td style="font-weight: 600; color: #0F172A;">${escapeHtml(params.paymentMethod)}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Doctor / Specialist:</td>
+              <td style="font-weight: 600; color: #0F172A;">Dr. ${safeDoctor} (${safeSpecialty})</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Appointment Date:</td>
+              <td style="font-weight: 600; color: #0F172A;">${safeDate} at ${safeTime}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Consultation Mode:</td>
+              <td style="font-weight: 600; color: #0F172A;">${isVideo ? '🎥 Secure HD Video Telehealth' : '🏥 In-Person Hospital OPD Visit'}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    ${!isVideo ? `
+    <div style="background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 16px 20px; margin: 20px 0;">
+      <h4 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 700; color: #065F46;">🏥 Hospital OPD Visit Pass</h4>
+      <p style="margin: 0; font-size: 13px; color: #047857; line-height: 20px;">
+        &bull; <strong>Hospital / Clinic:</strong> ${escapeHtml(params.hospitalName || 'CuraLink Partner Hospital')}<br/>
+        &bull; <strong>Address / Counter:</strong> ${escapeHtml(params.clinicAddress || 'OPD Reception Block, Ground Floor')}<br/>
+        &bull; <strong>Walk-in Token:</strong> <span style="background-color: #D1FAE5; padding: 2px 8px; border-radius: 4px; font-weight: 700;">#${escapeHtml(params.opdToken || 'OPD-WALKIN')}</span><br/>
+        <em>Please arrive 15 minutes before your slot and present this pass at the registration desk.</em>
+      </p>
+    </div>
+    ` : `
+    <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px; padding: 14px 18px; margin: 20px 0; font-size: 13px; color: #166534; line-height: 20px;">
+      <strong>Online Video Telehealth Access:</strong><br/>
+      Your encrypted clinical consultation room is ready. You can join the session directly from your appointments dashboard 15 minutes before the scheduled time.
+    </div>
+    `}
+
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${params.detailsUrl}" style="display: inline-block; background-color: #0D9488; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 10px; box-shadow: 0 2px 4px rgba(13, 148, 136, 0.25);">
+        View Appointment & Receipt
+      </a>
+    </div>
+  `;
+
+  const html = renderBaseEmailTemplate({
+    preheader: `Payment Receipt: ₹${params.amount} ${currency} for consultation with Dr. ${params.doctorName}`,
+    title: subject,
+    contentHtml,
+  });
+
+  const text = `Hello ${params.patientName},\n\nPayment Confirmed: ₹${params.amount} ${currency}\nReceipt: #${params.receiptId}\nTransaction: ${params.transactionId}\nDoctor: Dr. ${params.doctorName}\nDate: ${params.date} at ${params.time}\nMode: ${isVideo ? 'Video' : 'In-Person Hospital OPD'}\n\nView details:\n${params.detailsUrl}`;
+
+  return { subject, html, text };
+}
+
+/**
+ * 8. Doctor Payment Credit Notification (Sent to Doctor)
+ */
+export function doctorPaymentCreditTemplate(params: {
+  doctorName: string;
+  patientName: string;
+  date: string;
+  time: string;
+  mode: string;
+  amount: number;
+  currency?: string;
+  transactionId: string;
+  dashboardUrl: string;
+}): EmailRenderOutput {
+  const safeDoctor = escapeHtml(params.doctorName);
+  const safePatient = escapeHtml(params.patientName);
+  const currency = params.currency || 'INR';
+  const subject = `Payment Received: ₹${params.amount} ${currency} from ${safePatient} — CuraLink`;
+
+  const contentHtml = `
+    <h1 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #0F172A; line-height: 28px;">
+      Consultation Fee Credited, Dr. ${safeDoctor}
+    </h1>
+    <p style="margin: 0 0 20px 0; font-size: 15px; color: #334155; line-height: 24px;">
+      Payment of <strong>₹${params.amount} ${currency}</strong> has been received and credited to your CuraLink clinical account for patient <strong>${safePatient}</strong>.
+    </p>
+
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; margin: 20px 0; border-left: 4px solid #0F172A;">
+      <tr>
+        <td style="padding: 20px 24px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 700; color: #0F172A;">Credit Details</h3>
+          <table border="0" cellpadding="4" cellspacing="0" width="100%" style="font-size: 14px; color: #475569;">
+            <tr>
+              <td width="40%" style="color: #64748B;">Amount Credited:</td>
+              <td style="font-weight: 700; color: #10B981; font-size: 16px;">₹${params.amount} ${currency}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Patient Name:</td>
+              <td style="font-weight: 600; color: #0F172A;">${safePatient}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Scheduled Date:</td>
+              <td style="font-weight: 600; color: #0F172A;">${escapeHtml(params.date)} at ${escapeHtml(params.time)}</td>
+            </tr>
+            <tr>
+              <td style="color: #64748B;">Transaction Ref:</td>
+              <td style="font-weight: 600; color: #0F172A; font-family: monospace;">${escapeHtml(params.transactionId)}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${params.dashboardUrl}" style="display: inline-block; background-color: #0F172A; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 10px;">
+        View Earnings in Doctor Dashboard
+      </a>
+    </div>
+  `;
+
+  const html = renderBaseEmailTemplate({
+    preheader: `Payment Credit: ₹${params.amount} ${currency} for consultation with ${params.patientName}`,
+    title: subject,
+    contentHtml,
+  });
+
+  const text = `Dr. ${params.doctorName},\n\nPayment received: ₹${params.amount} ${currency}\nPatient: ${params.patientName}\nDate: ${params.date} at ${params.time}\nRef: ${params.transactionId}\n\nView Earnings:\n${params.dashboardUrl}`;
 
   return { subject, html, text };
 }
